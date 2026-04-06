@@ -43,6 +43,16 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
     try {
       log.debug('Fetching context...', { apiUrl })
       const response = await fetch(apiUrl)
+      
+      if (!response.ok) {
+        log.error('Context API returned error status', { 
+          status: response.status, 
+          statusText: response.statusText,
+          apiUrl 
+        })
+        return null
+      }
+      
       const data = await response.json() as PageContextData
       log.debug('Context received', { url: data.url, title: data.title })
       return {
@@ -51,7 +61,13 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
         selectedElements: data.selectedElements
       }
     } catch (error) {
-      log.error('Failed to get context', { error })
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorName = error instanceof Error ? error.name : 'UnknownError'
+      log.error('Failed to get context', { 
+        error: errorMessage,
+        errorType: errorName,
+        apiUrl 
+      })
       return null
     }
   }
@@ -62,7 +78,13 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
       const response = await fetch(apiUrl, { method: 'DELETE' })
       log.debug('Clear response', { status: response.status })
     } catch (error) {
-      log.error('Failed to clear selected elements', { error })
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorName = error instanceof Error ? error.name : 'UnknownError'
+      log.error('Failed to clear selected elements', { 
+        error: errorMessage,
+        errorType: errorName,
+        apiUrl 
+      })
     }
   }
 

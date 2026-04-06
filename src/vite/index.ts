@@ -557,11 +557,16 @@ Please install OpenCode first:
         
         if (address && typeof address === 'object') {
           vitePort = address.port
-          viteHost = address.address || 'localhost'
+          const addr = address.address
+          if (addr === '::' || addr === '::1' || addr === '0.0.0.0' || !addr) {
+            viteHost = 'localhost'
+          } else {
+            viteHost = addr
+          }
         } else {
           const host = server.config.server.host
           vitePort = server.config.server.port || 5173
-          viteHost = typeof host === 'string' ? host : 'localhost'
+          viteHost = typeof host === 'string' && host !== '0.0.0.0' && host !== '::' && host !== '::1' ? host : 'localhost'
         }
         
         const viteOrigin = `http://${viteHost}:${vitePort}`
