@@ -1,0 +1,107 @@
+.home {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+  min-height: 100vh;
+  background-color: red;
+}
+
+.home .card {
+  padding: 2.5rem;
+  margin: 2rem 0;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(168, 85, 247, 0.15) 100%);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  box-shadow: 
+    0 8px 32px rgba(99, 102, 241, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.home .demo-button {
+  padding: 14px 28px;
+  font-size: 16px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 1rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 
+    0 4px 15px rgba(99, 102, 241, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.home .demo-button:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #9333ea 100%);
+  transform: translateY(-3px);
+  box-shadow: 
+    0 8px 25px rgba(99, 102, 241, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+}
+
+.home .demo-button:active {
+  transform: translateY(-1px);
+}
+
+.home .element-plus-section {
+  margin: 2.5rem 0;
+  padding: 2rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(168, 85, 247, 0.1) 100%);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.home .element-plus-section h2 {
+  color: rgba(255, 255, 255, 0.95);
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+}
+
+.home .demo-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  flex-wrap: wrap;
+}
+
+.home .instructions {
+  text-align: left;
+  padding: 2rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(168, 85, 247, 0.15) 100%);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  margin-top: 2.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(99, 102, 241, 0.15);
+}
+
+.home .instructions h2 {
+  margin-top: 0;
+  color: white;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.home .instructions ol {
+  color: rgba(255, 255, 255, 0.9);
+  line-height: 2;
+  padding-left: 1.5rem;
+}
+
+.home .instructions li {
+  margin-bottom: 0.5rem;
+}
+
+.home .instructions strong {
+  color: #a855f7;
+  font-weight: 600;
+}
