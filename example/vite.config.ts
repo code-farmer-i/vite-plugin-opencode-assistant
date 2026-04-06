@@ -11,7 +11,7 @@ export default defineConfig({
       position: 'bottom-right',
       theme: 'auto',
       autoReload: true,
-      verbose: true,
+      // verbose: true,
     }),
   ],
 })

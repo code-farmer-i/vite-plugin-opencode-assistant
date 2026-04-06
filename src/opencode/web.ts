@@ -1,24 +1,17 @@
-import { spawn, ChildProcess } from 'child_process'
-import { waitForServer } from '../vite/utils.js'
+import { execa } from 'execa'
+import type { ResultPromise } from 'execa'
 import { WebOptions } from '../types.js'
-import { SERVER_START_TIMEOUT, LOG_PREFIX } from '../constants.js'
-import { createLogger, PerformanceTimer } from '../logger.js'
+import { createLogger } from '../logger.js'
 import path from 'path'
 import fs from 'fs'
 
-const log = createLogger('Web')
+const log = createLogger('OpenCodeWeb')
 
-export async function startOpenCodeWeb(options: WebOptions): Promise<ChildProcess> {
-  const timer = log.timer('startOpenCodeWeb', { 
-    port: options.port, 
-    hostname: options.hostname 
-  })
-  
+export function startOpenCodeWeb(options: WebOptions): ResultPromise {
   const { port, hostname, cwd, configDir, corsOrigins, contextApiUrl } = options
 
   log.debug('Creating state directory', { cwd })
   const stateDir = createStateDirectory(cwd)
-  timer.checkpoint('State directory created')
 
   const pluginPath = path.join(stateDir, 'plugins', 'page-context.js')
   log.debug('Building process environment', { 
@@ -28,7 +21,6 @@ export async function startOpenCodeWeb(options: WebOptions): Promise<ChildProces
     pluginPath 
   })
   const env = buildProcessEnv(stateDir, configDir, contextApiUrl, pluginPath)
-  timer.checkpoint('Environment built')
 
   const args = [
     'serve',
@@ -49,27 +41,27 @@ export async function startOpenCodeWeb(options: WebOptions): Promise<ChildProces
     cwd 
   })
   
-  const proc = spawn('opencode', args, {
+  const proc = execa('opencode', args, {
     cwd,
-    stdio: 'pipe',
     env,
+    reject: false,
+    cleanup: true,
   })
-  
-  timer.checkpoint('Process spawned')
 
-  setupProcessHandlers(proc, port, hostname)
-
-  log.debug('Waiting for server to be ready', { 
-    url: `http://${hostname}:${port}`,
-    timeout: SERVER_START_TIMEOUT 
+  proc.stdout?.on('data', (data) => {
+    const output = data.toString().trim()
+    if (output) {
+      log.debug('[OpenCode stdout]', { output })
+    }
   })
-  await waitForServer(`http://${hostname}:${port}`, SERVER_START_TIMEOUT)
-  
-  timer.checkpoint('Server ready')
 
-  console.log(`\n\x1b[36m\x1b[1m${LOG_PREFIX}\x1b[0m ✨ OpenCode server started successfully\n`)
+  proc.stderr?.on('data', (data) => {
+    const output = data.toString().trim()
+    if (output) {
+      log.warn('[OpenCode stderr]', { output })
+    }
+  })
 
-  timer.end(`✓ Process PID: ${proc.pid}`)
   return proc
 }
 
@@ -108,38 +100,4 @@ function buildProcessEnv(stateDir: string, configDir?: string, contextApiUrl?: s
   }
 
   return env
-}
-
-function setupProcessHandlers(proc: ChildProcess, port: number, hostname: string): void {
-  log.debug('Setting up process handlers', { pid: proc.pid })
-
-  proc.stdout?.on('data', (data) => {
-    const output = data.toString().trim()
-    if (output) {
-      log.debug('[OpenCode stdout]', { output })
-    }
-  })
-
-  proc.stderr?.on('data', (data) => {
-    const output = data.toString().trim()
-    if (output) {
-      log.warn('[OpenCode stderr]', { output })
-    }
-  })
-
-  proc.on('error', (err) => {
-    log.error('Failed to start OpenCode server', { 
-      error: err, 
-      port, 
-      hostname 
-    })
-  })
-
-  proc.on('exit', (code, signal) => {
-    log.debug('OpenCode process exited', { 
-      pid: proc.pid, 
-      code, 
-      signal 
-    })
-  })
 }

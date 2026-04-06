@@ -16,9 +16,6 @@ export const SERVER_START_TIMEOUT = 15000
 /** 服务器检查间隔（毫秒） */
 export const SERVER_CHECK_INTERVAL = 100
 
-/** 健康检查超时时间（毫秒） */
-export const HEALTH_CHECK_TIMEOUT = 1000
-
 /** ==================== 重试相关 ==================== */
 
 /** 默认重试次数 */
@@ -26,9 +23,6 @@ export const DEFAULT_RETRIES = 5
 
 /** 重试延迟（毫秒） */
 export const RETRY_DELAY = 500
-
-/** 进程终止等待时间（毫秒） */
-export const PROCESS_KILL_DELAY = 500
 
 /** ==================== 端口查找 ==================== */
 

@@ -4,7 +4,6 @@ import net from 'net'
 import {
   DEFAULT_HOSTNAME,
   SERVER_CHECK_INTERVAL,
-  HEALTH_CHECK_TIMEOUT,
   MAX_PORT_TRIES,
 } from '../constants.js'
 import { createLogger, PerformanceTimer } from '../logger.js'
@@ -114,107 +113,147 @@ export async function findAvailablePort(
   throw new Error(`No available port found after ${maxTries} tries starting from ${startPort}`)
 }
 
-export async function killProcessOnPort(port: number, hostname = DEFAULT_HOSTNAME): Promise<boolean> {
-  const timer = log.timer('killProcessOnPort', { port, hostname })
+export async function killOrphanOpenCodeProcesses(): Promise<number> {
+  const timer = log.timer('killOrphanOpenCodeProcesses')
   
-  log.debug(`Attempting to kill process on port ${port}`)
+  log.debug('Looking for orphan OpenCode processes (PPID=1)')
   
   return new Promise((resolve) => {
     if (process.platform === 'win32') {
-      killProcessOnWindows(port, resolve, timer)
+      killOrphanProcessesOnWindows(resolve, timer)
     } else {
-      killProcessOnUnix(port, resolve, timer)
+      killOrphanProcessesOnUnix(resolve, timer)
     }
   })
 }
 
-function killProcessOnWindows(
-  port: number, 
-  resolve: (value: boolean) => void,
+function killOrphanProcessesOnWindows(
+  resolve: (value: number) => void,
   timer: PerformanceTimer
 ): void {
-  log.debug('Using Windows method to kill process')
+  log.debug('Using Windows method to find orphan processes')
   
-  const proc = spawn('cmd', ['/c', `netstat -ano | findstr :${port}`], { stdio: 'pipe' })
+  const proc = spawn('wmic', [
+    'process',
+    'where',
+    'name="opencode.exe"',
+    'get',
+    'processid,parentprocessid'
+  ], { stdio: 'pipe' })
+  
   let output = ''
-
+  
   proc.stdout?.on('data', (data) => {
     output += data.toString()
   })
-
+  
   proc.on('close', () => {
-    const match = output.match(/LISTENING\s+(\d+)/)
-    if (match) {
-      log.debug(`Found process PID ${match[1]} on port ${port}`)
-      spawn('taskkill', ['/F', '/PID', match[1]], { stdio: 'ignore' })
-        .on('close', (code) => {
-          const success = code === 0
-          timer.end(success ? `✓ Process killed` : '❌ Failed to kill process')
-          resolve(success)
+    const lines = output.split('\n').filter(line => line.trim())
+    const pidsToKill: string[] = []
+    
+    lines.forEach(line => {
+      const parts = line.trim().split(/\s+/)
+      if (parts.length >= 2) {
+        const ppid = parts[0]
+        const pid = parts[1]
+        if (ppid === '1' && pid && !isNaN(Number(pid))) {
+          pidsToKill.push(pid)
+        }
+      }
+    })
+    
+    if (pidsToKill.length > 0) {
+      log.debug(`Found ${pidsToKill.length} orphan processes`, { pids: pidsToKill })
+      
+      let killedCount = 0
+      let completedCount = 0
+      
+      pidsToKill.forEach(pid => {
+        const killProc = spawn('taskkill', ['/F', '/PID', pid], { stdio: 'ignore' })
+        killProc.on('close', (code) => {
+          completedCount++
+          if (code === 0) {
+            killedCount++
+            log.debug(`Killed orphan process ${pid}`)
+          }
+          
+          if (completedCount === pidsToKill.length) {
+            timer.end(`✓ Killed ${killedCount} orphan processes`)
+            resolve(killedCount)
+          }
         })
-    } else {
-      log.debug(`No process found on port ${port}`)
-      timer.end('No process found')
-      resolve(false)
-    }
-  })
-}
-
-function killProcessOnUnix(
-  port: number, 
-  resolve: (value: boolean) => void,
-  timer: PerformanceTimer
-): void {
-  log.debug('Using Unix method to kill process')
-  
-  const proc = spawn('lsof', ['-ti', `tcp:${port}`, '-sTCP:LISTEN'], { stdio: 'pipe' })
-  let output = ''
-
-  proc.stdout?.on('data', (data) => {
-    output += data.toString()
-  })
-
-  proc.on('close', () => {
-    const pids = output.trim().split('\n').filter(Boolean)
-    if (pids.length > 0) {
-      log.debug(`Found processes on port ${port}`, { pids })
-      const killProc = spawn('kill', ['-9', ...pids], { stdio: 'ignore' })
-      killProc.on('close', (code) => {
-        const success = code === 0
-        timer.end(success ? `✓ Killed ${pids.length} processes` : '❌ Failed to kill processes')
-        resolve(success)
       })
     } else {
-      log.debug(`No process found on port ${port}`)
-      timer.end('No process found')
-      resolve(false)
+      log.debug('No orphan processes found')
+      timer.end('No orphan processes found')
+      resolve(0)
     }
+  })
+  
+  proc.on('error', (err) => {
+    log.debug('Failed to find orphan processes', { error: err.message })
+    timer.end('❌ Failed to find orphan processes')
+    resolve(0)
   })
 }
 
-export async function checkOpenCodeProcess(port: number): Promise<boolean> {
-  const timer = log.timer('checkOpenCodeProcess', { port })
+function killOrphanProcessesOnUnix(
+  resolve: (value: number) => void,
+  timer: PerformanceTimer
+): void {
+  log.debug('Using Unix method to find orphan processes')
   
-  return new Promise((resolve) => {
-    log.debug(`Checking OpenCode process health on port ${port}`)
+  const proc = spawn('ps', ['-e', '-o', 'pid,ppid,comm'], { stdio: 'pipe' })
+  let output = ''
+  
+  proc.stdout?.on('data', (data) => {
+    output += data.toString()
+  })
+  
+  proc.on('close', () => {
+    const lines = output.split('\n')
+    const pidsToKill: string[] = []
     
-    const req = http.get({
-      hostname: DEFAULT_HOSTNAME,
-      port,
-      path: '/health',
-      timeout: HEALTH_CHECK_TIMEOUT,
-    }, (res) => {
-      const running = res.statusCode === 200
-      timer.end(running ? '✓ Process is running' : '❌ Process not healthy')
-      resolve(running)
+    lines.forEach(line => {
+      const trimmed = line.trim()
+      if (trimmed.includes('opencode')) {
+        const parts = trimmed.split(/\s+/)
+        if (parts.length >= 3) {
+          const pid = parts[0]
+          const ppid = parts[1]
+          const comm = parts.slice(2).join(' ')
+          
+          if (ppid === '1' && comm.includes('opencode')) {
+            pidsToKill.push(pid)
+          }
+        }
+      }
     })
     
-    req.on('error', (err) => {
-      log.debug('Health check failed', { error: err.message })
-      timer.end('❌ Health check failed')
-      resolve(false)
-    })
-    
-    req.end()
+    if (pidsToKill.length > 0) {
+      log.debug(`Found ${pidsToKill.length} orphan processes`, { pids: pidsToKill })
+      
+      const killProc = spawn('kill', ['-9', ...pidsToKill], { stdio: 'ignore' })
+      killProc.on('close', (code) => {
+        const killedCount = code === 0 ? pidsToKill.length : 0
+        timer.end(killedCount > 0 ? `✓ Killed ${killedCount} orphan processes` : '❌ Failed to kill processes')
+        resolve(killedCount)
+      })
+      
+      killProc.on('error', () => {
+        timer.end('❌ Failed to kill processes')
+        resolve(0)
+      })
+    } else {
+      log.debug('No orphan processes found')
+      timer.end('No orphan processes found')
+      resolve(0)
+    }
+  })
+  
+  proc.on('error', (err) => {
+    log.debug('Failed to find orphan processes', { error: err.message })
+    timer.end('❌ Failed to find orphan processes')
+    resolve(0)
   })
 }

@@ -160,6 +160,8 @@ function log(level: LogLevel, message: string, context?: LogContext, ...args: un
   
   const parts: string[] = []
   
+  parts.push(`${COLORS.dim}[${process.pid}]${COLORS.reset}`)
+  
   if (globalConfig.showTimestamp) {
     parts.push(`${COLORS.dim}${getTimestamp()}${COLORS.reset}`)
   }
@@ -227,7 +229,7 @@ export const logger = {
   group(label: string, context?: LogContext): void {
     if (!globalConfig.verbose) return
     const contextStr = formatContext(context)
-    console.log(`${COLORS.bright}${LOG_PREFIX}${COLORS.reset} ${COLORS.blue}▼${COLORS.reset} ${label}${contextStr ? ` ${contextStr}` : ''}`)
+    console.log(`${COLORS.dim}[${process.pid}]${COLORS.reset} ${COLORS.bright}${LOG_PREFIX}${COLORS.reset} ${COLORS.blue}▼${COLORS.reset} ${label}${contextStr ? ` ${contextStr}` : ''}`)
   },
   
   groupEnd(): void {

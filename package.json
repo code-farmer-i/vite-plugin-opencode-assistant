@@ -38,6 +38,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "execa": "^9.6.1",
     "unplugin-vue-inspector": "^2.4.0"
   },
   "peerDependencies": {

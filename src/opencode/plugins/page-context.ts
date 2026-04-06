@@ -10,7 +10,7 @@ const MAX_TEXT_LENGTH = 10000
 
 const CONTEXT_MARKER = '__OPENCODE_CONTEXT__'
 
-const log = createLogger('PageContext')
+const log = createLogger('OpenCodePluginPageContext')
 
 interface SelectedElement {
   filePath: string | null

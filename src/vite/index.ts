@@ -1,5 +1,5 @@
 import type { Plugin, ViteDevServer } from 'vite'
-import { ChildProcess } from 'child_process'
+import type { ResultPromise } from 'execa'
 import path from 'path'
 import fs from 'fs'
 import http from 'http'
@@ -11,7 +11,7 @@ const __dirname = path.dirname(__filename)
 
 import { startOpenCodeWeb } from '../opencode/web.js'
 import { injectWidget } from './injector.js'
-import { checkOpenCodeInstalled, findAvailablePort } from './utils.js'
+import { checkOpenCodeInstalled, findAvailablePort, waitForServer, killOrphanOpenCodeProcesses } from './utils.js'
 import { OpenCodeOptions, SessionInfo, PageContext } from '../types.js'
 import {
   DEFAULT_CONFIG,
@@ -22,6 +22,7 @@ import {
   START_API_PATH,
   SESSIONS_API_PATH,
   SSE_EVENTS_PATH,
+  SERVER_START_TIMEOUT,
 } from '../constants.js'
 import {
   setVerbose,
@@ -45,7 +46,7 @@ export default function opencodePlugin(options: OpenCodeOptions = {}): Plugin[] 
 }
 
 function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
-  let webProcess: ChildProcess | null = null
+  let webProcess: ResultPromise | null = null
   let sessionUrl: string | null = null
   let actualWebPort: number = DEFAULT_CONFIG.webPort
   let isStarted = false
@@ -236,7 +237,7 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
   }
 
   async function startServices(corsOrigins?: string[], contextApiUrl?: string): Promise<void> {
-    if (isStarted) {
+    if (isStarted && webProcess) {
       log.debug('Services already started, skipping')
       return
     }
@@ -248,6 +249,11 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
     startPromise = (async () => {
       const timer = log.timer('startServices', { corsOrigins, contextApiUrl })
       log.info('Starting OpenCode services...')
+
+      const orphanCount = await killOrphanOpenCodeProcesses()
+      if (orphanCount > 0) {
+        log.debug(`Killed ${orphanCount} orphan OpenCode process(es)`)
+      }
 
       if (!await checkOpenCodeInstalled()) {
         log.error(`OpenCode is not installed!
@@ -285,7 +291,7 @@ Please install OpenCode first:
         configDir 
       })
       
-      webProcess = await startOpenCodeWeb({
+      webProcess = startOpenCodeWeb({
         port: actualWebPort,
         hostname: config.hostname,
         serverUrl: '',
@@ -296,12 +302,14 @@ Please install OpenCode first:
       })
       
       timer.checkpoint('Web process started')
+
+      await waitForServer(`http://${config.hostname}:${actualWebPort}`, SERVER_START_TIMEOUT)
       log.info(`OpenCode Web started at http://${config.hostname}:${actualWebPort}`)
 
       try {
         sessionUrl = await getOrCreateSession()
         timer.checkpoint('Session created')
-        log.info(`Session URL: ${sessionUrl}`)
+        log.debug(`Session URL: ${sessionUrl}`)
       } catch (e) {
         log.warn('Failed to get/create session', { error: e })
       }
@@ -318,20 +326,9 @@ Please install OpenCode first:
     log.info('Stopping OpenCode services...')
     
     if (webProcess) {
-      log.debug('Sending SIGTERM to web process', { pid: webProcess.pid })
+      log.debug('Killing web process', { pid: webProcess.pid })
       webProcess.kill('SIGTERM')
-      await new Promise<void>(resolve => {
-        webProcess?.on('exit', () => {
-          log.debug('Web process exited')
-          resolve()
-        })
-        setTimeout(() => {
-          log.debug('Force killing web process')
-          webProcess?.kill('SIGKILL')
-          resolve()
-        }, 3000)
-      })
-      webProcess = null
+    webProcess = null
     }
     
     isStarted = false
@@ -432,7 +429,7 @@ Please install OpenCode first:
 
     async configureServer(server: ViteDevServer) {
       if (!config.enabled) {
-        log.info('Plugin disabled, skipping configuration')
+        log.debug('Plugin disabled, skipping configuration')
         return
       }
 
@@ -580,7 +577,7 @@ Please install OpenCode first:
           log.error('Failed to start services', { error: e })
         }
       })
-
+      
       server.httpServer?.on('close', () => {
         log.debug('HTTP server closing')
         stopServices()
@@ -594,11 +591,7 @@ Please install OpenCode first:
       
       process.on('SIGINT', cleanup)
       process.on('SIGTERM', cleanup)
-      process.on('exit', () => {
-        log.debug('Process exiting')
-        webProcess?.kill('SIGKILL')
-      })
-      
+
       timer.end('✓ Server configured')
     },
 
