@@ -652,13 +652,13 @@ Please install OpenCode first:
 
   return {
     name: "vite-plugin-opencode",
+    apply(_viteConfig, env) {
+      if (!config.enabled) return false;
+
+      return env.command === "serve" && process.env.NODE_ENV !== "test";
+    },
 
     async configureServer(server: ViteDevServer) {
-      if (!config.enabled) {
-        log.debug("Plugin disabled, skipping configuration");
-        return;
-      }
-
       const timer = log.timer("configureServer");
 
       server.middlewares.use(WIDGET_SCRIPT_PATH, async (_req, res) => {

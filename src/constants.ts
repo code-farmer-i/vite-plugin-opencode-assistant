@@ -95,7 +95,7 @@ export const CONTEXT_MARKER = "[元素上下文]";
 
 /** 默认插件配置 */
 export const DEFAULT_CONFIG = {
-  enabled: true,
+  enabled: false,
   webPort: DEFAULT_WEB_PORT,
   hostname: DEFAULT_HOSTNAME,
   position: "bottom-right" as const,
