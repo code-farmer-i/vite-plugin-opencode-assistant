@@ -141,6 +141,22 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
   }
 
   return {
+    "experimental.chat.system.transform": async (_input, output) => {
+      log.debug("System transform hook called");
+
+      const systemPrompt = `
+你是一个专业的前端开发助手，当前正集成在用户的 Vite 项目中（通过 vite-plugin-opencode-assistant）。
+在对话中，用户可能会自动附加他们当前正在浏览的页面上下文（包括页面 URL、标题以及在页面上选中的 DOM 节点信息）。
+
+处理这些上下文时，请遵循以下规则：
+1. **理解上下文**：当看到“我现在正在浏览项目中的这个页面”或“选中节点”等信息时，请将其作为用户请求的背景。
+2. **利用文件路径**：如果提供的节点信息中包含 \`文件位置\`，这通常对应于项目中的源代码文件。你可以直接分析或建议修改这些文件。
+3. **精准定位**：结合节点的 \`节点文本\` 和 \`文件位置\`，帮助用户快速定位问题或实现功能。
+4. **直接给出方案**：针对用户的实际请求，直接给出清晰、可执行的代码修改建议或解释，避免不必要的废话。
+`.trim();
+
+      output.system.push(systemPrompt);
+    },
     "experimental.chat.messages.transform": async (_input, output) => {
       log.debug("Message transform hook called");
       const context = await getPageContext();
