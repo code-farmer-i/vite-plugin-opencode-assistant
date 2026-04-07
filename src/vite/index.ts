@@ -377,6 +377,16 @@ Please install OpenCode first:
         sessionUrl = await getOrCreateSession();
         timer.checkpoint("Session created");
         log.debug(`Session URL: ${sessionUrl}`);
+
+        sseClients.forEach((client) => {
+          try {
+            client.write(
+              `data: ${JSON.stringify({ type: "SESSION_READY", sessionUrl })}\n\n`,
+            );
+          } catch (e) {
+            log.debug("Failed to send SESSION_READY event", { error: e });
+          }
+        });
       } catch (e) {
         log.warn("Failed to get/create session", { error: e });
       }
@@ -560,6 +570,12 @@ Please install OpenCode first:
         log.debug("SSE client connected", { totalClients: sseClients.size });
 
         res.write(`data: ${JSON.stringify({ type: "CONNECTED" })}\n\n`);
+
+        if (sessionUrl) {
+          res.write(
+            `data: ${JSON.stringify({ type: "SESSION_READY", sessionUrl })}\n\n`,
+          );
+        }
 
         req.on("close", () => {
           sseClients.delete(res);

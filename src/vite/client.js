@@ -60,8 +60,34 @@
     if (window[INIT_MARKER]) return;
     window[INIT_MARKER] = true;
 
-    const { webUrl, position, theme, open, sessionUrl, lazy, hotkey, cwd } =
-      config;
+    const {
+      webUrl,
+      position,
+      theme,
+      open,
+      sessionUrl: initialSessionUrl,
+      lazy,
+      hotkey,
+      cwd,
+    } = config;
+
+    /** @type {string|undefined} 会话 URL */
+    let sessionUrl = initialSessionUrl;
+
+    /** @type {string|null} 当前会话 ID */
+    let currentSessionId = null;
+
+    /**
+     * 从 URL 中提取会话 ID
+     */
+    function extractSessionId(url) {
+      if (!url) return null;
+      const match = url.match(/\/session\/([^/?]+)/);
+      return match ? match[1] : null;
+    }
+
+    // 从初始 URL 中提取会话 ID
+    currentSessionId = extractSessionId(sessionUrl);
 
     /** @type {string} 当前页面 URL */
     let currentPageUrl = "";
@@ -163,8 +189,13 @@
         const data = await res.json();
         if (data.success) {
           servicesStarted = true;
-          if (data.sessionUrl && iframe) {
-            iframe.src = data.sessionUrl;
+          if (data.sessionUrl) {
+            sessionUrl = data.sessionUrl;
+            currentSessionId = extractSessionId(sessionUrl);
+            if (iframe) iframe.src = sessionUrl;
+          } else {
+            if (iframe) iframe.src = "about:blank";
+            showLoading();
           }
           return true;
         }
@@ -228,12 +259,13 @@
       titleObserver.observe(document.head, { childList: true, subtree: true });
     }
 
+    /** @type {EventSource|null} SSE 连接实例 */
+    let sseConnection = null;
+
     if (servicesStarted) {
       updateContext(true);
+      setupSSEConnection();
     }
-
-    /** @type {string} iframe URL */
-    const iframeUrl = sessionUrl || webUrl;
 
     // 创建样式
     const style = document.createElement("style");
@@ -433,17 +465,26 @@
     // 创建 iframe
     const iframe = document.createElement("iframe");
     iframe.className = "opencode-iframe";
-    iframe.src = servicesStarted ? iframeUrl : "about:blank";
+    iframe.src = servicesStarted && sessionUrl ? sessionUrl : "about:blank";
     iframe.allow = "clipboard-write; clipboard-read";
     iframe.referrerPolicy = "origin";
 
+    if (servicesStarted && !sessionUrl) {
+      showLoading();
+    }
+
     iframe.onload = function () {
-      if (servicesStarted) {
+      if (
+        servicesStarted &&
+        iframe.src !== "about:blank" &&
+        iframe.src !== window.location.href
+      ) {
         updateContext();
         loadSessions();
-        setupSSEConnection();
       }
-      hideLoading();
+      if (iframe.src !== "about:blank" && iframe.src !== window.location.href) {
+        hideLoading();
+      }
     };
 
     iframeContainer.appendChild(loadingOverlay);
@@ -523,21 +564,6 @@
 
     /** @type {Array} 会话列表 */
     let sessions = [];
-
-    /** @type {string|null} 当前会话 ID */
-    let currentSessionId = null;
-
-    /**
-     * 从 URL 中提取会话 ID
-     */
-    function extractSessionId(url) {
-      if (!url) return null;
-      const match = url.match(/\/session\/([^/?]+)/);
-      return match ? match[1] : null;
-    }
-
-    // 从初始 URL 中提取会话 ID
-    currentSessionId = extractSessionId(sessionUrl);
 
     /**
      * 显示加载状态
@@ -638,7 +664,7 @@
 
       currentSessionId = session.id;
       const encodedDir = btoa(cwd);
-      const baseUrl = iframeUrl.split("/").slice(0, 3).join("/");
+      const baseUrl = webUrl;
       showLoading();
       iframe.src = `${baseUrl}/${encodedDir}/session/${session.id}`;
       renderSessionList();
@@ -749,6 +775,7 @@
           showNotification("服务启动失败，请检查控制台");
           return;
         }
+        setupSSEConnection();
       }
 
       if (isSelectMode) {
@@ -1074,15 +1101,15 @@
      * 建立 SSE 连接监听服务端事件
      */
     function setupSSEConnection() {
-      if (!servicesStarted) return;
+      if (!servicesStarted || sseConnection) return;
 
-      const eventSource = new EventSource("/__opencode_events__");
+      sseConnection = new EventSource("/__opencode_events__");
 
-      eventSource.onopen = () => {
+      sseConnection.onopen = () => {
         console.log("[OpenCode] SSE connected");
       };
 
-      eventSource.onmessage = (event) => {
+      sseConnection.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
           console.log("[OpenCode] SSE message:", data);
@@ -1102,6 +1129,16 @@
             }
           }
 
+          if (data.type === "SESSION_READY") {
+            if (data.sessionUrl && !sessionUrl) {
+              sessionUrl = data.sessionUrl;
+              currentSessionId = extractSessionId(sessionUrl);
+              if (iframe) {
+                iframe.src = sessionUrl;
+              }
+            }
+          }
+
           if (data.type === "CLEAR_ELEMENTS" && selectedElements.length > 0) {
             console.log("[OpenCode] Clearing elements");
             selectedElements = [];
@@ -1117,10 +1154,13 @@
         }
       };
 
-      eventSource.onerror = (e) => {
+      sseConnection.onerror = (e) => {
         console.error("[OpenCode] SSE error:", e);
         // 连接失败时自动重连
-        eventSource.close();
+        if (sseConnection) {
+          sseConnection.close();
+          sseConnection = null;
+        }
         setTimeout(setupSSEConnection, 3000);
       };
     }
@@ -1596,7 +1636,7 @@
       .opencode-chat-header-title {
         font-size: 14px;
         font-weight: 600;
-        color: #374151;
+        color: #282828;
         position: absolute;
         left: 50%;
         transform: translateX(-50%);
@@ -1623,7 +1663,7 @@
 
       .opencode-header-btn:hover {
         background: #282828;
-        color: #374151;
+        color: #282828;
       }
 
       .opencode-header-btn.close:hover {
@@ -1638,7 +1678,7 @@
 
       .opencode-dark .opencode-chat-header {
         background: #121212;
-        border-bottom-color: #374151;
+        border-bottom-color: #282828;
       }
 
       .opencode-dark .opencode-chat-header-title {
@@ -1650,7 +1690,7 @@
       }
 
       .opencode-dark .opencode-header-btn:hover {
-        background: #374151;
+        background: #282828;
         color: #f3f4f6;
       }
 
@@ -1687,7 +1727,7 @@
         align-items: center;
         font-weight: 600;
         font-size: 14px;
-        color: #374151;
+        color: #282828;
       }
 
       .opencode-new-session-btn {
@@ -1804,7 +1844,7 @@
       .opencode-skeleton-header-title {
         height: 18px;
         width: 80px;
-        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background: #151515;
         background-size: 200% 100%;
         animation: skeleton-loading 1.5s ease-in-out infinite;
         border-radius: 4px;
@@ -1813,7 +1853,7 @@
       .opencode-skeleton-header-btn {
         width: 28px;
         height: 28px;
-        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background: #151515;
         background-size: 200% 100%;
         animation: skeleton-loading 1.5s ease-in-out infinite;
         border-radius: 6px;
@@ -1839,7 +1879,7 @@
 
       .opencode-skeleton-title {
         height: 16px;
-        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background: #151515;
         background-size: 200% 100%;
         animation: skeleton-loading 1.5s ease-in-out infinite;
         border-radius: 4px;
@@ -1849,7 +1889,7 @@
 
       .opencode-skeleton-meta {
         height: 12px;
-        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background: #151515;
         background-size: 200% 100%;
         animation: skeleton-loading 1.5s ease-in-out infinite;
         border-radius: 4px;
@@ -1866,22 +1906,22 @@
       }
 
       .opencode-dark .opencode-skeleton-item {
-        background: #1f2937;
+        background: #1e1e1e;
       }
 
       .opencode-dark .opencode-skeleton-title,
       .opencode-dark .opencode-skeleton-meta {
-        background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+        background: linear-gradient(90deg, #282828 25%, #4b5563 50%, #282828 75%);
         background-size: 200% 100%;
       }
 
       .opencode-dark .opencode-session-header-skeleton {
-        border-bottom-color: #374151;
+        border-bottom-color: #282828;
       }
 
       .opencode-dark .opencode-skeleton-header-title,
       .opencode-dark .opencode-skeleton-header-btn {
-        background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+        background: linear-gradient(90deg, #282828 25%, #4b5563 50%, #282828 75%);
         background-size: 200% 100%;
       }
 
@@ -1944,26 +1984,26 @@
 
       .opencode-dark .opencode-session-list {
         background: #121212;
-        border-right-color: #374151;
+        border-right-color: #282828;
       }
 
       .opencode-dark .opencode-session-toggle {
         color: #9ca3af;
-        border-bottom-color: #374151;
+        border-bottom-color: #282828;
       }
 
       .opencode-dark .opencode-session-toggle:hover {
-        background: #374151;
+        background: #282828;
         color: #f3f4f6;
       }
 
       .opencode-dark .opencode-session-list-header {
-        border-bottom-color: #374151;
+        border-bottom-color: #282828;
         color: #f3f4f6;
       }
 
       .opencode-dark .opencode-session-item:hover {
-        background: #374151;
+        background: #282828;
       }
 
       .opencode-dark .opencode-session-item.active {
@@ -1975,7 +2015,7 @@
       }
 
       .opencode-dark .opencode-loading-spinner {
-        border-color: #374151;
+        border-color: #282828;
         border-top-color: #3b82f6;
       }
 
@@ -2013,7 +2053,7 @@
       .opencode-selected-nodes-title {
         font-size: 14px;
         font-weight: 600;
-        color: #374151;
+        color: #282828;
         margin-bottom: 4px;
       }
 
@@ -2067,7 +2107,7 @@
       }
 
       .opencode-node-text {
-        color: #374151;
+        color: #282828;
         font-weight: 500;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -2128,11 +2168,11 @@
 
       .opencode-dark .opencode-right-toolbar {
         background: #121212;
-        border-left-color: #374151;
+        border-left-color: #282828;
       }
 
       .opencode-dark .opencode-selected-nodes-header {
-        border-bottom-color: #374151;
+        border-bottom-color: #282828;
       }
 
       .opencode-dark .opencode-selected-nodes-title {
@@ -2148,8 +2188,8 @@
       }
 
       .opencode-dark .opencode-selected-node {
-        background: #1f2937;
-        border-color: #374151;
+        background: #1e1e1e;
+        border-color: #282828;
       }
 
       .opencode-dark .opencode-selected-node:hover {
@@ -2242,7 +2282,7 @@
 
       .opencode-dialog-message {
         font-size: 15px;
-        color: #374151;
+        color: #282828;
         line-height: 1.5;
       }
 
@@ -2264,7 +2304,7 @@
 
       .opencode-dialog-btn.cancel {
         background: #f3f4f6;
-        color: #374151;
+        color: #282828;
       }
 
       .opencode-dialog-btn.cancel:hover {
@@ -2281,7 +2321,7 @@
       }
 
       .opencode-dark .opencode-dialog {
-        background: #1f2937;
+        background: #1e1e1e;
       }
 
       .opencode-dark .opencode-dialog-message {
@@ -2289,7 +2329,7 @@
       }
 
       .opencode-dark .opencode-dialog-btn.cancel {
-        background: #374151;
+        background: #282828;
         color: #f3f4f6;
       }
 
@@ -2354,7 +2394,7 @@
 
       .opencode-element-tooltip {
         position: fixed;
-        background: #1f2937;
+        background: #1e1e1e;
         color: white;
         padding: 8px 12px;
         border-radius: 6px;
@@ -2408,7 +2448,7 @@
       }
 
       .opencode-bubble-text {
-        color: #374151;
+        color: #282828;
         font-weight: 500;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -2457,8 +2497,8 @@
       }
 
       .opencode-dark .opencode-selected-bubble {
-        background: #1f2937;
-        border-color: #374151;
+        background: #1e1e1e;
+        border-color: #282828;
       }
 
       .opencode-dark .opencode-bubble-text {
@@ -2474,8 +2514,8 @@
       }
 
       .opencode-dark .opencode-bubble-empty {
-        background: #1f2937;
-        border-color: #374151;
+        background: #1e1e1e;
+        border-color: #282828;
         color: #6b7280;
       }
 
