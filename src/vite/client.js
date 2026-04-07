@@ -499,10 +499,15 @@
     selectedBubbles.setAttribute("role", "list");
     selectedBubbles.setAttribute("aria-label", "已选元素列表");
 
-    chat.appendChild(sessionList);
+    // 创建内容容器
+    const chatContent = document.createElement("div");
+    chatContent.className = "opencode-chat-content";
+
     chat.appendChild(chatHeader);
-    chat.appendChild(iframeContainer);
-    chat.appendChild(rightToolbar);
+    chatContent.appendChild(sessionList);
+    chatContent.appendChild(iframeContainer);
+    chatContent.appendChild(rightToolbar);
+    chat.appendChild(chatContent);
 
     container.appendChild(button);
     container.appendChild(selectedBubbles);
@@ -719,28 +724,9 @@
             ? "dark"
             : "light"
           : theme;
-      const palette =
-        resolvedTheme === "dark"
-          ? {
-              primary: "#fab283",
-              secondary: "#5c9cf5",
-              accent: "#9d7cd8",
-              danger: "#e06c75",
-            }
-          : {
-              primary: "#3b7dd8",
-              secondary: "#7b5bb6",
-              accent: "#d68c27",
-              danger: "#d05c76",
-            };
 
       container.classList.toggle("opencode-dark", resolvedTheme === "dark");
       container.style.colorScheme = resolvedTheme;
-      iframe.style.colorScheme = resolvedTheme;
-      container.style.setProperty("--opencode-primary", palette.primary);
-      container.style.setProperty("--opencode-secondary", palette.secondary);
-      container.style.setProperty("--opencode-accent", palette.accent);
-      container.style.setProperty("--opencode-danger", palette.danger);
     }
 
     applyTheme();
@@ -1553,6 +1539,13 @@
         transform: translateY(20px) scale(0.95);
         transition: all 0.3s ease;
         display: flex;
+        flex-direction: column;
+      }
+
+      .opencode-chat-content {
+        display: flex;
+        flex: 1;
+        overflow: hidden;
       }
 
       .opencode-widget.bottom-right .opencode-chat {
@@ -1582,17 +1575,15 @@
       }
 
       .opencode-chat-header {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
+        position: relative;
+        flex-shrink: 0;
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 0 12px;
         height: 40px;
         background: #f8f9fa;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid #282828;
         z-index: 5;
       }
 
@@ -1631,7 +1622,7 @@
       }
 
       .opencode-header-btn:hover {
-        background: #e5e7eb;
+        background: #282828;
         color: #374151;
       }
 
@@ -1646,7 +1637,7 @@
       }
 
       .opencode-dark .opencode-chat-header {
-        background: #111827;
+        background: #121212;
         border-bottom-color: #374151;
       }
 
@@ -1669,10 +1660,9 @@
       }
 
       .opencode-session-list {
-        margin-top: 40px;
         width: 240px;
         background: #f8f9fa;
-        border-right: 1px solid #e5e7eb;
+        border-right: 1px solid #282828;
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
@@ -1691,7 +1681,7 @@
 
       .opencode-session-list-header {
         padding: 16px;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid #282828;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -1735,7 +1725,7 @@
       }
 
       .opencode-session-item:hover {
-        background: #e5e7eb;
+        background: #282828;
       }
 
       .opencode-session-item.active {
@@ -1801,7 +1791,7 @@
 
       .opencode-session-header-skeleton {
         padding: 16px;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid #282828;
         display: none;
         justify-content: space-between;
         align-items: center;
@@ -1902,7 +1892,6 @@
         display: flex;
         flex-direction: column;
         margin-top: -42px;
-        padding-top: 40px;
       }
 
       .opencode-loading-overlay {
@@ -1927,7 +1916,7 @@
       .opencode-loading-spinner {
         width: 40px;
         height: 40px;
-        border: 3px solid #e5e7eb;
+        border: 3px solid #282828;
         border-top-color: #3b82f6;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
@@ -1954,7 +1943,7 @@
       }
 
       .opencode-dark .opencode-session-list {
-        background: #111827;
+        background: #121212;
         border-right-color: #374151;
       }
 
@@ -1997,12 +1986,11 @@
       .opencode-right-toolbar {
         width: 140px;
         background: #f8f9fa;
-        border-left: 1px solid #e5e7eb;
+        border-left: 1px solid #282828;
         display: flex;
         flex-direction: column;
         flex-shrink: 0;
         transition: width 0.2s ease;
-        margin-top: 40px;
         overflow: hidden;
       }
 
@@ -2019,7 +2007,7 @@
 
       .opencode-selected-nodes-header {
         padding: 12px 8px 8px;
-        border-bottom: 1px solid #e5e7eb;
+        border-bottom: 1px solid #282828;
       }
 
       .opencode-selected-nodes-title {
@@ -2059,7 +2047,7 @@
         gap: 8px;
         padding: 8px 10px;
         background: white;
-        border: 1px solid #e5e7eb;
+        border: 1px solid #282828;
         border-radius: 6px;
         font-size: 12px;
         transition: all 0.2s;
@@ -2139,7 +2127,7 @@
       }
 
       .opencode-dark .opencode-right-toolbar {
-        background: #111827;
+        background: #121212;
         border-left-color: #374151;
       }
 
@@ -2280,7 +2268,7 @@
       }
 
       .opencode-dialog-btn.cancel:hover {
-        background: #e5e7eb;
+        background: #282828;
       }
 
       .opencode-dialog-btn.confirm {
@@ -2412,7 +2400,7 @@
         gap: 2px;
         padding: 8px 10px;
         background: white;
-        border: 1px solid #e5e7eb;
+        border: 1px solid #282828;
         border-radius: 8px;
         font-size: 12px;
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
