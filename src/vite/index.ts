@@ -146,21 +146,30 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
 
   async function createSession(
     retries = DEFAULT_RETRIES,
+    title?: string,
   ): Promise<SessionInfo> {
-    const timer = log.timer("createSession", { retries });
+    const timer = log.timer("createSession", { retries, title });
     let lastError: Error | null = null;
 
     for (let i = 0; i < retries; i++) {
       try {
         log.debug(`Attempt ${i + 1}/${retries}`, {
           operation: "createSession",
+          title,
         });
-        const session = await createHttpRequest<SessionInfo>({
-          hostname: config.hostname,
-          port: actualWebPort,
-          path: "/session",
-          method: "POST",
-        });
+        const requestBody = title ? JSON.stringify({ title }) : undefined;
+        const session = await createHttpRequest<SessionInfo>(
+          {
+            hostname: config.hostname,
+            port: actualWebPort,
+            path: "/session",
+            method: "POST",
+            headers: requestBody
+              ? { "Content-Type": "application/json" }
+              : undefined,
+          },
+          requestBody,
+        );
         timer.end(`Created session: ${session.id}`);
         return session;
       } catch (e) {
@@ -220,6 +229,110 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
 
     timer.end("❌ All retries exhausted");
     throw lastError;
+  }
+
+  async function getToolIds(retries = DEFAULT_RETRIES): Promise<string[]> {
+    const timer = log.timer("getToolIds", { retries });
+    let lastError: Error | null = null;
+
+    for (let i = 0; i < retries; i++) {
+      try {
+        log.debug(`Attempt ${i + 1}/${retries}`, {
+          operation: "getToolIds",
+        });
+        const toolIds = await createHttpRequest<string[]>({
+          hostname: config.hostname,
+          port: actualWebPort,
+          path: "/experimental/tool/ids",
+        });
+        timer.end(`Found ${toolIds.length} tools`);
+        return toolIds;
+      } catch (e) {
+        lastError = e instanceof Error ? e : new Error(String(e));
+        log.debug(`Attempt ${i + 1} failed: ${lastError.message}`, {
+          operation: "getToolIds",
+        });
+        if (i < retries - 1) {
+          log.debug(`Retrying in ${RETRY_DELAY}ms...`, {
+            operation: "getToolIds",
+          });
+          await sleep(RETRY_DELAY);
+        }
+      }
+    }
+
+    timer.end("❌ All retries exhausted");
+    throw lastError;
+  }
+
+  async function warmupChromeMcp(viteOrigin?: string): Promise<void> {
+    if (!config.warmupChromeMcp) return;
+
+    const timer = log.timer("warmupChromeMcp", { viteOrigin });
+    let warmupSessionId: string | null = null;
+
+    try {
+      const warmupSession = await createSession(
+        DEFAULT_RETRIES,
+        "__chrome_mcp_warmup__",
+      );
+      warmupSessionId = warmupSession.id;
+      let chromeToolIds: string[] | undefined;
+
+      try {
+        const toolIds = await getToolIds();
+        chromeToolIds = toolIds.filter((toolId) =>
+          /chrome[-_]?devtools/i.test(toolId),
+        );
+        log.debug("Resolved Chrome MCP tool ids", {
+          chromeToolIds,
+        });
+      } catch (e) {
+        log.debug("Failed to resolve Chrome MCP tool ids", { error: e });
+      }
+
+      const prompt = [
+        "Call the browser tool list_pages immediately to establish the Chrome DevTools MCP connection.",
+        viteOrigin
+          ? `If there are no pages, call new_page with ${viteOrigin}.`
+          : "If there are no pages, call new_page with about:blank.",
+        "Do not read or modify project files.",
+        "Do not use any non-browser tools.",
+        "After the tool call is complete, reply with exactly: ready",
+      ].join(" ");
+
+      await createHttpRequest<unknown>(
+        {
+          hostname: config.hostname,
+          port: actualWebPort,
+          path: `/session/${warmupSessionId}/message`,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        },
+        JSON.stringify({
+          system:
+            "You are warming up Chrome DevTools MCP during startup. You must use the available browser tools immediately before replying.",
+          tools: chromeToolIds?.length ? chromeToolIds : undefined,
+          parts: [{ type: "text", text: prompt }],
+        }),
+      );
+
+      timer.end("Chrome MCP warmed up");
+    } catch (e) {
+      log.warn("Failed to warm up Chrome MCP", { error: e });
+      timer.end("Chrome MCP warmup skipped");
+    } finally {
+      if (warmupSessionId) {
+        try {
+          await deleteSession(warmupSessionId);
+        } catch (e) {
+          log.debug("Failed to delete warmup session", {
+            error: e,
+            warmupSessionId,
+          });
+        }
+      }
+    }
   }
 
   async function getOrCreateSession(): Promise<string> {
@@ -305,6 +418,7 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
   async function startServices(
     corsOrigins?: string[],
     contextApiUrl?: string,
+    viteOrigin?: string,
   ): Promise<void> {
     if (isStarted && webProcess) {
       log.debug("Services already started, skipping");
@@ -316,7 +430,11 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
     }
 
     startPromise = (async () => {
-      const timer = log.timer("startServices", { corsOrigins, contextApiUrl });
+      const timer = log.timer("startServices", {
+        corsOrigins,
+        contextApiUrl,
+        viteOrigin,
+      });
       log.info("Starting OpenCode services...");
 
       const orphanCount = await killOrphanOpenCodeProcesses();
@@ -386,6 +504,9 @@ Please install OpenCode first:
 
       await waitForServer(webUrl, SERVER_START_TIMEOUT);
       log.info(`OpenCode Web started at ${webUrl}`);
+
+      await warmupChromeMcp(viteOrigin);
+      timer.checkpoint("Chrome MCP warmup complete");
 
       try {
         sessionUrl = await getOrCreateSession();
@@ -699,7 +820,7 @@ Please install OpenCode first:
         });
 
         try {
-          await startServices([viteOrigin], contextApiUrl);
+          await startServices([viteOrigin], contextApiUrl, viteOrigin);
         } catch (e) {
           log.error("Failed to start services", { error: e });
         }

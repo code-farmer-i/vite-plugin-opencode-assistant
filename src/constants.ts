@@ -104,4 +104,5 @@ export const DEFAULT_CONFIG = {
   autoReload: true,
   verbose: false,
   hotkey: "ctrl+k",
+  warmupChromeMcp: true,
 };

@@ -3,23 +3,25 @@
  */
 export interface OpenCodeOptions {
   /** 是否启用插件，默认 true */
-  enabled?: boolean
+  enabled?: boolean;
   /** Web 服务端口，默认 4097 */
-  webPort?: number
+  webPort?: number;
   /** 服务主机名，默认 '127.0.0.1' */
-  hostname?: string
+  hostname?: string;
   /** 挂件位置，默认 'bottom-right' */
-  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
+  position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
   /** 主题模式，默认 'auto' */
-  theme?: 'light' | 'dark' | 'auto'
+  theme?: "light" | "dark" | "auto";
   /** 是否自动打开面板，默认 false */
-  open?: boolean
+  open?: boolean;
   /** 是否自动重载，默认 true */
-  autoReload?: boolean
+  autoReload?: boolean;
   /** 是否输出详细日志，默认 false */
-  verbose?: boolean
+  verbose?: boolean;
   /** 快捷键配置，默认 'ctrl+k' */
-  hotkey?: string
+  hotkey?: string;
+  /** 服务启动后是否立即预热 Chrome MCP，默认 true */
+  warmupChromeMcp?: boolean;
 }
 
 /**
@@ -27,19 +29,19 @@ export interface OpenCodeOptions {
  */
 export interface WebOptions {
   /** 服务端口 */
-  port: number
+  port: number;
   /** 服务主机名 */
-  hostname: string
+  hostname: string;
   /** 服务器 URL */
-  serverUrl: string
+  serverUrl: string;
   /** 工作目录 */
-  cwd: string
+  cwd: string;
   /** 配置目录路径 */
-  configDir?: string
+  configDir?: string;
   /** CORS 允许的源 */
-  corsOrigins?: string[]
+  corsOrigins?: string[];
   /** 上下文 API URL */
-  contextApiUrl?: string
+  contextApiUrl?: string;
 }
 
 /**
@@ -47,23 +49,23 @@ export interface WebOptions {
  */
 export interface WidgetOptions {
   /** Web 服务 URL */
-  webUrl: string
+  webUrl: string;
   /** 服务器 URL */
-  serverUrl: string
+  serverUrl: string;
   /** 挂件位置 */
-  position: string
+  position: string;
   /** 主题模式 */
-  theme: string
+  theme: string;
   /** 是否自动打开 */
-  open: boolean
+  open: boolean;
   /** 是否自动重载 */
-  autoReload: boolean
+  autoReload: boolean;
   /** 工作目录 */
-  cwd: string
+  cwd: string;
   /** 会话 URL */
-  sessionUrl?: string
+  sessionUrl?: string;
   /** 快捷键配置 */
-  hotkey?: string
+  hotkey?: string;
 }
 
 /**
@@ -71,33 +73,33 @@ export interface WidgetOptions {
  */
 export interface SessionInfo {
   /** 会话 ID */
-  id: string
+  id: string;
   /** 会话标识符 */
-  slug: string
+  slug: string;
   /** 项目 ID */
-  projectID: string
+  projectID: string;
   /** 项目目录 */
-  directory: string
+  directory: string;
   /** 会话标题 */
-  title: string
+  title: string;
   /** 版本号 */
-  version: string
+  version: string;
   /** 代码变更统计 */
   summary: {
     /** 新增行数 */
-    additions: number
+    additions: number;
     /** 删除行数 */
-    deletions: number
+    deletions: number;
     /** 修改文件数 */
-    files: number
-  }
+    files: number;
+  };
   /** 时间信息 */
   time: {
     /** 创建时间戳 */
-    created: number
+    created: number;
     /** 更新时间戳 */
-    updated: number
-  }
+    updated: number;
+  };
 }
 
 /**
@@ -105,15 +107,15 @@ export interface SessionInfo {
  */
 export interface SelectedElement {
   /** 文件路径 */
-  filePath: string | null
+  filePath: string | null;
   /** 行号 */
-  line: number | null
+  line: number | null;
   /** 列号 */
-  column: number | null
+  column: number | null;
   /** 元素内部文本 */
-  innerText: string
+  innerText: string;
   /** 元素描述（标签名+选择器） */
-  description?: string
+  description?: string;
 }
 
 /**
@@ -121,9 +123,9 @@ export interface SelectedElement {
  */
 export interface PageContext {
   /** 当前页面 URL */
-  url: string
+  url: string;
   /** 当前页面标题 */
-  title: string
+  title: string;
   /** 选中的元素列表 */
-  selectedElements?: SelectedElement[]
+  selectedElements?: SelectedElement[];
 }
