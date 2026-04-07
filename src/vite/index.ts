@@ -284,6 +284,20 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
       log.warn("Plugin source not found", { path: pluginSourcePath });
     }
 
+    // 生成内置的 Chrome DevTools MCP 配置
+    const mcpConfig = {
+      mcp: {
+        "chrome-devtools": {
+          type: "local",
+          command: ["npx", "-y", "chrome-devtools-mcp@latest", "--autoConnect"],
+          enabled: true,
+        },
+      },
+    };
+    const mcpConfigPath = path.join(cacheDir, "opencode.json");
+    fs.writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2));
+    log.debug("Created OpenCode MCP config", { mcpConfigPath });
+
     timer.end();
     return cacheDir;
   }
