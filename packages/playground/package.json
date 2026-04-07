@@ -1,0 +1,13 @@
+{
+  "name": "@vite-plugin-opencode-assistant/docs",
+  "version": "1.0.4",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pagoda-cli site",
+    "build": "pagoda-cli build-site"
+  },
+  "devDependencies": {
+    "vite-plugin-opencode-assistant": "workspace:*"
+  }
+}

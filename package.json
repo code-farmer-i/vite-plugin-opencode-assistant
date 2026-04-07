@@ -1,65 +1,23 @@
 {
-  "name": "vite-plugin-opencode-assistant",
+  "name": "vite-plugin-opencode-assistant-workspace",
   "version": "1.0.4",
-  "description": "Embed OpenCode Web UI in your Vite dev server for real-time code modification and preview",
-  "main": "dist/vite/index.js",
-  "types": "dist/vite/index.d.ts",
+  "private": true,
   "type": "module",
-  "workspaces": [
-    "example"
-  ],
-  "exports": {
-    ".": {
-      "import": "./dist/vite/index.js",
-      "types": "./dist/vite/index.d.ts"
-    }
-  },
-  "files": [
-    "dist"
-  ],
-  "publishConfig": {
-    "registry": "https://registry.npmjs.org"
-  },
+  "packageManager": "pnpm@10.32.1",
   "scripts": {
-    "build": "rm -rf dist && tsc && npm run build:plugins",
-    "build:plugins": "vite build --config vite.plugins.config.ts",
-    "dev": "tsc --watch",
-    "test": "vitest",
-    "prepublishOnly": "npm run build"
-  },
-  "keywords": [
-    "vite",
-    "plugin",
-    "opencode",
-    "ai",
-    "assistant",
-    "chat",
-    "hmr",
-    "real-time",
-    "code-modification"
-  ],
-  "author": "",
-  "license": "MIT",
-  "dependencies": {
-    "execa": "^9.6.1",
-    "unplugin-vue-inspector": "^2.4.0"
-  },
-  "peerDependencies": {
-    "vite": ">=4.0.0"
+    "build": "pnpm --filter @vite-plugin-opencode-assistant/shared build && pnpm --filter @vite-plugin-opencode-assistant/opencode build && pnpm --filter vite-plugin-opencode-assistant build",
+    "dev": "pnpm --filter vite-plugin-opencode-assistant dev",
+    "dev:docs": "pnpm --filter @vite-plugin-opencode-assistant/docs dev",
+    "build:docs": "pnpm --filter @vite-plugin-opencode-assistant/docs build",
+    "test": "pnpm --filter vite-plugin-opencode-assistant test",
+    "typecheck": "pnpm -r --if-present run typecheck"
   },
   "devDependencies": {
-    "@opencode-ai/plugin": "^1.3.15",
+    "@pagoda-cli/core": "^1.0.0",
+    "@pnpm/logger": "1000.0.0",
     "@types/node": "^20.0.0",
     "typescript": "^5.0.0",
     "vite": "^5.0.0",
     "vitest": "^1.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/your-username/vite-plugin-opencode.git"
-  },
-  "bugs": {
-    "url": "https://github.com/your-username/vite-plugin-opencode/issues"
-  },
-  "homepage": "https://github.com/your-username/vite-plugin-opencode#readme"
+  }
 }

@@ -1,0 +1,51 @@
+{
+  "name": "vite-plugin-opencode-assistant",
+  "version": "1.0.4",
+  "description": "Embed OpenCode Web UI in your Vite dev server for real-time code modification and preview",
+  "type": "module",
+  "main": "lib/index.js",
+  "module": "es/index.js",
+  "types": "es/index.d.ts",
+  "files": [
+    "es",
+    "lib"
+  ],
+  "exports": {
+    ".": {
+      "types": "./es/index.d.ts",
+      "import": "./es/index.js",
+      "require": "./lib/index.js"
+    }
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "build": "pagoda-cli build",
+    "dev": "pagoda-cli dev",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepublishOnly": "pnpm run build"
+  },
+  "keywords": [
+    "vite",
+    "plugin",
+    "opencode",
+    "ai",
+    "assistant",
+    "chat",
+    "hmr",
+    "real-time",
+    "code-modification"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@vite-plugin-opencode-assistant/opencode": "workspace:*",
+    "@vite-plugin-opencode-assistant/shared": "workspace:*",
+    "unplugin-vue-inspector": "^2.4.0"
+  },
+  "peerDependencies": {
+    "vite": ">=4.0.0"
+  }
+}
