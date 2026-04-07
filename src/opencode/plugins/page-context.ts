@@ -127,16 +127,17 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
     const pageLink = context.title
       ? `[${context.title}](${context.url})`
       : context.url;
-    let prefix = `我现在正在浏览项目中的这个页面：${pageLink}\n\n`;
+    let prefix = `【系统提示：以下是用户当前正在浏览的页面上下文，请将其作为最高优先级的背景信息来理解和响应用户的请求。】\n\n`;
+    prefix += `用户现在正在浏览项目中的这个页面：${pageLink}\n\n`;
 
     if (context.selectedElements?.length) {
-      prefix += `我选中了以下节点：\n\n`;
+      prefix += `用户选中了以下节点：\n\n`;
       context.selectedElements.forEach((element, index) => {
         prefix += formatSelectedElement(element, index) + "\n";
       });
     }
 
-    prefix += `---\n**我的请求**：\n\n`;
+    prefix += `---\n**用户的请求**：\n\n`;
     return prefix;
   }
 
