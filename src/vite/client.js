@@ -3,26 +3,26 @@
  * @description 用于在浏览器中显示 OpenCode AI 助手挂件
  */
 
-(function() {
-  'use strict'
+(function () {
+  "use strict";
 
   /** @type {string} 初始化标记 */
-  const INIT_MARKER = '__OPENCODE_INITIALIZED__'
+  const INIT_MARKER = "__OPENCODE_INITIALIZED__";
 
   /** @type {string} 选中元素存储键 */
-  const SELECTED_ELEMENTS_KEY = '__opencode_selected_elements__'
+  const SELECTED_ELEMENTS_KEY = "__opencode_selected_elements__";
 
   /** @type {number} 服务器同步间隔（毫秒） */
-  const SERVER_SYNC_INTERVAL = 2000
+  const SERVER_SYNC_INTERVAL = 2000;
 
   /** @type {number} 检查 Vue Inspector 间隔（毫秒） */
-  const INSPECTOR_CHECK_INTERVAL = 500
+  const INSPECTOR_CHECK_INTERVAL = 500;
 
   /** @type {number} 自动打开延迟（毫秒） */
-  const AUTO_OPEN_DELAY = 1000
+  const AUTO_OPEN_DELAY = 1000;
 
   /** @type {number} 通知显示时间（毫秒） */
-  const NOTIFICATION_DURATION = 3000
+  const NOTIFICATION_DURATION = 3000;
 
   /**
    * @typedef {Object} HotkeyConfig
@@ -57,22 +57,23 @@
    * @param {WidgetConfig} config - 挂件配置
    */
   function initOpenCodeWidget(config) {
-    if (window[INIT_MARKER]) return
-    window[INIT_MARKER] = true
+    if (window[INIT_MARKER]) return;
+    window[INIT_MARKER] = true;
 
-    const { webUrl, position, theme, open, sessionUrl, lazy, hotkey, cwd } = config
+    const { webUrl, position, theme, open, sessionUrl, lazy, hotkey, cwd } =
+      config;
 
     /** @type {string} 当前页面 URL */
-    let currentPageUrl = ''
+    let currentPageUrl = "";
 
     /** @type {string} 当前页面标题 */
-    let currentPageTitle = ''
+    let currentPageTitle = "";
 
     /** @type {boolean} 服务是否已启动 */
-    let servicesStarted = !lazy
+    let servicesStarted = !lazy;
 
     /** @type {boolean} 挂件是否打开 */
-    let isOpen = false
+    let isOpen = false;
 
     /**
      * 解析快捷键字符串
@@ -80,24 +81,27 @@
      * @returns {HotkeyConfig} 快捷键配置
      */
     function parseHotkey(hotkeyStr) {
-      if (!hotkeyStr) return { ctrl: true, shift: false, alt: false, key: 'k' }
+      if (!hotkeyStr) return { ctrl: true, shift: false, alt: false, key: "k" };
 
-      const parts = hotkeyStr.toLowerCase().split('+')
-      const key = parts.pop()
+      const parts = hotkeyStr.toLowerCase().split("+");
+      const key = parts.pop();
 
       return {
-        ctrl: parts.includes('ctrl') || parts.includes('cmd') || parts.includes('meta'),
-        shift: parts.includes('shift'),
-        alt: parts.includes('alt'),
-        key: key || 'k'
-      }
+        ctrl:
+          parts.includes("ctrl") ||
+          parts.includes("cmd") ||
+          parts.includes("meta"),
+        shift: parts.includes("shift"),
+        alt: parts.includes("alt"),
+        key: key || "k",
+      };
     }
 
     /** @type {HotkeyConfig} 主快捷键配置 */
-    const mainHotkey = parseHotkey(hotkey)
+    const mainHotkey = parseHotkey(hotkey);
 
     /** @type {HotkeyConfig} 选择模式快捷键配置 */
-    const selectHotkey = parseHotkey('ctrl+p')
+    const selectHotkey = parseHotkey("ctrl+p");
 
     /**
      * 检查键盘事件是否匹配快捷键
@@ -106,12 +110,14 @@
      * @returns {boolean} 是否匹配
      */
     function matchHotkey(e, hotkeyConfig) {
-      const ctrlMatch = hotkeyConfig.ctrl ? (e.ctrlKey || e.metaKey) : !(e.ctrlKey || e.metaKey)
-      const shiftMatch = hotkeyConfig.shift ? e.shiftKey : !e.shiftKey
-      const altMatch = hotkeyConfig.alt ? e.altKey : !e.altKey
-      const keyMatch = e.key.toLowerCase() === hotkeyConfig.key.toLowerCase()
+      const ctrlMatch = hotkeyConfig.ctrl
+        ? e.ctrlKey || e.metaKey
+        : !(e.ctrlKey || e.metaKey);
+      const shiftMatch = hotkeyConfig.shift ? e.shiftKey : !e.shiftKey;
+      const altMatch = hotkeyConfig.alt ? e.altKey : !e.altKey;
+      const keyMatch = e.key.toLowerCase() === hotkeyConfig.key.toLowerCase();
 
-      return ctrlMatch && shiftMatch && altMatch && keyMatch
+      return ctrlMatch && shiftMatch && altMatch && keyMatch;
     }
 
     /**
@@ -120,14 +126,14 @@
      */
     function loadSelectedElements() {
       try {
-        const stored = sessionStorage.getItem(SELECTED_ELEMENTS_KEY)
+        const stored = sessionStorage.getItem(SELECTED_ELEMENTS_KEY);
         if (stored) {
-          return JSON.parse(stored)
+          return JSON.parse(stored);
         }
       } catch (e) {
         // 忽略错误
       }
-      return []
+      return [];
     }
 
     /**
@@ -136,36 +142,36 @@
      */
     function saveSelectedElements(elements) {
       try {
-        sessionStorage.setItem(SELECTED_ELEMENTS_KEY, JSON.stringify(elements))
+        sessionStorage.setItem(SELECTED_ELEMENTS_KEY, JSON.stringify(elements));
       } catch (e) {
         // 忽略错误
       }
     }
 
     /** @type {SelectedElement[]} 选中的元素列表 */
-    let selectedElements = loadSelectedElements()
+    let selectedElements = loadSelectedElements();
 
     /**
      * 确保服务已启动
      * @returns {Promise<boolean>} 是否成功启动
      */
     async function ensureServicesStarted() {
-      if (servicesStarted) return true
+      if (servicesStarted) return true;
 
       try {
-        const res = await fetch('/__opencode_start__')
-        const data = await res.json()
+        const res = await fetch("/__opencode_start__");
+        const data = await res.json();
         if (data.success) {
-          servicesStarted = true
+          servicesStarted = true;
           if (data.sessionUrl && iframe) {
-            iframe.src = data.sessionUrl
+            iframe.src = data.sessionUrl;
           }
-          return true
+          return true;
         }
       } catch (e) {
-        console.error('[OpenCode Widget] Failed to start services:', e)
+        console.error("[OpenCode Widget] Failed to start services:", e);
       }
-      return false
+      return false;
     }
 
     /**
@@ -173,177 +179,184 @@
      * @param {boolean} [force=false] - 是否强制更新
      */
     function updateContext(force = false) {
-      if (!servicesStarted) return
+      if (!servicesStarted) return;
 
-      const newUrl = window.location.href
-      const newTitle = document.title
+      const newUrl = window.location.href;
+      const newTitle = document.title;
 
       if (force || newUrl !== currentPageUrl || newTitle !== currentPageTitle) {
-        currentPageUrl = newUrl
-        currentPageTitle = newTitle
+        currentPageUrl = newUrl;
+        currentPageTitle = newTitle;
 
-        fetch('/__opencode_context__', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: newUrl, title: newTitle, selectedElements })
-        }).catch(() => {})
+        fetch("/__opencode_context__", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            url: newUrl,
+            title: newTitle,
+            selectedElements,
+          }),
+        }).catch(() => {});
       }
     }
 
     // 监听路由变化
-    const originalPushState = history.pushState
-    const originalReplaceState = history.replaceState
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
 
-    history.pushState = function(...args) {
-      originalPushState.apply(this, args)
-      setTimeout(updateContext, 0)
-    }
+    history.pushState = function (...args) {
+      originalPushState.apply(this, args);
+      setTimeout(updateContext, 0);
+    };
 
-    history.replaceState = function(...args) {
-      originalReplaceState.apply(this, args)
-      setTimeout(updateContext, 0)
-    }
+    history.replaceState = function (...args) {
+      originalReplaceState.apply(this, args);
+      setTimeout(updateContext, 0);
+    };
 
-    window.addEventListener('popstate', () => setTimeout(updateContext, 0))
-    window.addEventListener('hashchange', () => setTimeout(updateContext, 0))
+    window.addEventListener("popstate", () => setTimeout(updateContext, 0));
+    window.addEventListener("hashchange", () => setTimeout(updateContext, 0));
 
     // 监听标题变化
     const titleObserver = new MutationObserver(() => {
       if (document.title !== currentPageTitle) {
-        updateContext()
+        updateContext();
       }
-    })
+    });
 
     if (document.head) {
-      titleObserver.observe(document.head, { childList: true, subtree: true })
+      titleObserver.observe(document.head, { childList: true, subtree: true });
     }
 
     if (servicesStarted) {
-      updateContext(true)
+      updateContext(true);
     }
 
     /** @type {string} iframe URL */
-    const iframeUrl = sessionUrl || webUrl
+    const iframeUrl = sessionUrl || webUrl;
 
     // 创建样式
-    const style = document.createElement('style')
-    style.textContent = buildWidgetStyles()
-    document.head.appendChild(style)
+    const style = document.createElement("style");
+    style.textContent = buildWidgetStyles();
+    document.head.appendChild(style);
 
     // 创建容器
-    const container = document.createElement('div')
-    container.className = `opencode-widget ${position}`
+    const container = document.createElement("div");
+    container.className = `opencode-widget ${position}`;
 
     // 创建按钮
-    const button = document.createElement('button')
-    button.className = 'opencode-button'
+    const button = document.createElement("button");
+    button.className = "opencode-button";
     button.innerHTML = `
       <svg t="1775402599580" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns=" http://www.w3.org/2000/svg " p-id="5390" xmlns:xlink=" http://www.w3.org/1999/xlink " width="100%" height="100%"><path d="M512 981.33H85.34c-15.85 0-30.38-8.77-37.77-22.81a42.624 42.624 0 0 1 2.6-44.02L135 791.08C75.25 710.5 42.67 612.6 42.67 512 42.67 253.21 253.21 42.67 512 42.67S981.34 253.21 981.34 512 770.8 981.33 512 981.33zM166.44 896H512c211.73 0 384-172.27 384-384S723.73 128 512 128 128 300.27 128 512c0 91.29 32.83 179.9 92.46 249.46 12.58 14.69 13.73 36 2.77 51.94L166.44 896z" fill="white" p-id="5391"></path><path d="M384 448m-64 0a64 64 0 1 0 128 0 64 64 0 1 0 -128 0Z" fill="white" p-id="5392"></path><path d="M640 448m-64 0a64 64 0 1 0 128 0 64 64 0 1 0 -128 0Z" fill="white" p-id="5393"></path></svg>
-    `
-    button.setAttribute('aria-label', '打开 AI 助手')
-    button.title = `AI 助手 (${hotkey || 'Ctrl+K'})`
+    `;
+    button.setAttribute("aria-label", "打开 AI 助手");
+    button.title = `AI 助手 (${hotkey || "Ctrl+K"})`;
 
     // 创建聊天面板
-    const chat = document.createElement('div')
-    chat.className = 'opencode-chat'
-    chat.setAttribute('role', 'dialog')
-    chat.setAttribute('aria-modal', 'true')
-    chat.setAttribute('aria-label', 'AI 助手对话窗口')
+    const chat = document.createElement("div");
+    chat.className = "opencode-chat";
+    chat.setAttribute("role", "dialog");
+    chat.setAttribute("aria-modal", "true");
+    chat.setAttribute("aria-label", "AI 助手对话窗口");
 
     // 创建面板头部操作栏
-    const chatHeader = document.createElement('div')
-    chatHeader.className = 'opencode-chat-header'
+    const chatHeader = document.createElement("div");
+    chatHeader.className = "opencode-chat-header";
 
     // 左侧操作区
-    const headerLeft = document.createElement('div')
-    headerLeft.className = 'opencode-chat-header-left'
+    const headerLeft = document.createElement("div");
+    headerLeft.className = "opencode-chat-header-left";
 
     // 会话列表折叠按钮
-    const toggleBtn = document.createElement('button')
-    toggleBtn.className = 'opencode-header-btn session-toggle'
+    const toggleBtn = document.createElement("button");
+    toggleBtn.className = "opencode-header-btn session-toggle";
     toggleBtn.innerHTML = `
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round"/>
       </svg>
-    `
-    toggleBtn.title = '展开会话列表'
-    toggleBtn.setAttribute('aria-label', '展开会话列表')
-    toggleBtn.setAttribute('aria-expanded', 'false')
+    `;
+    toggleBtn.title = "展开会话列表";
+    toggleBtn.setAttribute("aria-label", "展开会话列表");
+    toggleBtn.setAttribute("aria-expanded", "false");
 
     // 选择元素按钮
-    const selectButton = document.createElement('button')
-    selectButton.className = 'opencode-header-btn select-btn'
+    const selectButton = document.createElement("button");
+    selectButton.className = "opencode-header-btn select-btn";
     selectButton.innerHTML = `
       <svg viewBox="0 0 1024 1024" width="16" height="16" xmlns="http://www.w3.org/2000/svg">
         <path fill="currentColor" d="M512 896a384 384 0 1 0 0-768 384 384 0 0 0 0 768m0 64a448 448 0 1 1 0-896 448 448 0 0 1 0 896"></path><path fill="currentColor" d="M512 96a32 32 0 0 1 32 32v192a32 32 0 0 1-64 0V128a32 32 0 0 1 32-32m0 576a32 32 0 0 1 32 32v192a32 32 0 1 1-64 0V704a32 32 0 0 1 32-32M96 512a32 32 0 0 1 32-32h192a32 32 0 0 1 0 64H128a32 32 0 0 1-32-32m576 0a32 32 0 0 1 32-32h192a32 32 0 1 1 0 64H704a32 32 0 0 1-32-32"></path>
       </svg>
-    `
-    selectButton.title = '选择页面元素 (Ctrl+P)'
-    selectButton.setAttribute('aria-label', '选择页面元素')
-    selectButton.setAttribute('aria-pressed', 'false')
+    `;
+    selectButton.title = "选择页面元素 (Ctrl+P)";
+    selectButton.setAttribute("aria-label", "选择页面元素");
+    selectButton.setAttribute("aria-pressed", "false");
 
-    headerLeft.appendChild(toggleBtn)
-    headerLeft.appendChild(selectButton)
+    headerLeft.appendChild(toggleBtn);
+    headerLeft.appendChild(selectButton);
 
     // 标题
-    const headerTitle = document.createElement('span')
-    headerTitle.className = 'opencode-chat-header-title'
-    headerTitle.textContent = 'AI 助手'
+    const headerTitle = document.createElement("span");
+    headerTitle.className = "opencode-chat-header-title";
+    headerTitle.textContent = "AI 助手";
 
     // 右侧操作区
-    const headerActions = document.createElement('div')
-    headerActions.className = 'opencode-chat-header-actions'
+    const headerActions = document.createElement("div");
+    headerActions.className = "opencode-chat-header-actions";
 
     // 关闭按钮
-    const closeBtn = document.createElement('button')
-    closeBtn.className = 'opencode-header-btn close'
+    const closeBtn = document.createElement("button");
+    closeBtn.className = "opencode-header-btn close";
     closeBtn.innerHTML = `
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M18 6L6 18M6 6l12 12"/>
       </svg>
-    `
-    closeBtn.title = '关闭'
-    closeBtn.setAttribute('aria-label', '关闭面板')
-    closeBtn.addEventListener('click', () => {
-      isOpen = false
-      chat.classList.remove('open')
-      button.classList.remove('active')
-    })
+    `;
+    closeBtn.title = "关闭";
+    closeBtn.setAttribute("aria-label", "关闭面板");
+    closeBtn.addEventListener("click", () => {
+      isOpen = false;
+      chat.classList.remove("open");
+      button.classList.remove("active");
+    });
 
-    headerActions.appendChild(closeBtn)
-    chatHeader.appendChild(headerLeft)
-    chatHeader.appendChild(headerTitle)
-    chatHeader.appendChild(headerActions)
+    headerActions.appendChild(closeBtn);
+    chatHeader.appendChild(headerLeft);
+    chatHeader.appendChild(headerTitle);
+    chatHeader.appendChild(headerActions);
 
     // 创建会话列表
-    const sessionList = document.createElement('div')
-    sessionList.className = 'opencode-session-list collapsed'
+    const sessionList = document.createElement("div");
+    sessionList.className = "opencode-session-list collapsed";
 
     // 创建会话列表头部
-    const sessionListHeader = document.createElement('div')
-    sessionListHeader.className = 'opencode-session-list-header'
+    const sessionListHeader = document.createElement("div");
+    sessionListHeader.className = "opencode-session-list-header";
     sessionListHeader.innerHTML = `
       <span id="opencode-session-list-title">会话列表</span>
       <button class="opencode-new-session-btn" title="新建会话" aria-label="新建会话">+</button>
-    `
+    `;
 
     // 创建会话列表头部骨架屏
-    const sessionHeaderSkeleton = document.createElement('div')
-    sessionHeaderSkeleton.className = 'opencode-session-header-skeleton'
+    const sessionHeaderSkeleton = document.createElement("div");
+    sessionHeaderSkeleton.className = "opencode-session-header-skeleton";
     sessionHeaderSkeleton.innerHTML = `
       <div class="opencode-skeleton-header-title"></div>
       <div class="opencode-skeleton-header-btn"></div>
-    `
+    `;
 
     // 创建会话列表内容
-    const sessionListContent = document.createElement('div')
-    sessionListContent.className = 'opencode-session-list-content'
-    sessionListContent.setAttribute('role', 'listbox')
-    sessionListContent.setAttribute('aria-labelledby', 'opencode-session-list-title')
+    const sessionListContent = document.createElement("div");
+    sessionListContent.className = "opencode-session-list-content";
+    sessionListContent.setAttribute("role", "listbox");
+    sessionListContent.setAttribute(
+      "aria-labelledby",
+      "opencode-session-list-title",
+    );
 
     // 创建会话列表内容骨架屏
-    const sessionSkeleton = document.createElement('div')
-    sessionSkeleton.className = 'opencode-session-skeleton'
+    const sessionSkeleton = document.createElement("div");
+    sessionSkeleton.className = "opencode-session-skeleton";
     sessionSkeleton.innerHTML = `
       <div class="opencode-skeleton-item">
         <div class="opencode-skeleton-title"></div>
@@ -365,169 +378,174 @@
         <div class="opencode-skeleton-title"></div>
         <div class="opencode-skeleton-meta"></div>
       </div>
-    `
+    `;
 
-    sessionList.appendChild(sessionHeaderSkeleton)
-    sessionList.appendChild(sessionListHeader)
-    sessionList.appendChild(sessionSkeleton)
-    sessionList.appendChild(sessionListContent)
+    sessionList.appendChild(sessionHeaderSkeleton);
+    sessionList.appendChild(sessionListHeader);
+    sessionList.appendChild(sessionSkeleton);
+    sessionList.appendChild(sessionListContent);
 
     // 折叠/展开会话列表
-    let isSessionListCollapsed = true
+    let isSessionListCollapsed = true;
     function toggleSessionList() {
-      isSessionListCollapsed = !isSessionListCollapsed
-      
+      isSessionListCollapsed = !isSessionListCollapsed;
+
       if (!isSessionListCollapsed) {
-        sessionHeaderSkeleton.classList.add('visible')
-        sessionListHeader.style.display = 'none'
-        sessionSkeleton.classList.add('visible')
-        sessionListContent.style.display = 'none'
+        sessionHeaderSkeleton.classList.add("visible");
+        sessionListHeader.style.display = "none";
+        sessionSkeleton.classList.add("visible");
+        sessionListContent.style.display = "none";
       }
-      
-      sessionList.classList.toggle('collapsed', isSessionListCollapsed)
-      toggleBtn.title = isSessionListCollapsed ? '展开会话列表' : '折叠会话列表'
-      toggleBtn.setAttribute('aria-label', isSessionListCollapsed ? '展开会话列表' : '折叠会话列表')
-      toggleBtn.setAttribute('aria-expanded', String(!isSessionListCollapsed))
-      
+
+      sessionList.classList.toggle("collapsed", isSessionListCollapsed);
+      toggleBtn.title = isSessionListCollapsed
+        ? "展开会话列表"
+        : "折叠会话列表";
+      toggleBtn.setAttribute(
+        "aria-label",
+        isSessionListCollapsed ? "展开会话列表" : "折叠会话列表",
+      );
+      toggleBtn.setAttribute("aria-expanded", String(!isSessionListCollapsed));
+
       if (!isSessionListCollapsed) {
         setTimeout(() => {
-          sessionHeaderSkeleton.classList.remove('visible')
-          sessionListHeader.style.display = ''
-          sessionSkeleton.classList.remove('visible')
-          sessionListContent.style.display = ''
-        }, 200)
+          sessionHeaderSkeleton.classList.remove("visible");
+          sessionListHeader.style.display = "";
+          sessionSkeleton.classList.remove("visible");
+          sessionListContent.style.display = "";
+        }, 200);
       }
     }
-    toggleBtn.addEventListener('click', toggleSessionList)
+    toggleBtn.addEventListener("click", toggleSessionList);
 
     // 创建 iframe 容器
-    const iframeContainer = document.createElement('div')
-    iframeContainer.className = 'opencode-iframe-container'
+    const iframeContainer = document.createElement("div");
+    iframeContainer.className = "opencode-iframe-container";
 
     // 创建加载指示器
-    const loadingOverlay = document.createElement('div')
-    loadingOverlay.className = 'opencode-loading-overlay'
+    const loadingOverlay = document.createElement("div");
+    loadingOverlay.className = "opencode-loading-overlay";
     loadingOverlay.innerHTML = `
       <div class="opencode-loading-spinner"></div>
       <div class="opencode-loading-text">加载中...</div>
-    `
+    `;
 
     // 创建 iframe
-    const iframe = document.createElement('iframe')
-    iframe.className = 'opencode-iframe'
-    iframe.src = servicesStarted ? iframeUrl : 'about:blank'
-    iframe.allow = 'clipboard-write; clipboard-read'
-    iframe.referrerPolicy = 'origin'
+    const iframe = document.createElement("iframe");
+    iframe.className = "opencode-iframe";
+    iframe.src = servicesStarted ? iframeUrl : "about:blank";
+    iframe.allow = "clipboard-write; clipboard-read";
+    iframe.referrerPolicy = "origin";
 
-    iframe.onload = function() {
+    iframe.onload = function () {
       if (servicesStarted) {
-        updateContext()
-        loadSessions()
-        setupSSEConnection()
+        updateContext();
+        loadSessions();
+        setupSSEConnection();
       }
-      hideLoading()
-    }
+      hideLoading();
+    };
 
-    iframeContainer.appendChild(loadingOverlay)
-    iframeContainer.appendChild(iframe)
+    iframeContainer.appendChild(loadingOverlay);
+    iframeContainer.appendChild(iframe);
 
     // 创建右侧工具栏
-    const rightToolbar = document.createElement('div')
-    rightToolbar.className = `opencode-right-toolbar${selectedElements.length === 0 ? ' collapsed' : ''}`
+    const rightToolbar = document.createElement("div");
+    rightToolbar.className = `opencode-right-toolbar${selectedElements.length === 0 ? " collapsed" : ""}`;
 
     // 创建已选节点标题
-    const selectedNodesHeader = document.createElement('div')
-    selectedNodesHeader.className = 'opencode-selected-nodes-header'
+    const selectedNodesHeader = document.createElement("div");
+    selectedNodesHeader.className = "opencode-selected-nodes-header";
     selectedNodesHeader.innerHTML = `
       <div class="opencode-selected-nodes-title">已选节点</div>
       <div class="opencode-selected-nodes-desc">选中的节点会在对话时一起发送给助手</div>
-    `
+    `;
 
     // 创建已选节点容器
-    const selectedNodesContainer = document.createElement('div')
-    selectedNodesContainer.className = 'opencode-selected-nodes'
-    selectedNodesContainer.setAttribute('role', 'list')
-    selectedNodesContainer.setAttribute('aria-label', '已选元素列表')
+    const selectedNodesContainer = document.createElement("div");
+    selectedNodesContainer.className = "opencode-selected-nodes";
+    selectedNodesContainer.setAttribute("role", "list");
+    selectedNodesContainer.setAttribute("aria-label", "已选元素列表");
 
     // 创建清空按钮
-    const clearAllButton = document.createElement('button')
-    clearAllButton.className = 'opencode-clear-all-btn'
-    clearAllButton.setAttribute('aria-label', '清空所有已选节点')
-    clearAllButton.innerHTML = '一键清空'
+    const clearAllButton = document.createElement("button");
+    clearAllButton.className = "opencode-clear-all-btn";
+    clearAllButton.setAttribute("aria-label", "清空所有已选节点");
+    clearAllButton.innerHTML = "一键清空";
 
-    rightToolbar.appendChild(selectedNodesHeader)
-    rightToolbar.appendChild(selectedNodesContainer)
-    rightToolbar.appendChild(clearAllButton)
+    rightToolbar.appendChild(selectedNodesHeader);
+    rightToolbar.appendChild(selectedNodesContainer);
+    rightToolbar.appendChild(clearAllButton);
 
     // 创建选择模式常驻提示（固定到页面顶部）
-    const selectModeHint = document.createElement('div')
-    selectModeHint.className = 'opencode-select-mode-hint'
+    const selectModeHint = document.createElement("div");
+    selectModeHint.className = "opencode-select-mode-hint";
     selectModeHint.innerHTML = `
       <span>🎯 选择模式已开启 - 点击元素进行选择</span>
       <span class="opencode-hint-shortcut">按 ESC 或 Ctrl+P 退出</span>
-    `
+    `;
 
     // 创建元素高亮覆盖层
-    const elementHighlight = document.createElement('div')
-    elementHighlight.className = 'opencode-element-highlight'
+    const elementHighlight = document.createElement("div");
+    elementHighlight.className = "opencode-element-highlight";
 
     // 创建元素信息提示框
-    const elementTooltip = document.createElement('div')
-    elementTooltip.className = 'opencode-element-tooltip'
+    const elementTooltip = document.createElement("div");
+    elementTooltip.className = "opencode-element-tooltip";
 
     // 创建已选节点气泡容器（气泡按钮上方）
-    const selectedBubbles = document.createElement('div')
-    selectedBubbles.className = 'opencode-selected-bubbles'
-    selectedBubbles.setAttribute('role', 'list')
-    selectedBubbles.setAttribute('aria-label', '已选元素列表')
+    const selectedBubbles = document.createElement("div");
+    selectedBubbles.className = "opencode-selected-bubbles";
+    selectedBubbles.setAttribute("role", "list");
+    selectedBubbles.setAttribute("aria-label", "已选元素列表");
 
-    chat.appendChild(sessionList)
-    chat.appendChild(chatHeader)
-    chat.appendChild(iframeContainer)
-    chat.appendChild(rightToolbar)
+    chat.appendChild(sessionList);
+    chat.appendChild(chatHeader);
+    chat.appendChild(iframeContainer);
+    chat.appendChild(rightToolbar);
 
-    container.appendChild(button)
-    container.appendChild(selectedBubbles)
-    container.appendChild(chat)
-    document.body.appendChild(container)
-    document.body.appendChild(selectModeHint)
-    document.body.appendChild(elementHighlight)
-    document.body.appendChild(elementTooltip)
+    container.appendChild(button);
+    container.appendChild(selectedBubbles);
+    container.appendChild(chat);
+    document.body.appendChild(container);
+    document.body.appendChild(selectModeHint);
+    document.body.appendChild(elementHighlight);
+    document.body.appendChild(elementTooltip);
 
     if (selectedElements.length > 0) {
-      renderSelectedNodes()
+      renderSelectedNodes();
     }
 
     /** @type {Array} 会话列表 */
-    let sessions = []
+    let sessions = [];
 
     /** @type {string|null} 当前会话 ID */
-    let currentSessionId = null
+    let currentSessionId = null;
 
     /**
      * 从 URL 中提取会话 ID
      */
     function extractSessionId(url) {
-      if (!url) return null
-      const match = url.match(/\/session\/([^/?]+)/)
-      return match ? match[1] : null
+      if (!url) return null;
+      const match = url.match(/\/session\/([^/?]+)/);
+      return match ? match[1] : null;
     }
 
     // 从初始 URL 中提取会话 ID
-    currentSessionId = extractSessionId(sessionUrl)
+    currentSessionId = extractSessionId(sessionUrl);
 
     /**
      * 显示加载状态
      */
     function showLoading() {
-      loadingOverlay.classList.add('visible')
+      loadingOverlay.classList.add("visible");
     }
 
     /**
      * 隐藏加载状态
      */
     function hideLoading() {
-      loadingOverlay.classList.remove('visible')
+      loadingOverlay.classList.remove("visible");
     }
 
     /**
@@ -535,11 +553,11 @@
      */
     async function loadSessions() {
       try {
-        const response = await fetch('/__opencode_sessions__')
-        sessions = await response.json()
-        renderSessionList()
+        const response = await fetch("/__opencode_sessions__");
+        sessions = await response.json();
+        renderSessionList();
       } catch (e) {
-        console.error('Failed to load sessions:', e)
+        console.error("Failed to load sessions:", e);
       }
     }
 
@@ -547,53 +565,62 @@
      * 渲染会话列表
      */
     function renderSessionList() {
-      sessionListContent.innerHTML = ''
-      
-      const currentProjectSessions = sessions.filter(session => session.directory === cwd)
-      
-      currentProjectSessions.forEach(session => {
-        const item = document.createElement('div')
-        item.className = 'opencode-session-item'
-        item.setAttribute('role', 'option')
-        item.setAttribute('aria-selected', String(session.id === currentSessionId))
+      sessionListContent.innerHTML = "";
+
+      const currentProjectSessions = sessions.filter(
+        (session) => session.directory === cwd,
+      );
+
+      currentProjectSessions.forEach((session) => {
+        const item = document.createElement("div");
+        item.className = "opencode-session-item";
+        item.setAttribute("role", "option");
+        item.setAttribute(
+          "aria-selected",
+          String(session.id === currentSessionId),
+        );
         if (session.id === currentSessionId) {
-          item.classList.add('active')
+          item.classList.add("active");
         }
-        
-        const header = document.createElement('div')
-        header.className = 'opencode-session-header'
-        
-        const title = document.createElement('div')
-        title.className = 'opencode-session-title'
-        title.textContent = session.title || '新会话'
-        
-        const deleteBtn = document.createElement('button')
-        deleteBtn.className = 'opencode-session-delete-btn'
-        deleteBtn.innerHTML = '×'
-        deleteBtn.title = '删除会话'
-        deleteBtn.setAttribute('aria-label', `删除会话: ${session.title || '新会话'}`)
-        deleteBtn.addEventListener('click', (e) => {
-          e.stopPropagation()
-          confirmDeleteSession(session)
-        })
-        
-        header.appendChild(title)
-        header.appendChild(deleteBtn)
-        
-        const meta = document.createElement('div')
-        meta.className = 'opencode-session-meta'
-        const date = new Date(session.time.updated)
-        meta.textContent = date.toLocaleDateString() + ' ' + date.toLocaleTimeString()
-        
-        item.appendChild(header)
-        item.appendChild(meta)
-        
-        item.addEventListener('click', () => {
-          switchSession(session)
-        })
-        
-        sessionListContent.appendChild(item)
-      })
+
+        const header = document.createElement("div");
+        header.className = "opencode-session-header";
+
+        const title = document.createElement("div");
+        title.className = "opencode-session-title";
+        title.textContent = session.title || "新会话";
+
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "opencode-session-delete-btn";
+        deleteBtn.innerHTML = "×";
+        deleteBtn.title = "删除会话";
+        deleteBtn.setAttribute(
+          "aria-label",
+          `删除会话: ${session.title || "新会话"}`,
+        );
+        deleteBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          confirmDeleteSession(session);
+        });
+
+        header.appendChild(title);
+        header.appendChild(deleteBtn);
+
+        const meta = document.createElement("div");
+        meta.className = "opencode-session-meta";
+        const date = new Date(session.time.updated);
+        meta.textContent =
+          date.toLocaleDateString() + " " + date.toLocaleTimeString();
+
+        item.appendChild(header);
+        item.appendChild(meta);
+
+        item.addEventListener("click", () => {
+          switchSession(session);
+        });
+
+        sessionListContent.appendChild(item);
+      });
     }
 
     /**
@@ -601,15 +628,15 @@
      */
     function switchSession(session) {
       if (session.id === currentSessionId) {
-        return
+        return;
       }
-      
-      currentSessionId = session.id
-      const encodedDir = btoa(cwd)
-      const baseUrl = iframeUrl.split('/').slice(0, 3).join('/')
-      showLoading()
-      iframe.src = `${baseUrl}/${encodedDir}/session/${session.id}`
-      renderSessionList()
+
+      currentSessionId = session.id;
+      const encodedDir = btoa(cwd);
+      const baseUrl = iframeUrl.split("/").slice(0, 3).join("/");
+      showLoading();
+      iframe.src = `${baseUrl}/${encodedDir}/session/${session.id}`;
+      renderSessionList();
     }
 
     /**
@@ -617,15 +644,15 @@
      */
     async function createNewSession() {
       try {
-        const response = await fetch('/__opencode_sessions__', {
-          method: 'POST'
-        })
-        const newSession = await response.json()
-        sessions.unshift(newSession)
-        switchSession(newSession)
+        const response = await fetch("/__opencode_sessions__", {
+          method: "POST",
+        });
+        const newSession = await response.json();
+        sessions.unshift(newSession);
+        switchSession(newSession);
       } catch (e) {
-        console.error('Failed to create session:', e)
-        showNotification('创建会话失败')
+        console.error("Failed to create session:", e);
+        showNotification("创建会话失败");
       }
     }
 
@@ -633,9 +660,11 @@
      * 确认删除会话
      */
     async function confirmDeleteSession(session) {
-      const confirmed = await showConfirmDialog(`确定要删除会话 "${session.title || '新会话'}" 吗？`)
+      const confirmed = await showConfirmDialog(
+        `确定要删除会话 "${session.title || "新会话"}" 吗？`,
+      );
       if (confirmed) {
-        deleteSession(session)
+        deleteSession(session);
       }
     }
 
@@ -644,53 +673,82 @@
      */
     async function deleteSession(session) {
       try {
-        const response = await fetch(`/__opencode_sessions__?id=${session.id}`, {
-          method: 'DELETE'
-        })
-        
+        const response = await fetch(
+          `/__opencode_sessions__?id=${session.id}`,
+          {
+            method: "DELETE",
+          },
+        );
+
         if (!response.ok) {
-          throw new Error('Delete failed')
+          throw new Error("Delete failed");
         }
-        
-        sessions = sessions.filter(s => s.id !== session.id)
-        
+
+        sessions = sessions.filter((s) => s.id !== session.id);
+
         if (session.id === currentSessionId) {
-          const remainingSessions = sessions.filter(s => s.directory === cwd)
+          const remainingSessions = sessions.filter((s) => s.directory === cwd);
           if (remainingSessions.length > 0) {
-            switchSession(remainingSessions[0])
+            switchSession(remainingSessions[0]);
           } else {
-            currentSessionId = null
-            iframe.src = 'about:blank'
+            currentSessionId = null;
+            iframe.src = "about:blank";
           }
         }
-        
-        renderSessionList()
-        showNotification('会话已删除')
+
+        renderSessionList();
+        showNotification("会话已删除");
       } catch (e) {
-        console.error('Failed to delete session:', e)
-        showNotification('删除会话失败')
+        console.error("Failed to delete session:", e);
+        showNotification("删除会话失败");
       }
     }
 
     // 绑定新建会话按钮
-    sessionListHeader.querySelector('.opencode-new-session-btn').addEventListener('click', createNewSession)
+    sessionListHeader
+      .querySelector(".opencode-new-session-btn")
+      .addEventListener("click", createNewSession);
 
     /**
      * 应用主题
      */
     function applyTheme() {
-      if (theme === 'auto') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-        container.classList.toggle('opencode-dark', prefersDark)
-      } else {
-        container.classList.toggle('opencode-dark', theme === 'dark')
-      }
+      const resolvedTheme =
+        theme === "auto"
+          ? window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light"
+          : theme;
+      const palette =
+        resolvedTheme === "dark"
+          ? {
+              primary: "#fab283",
+              secondary: "#5c9cf5",
+              accent: "#9d7cd8",
+              danger: "#e06c75",
+            }
+          : {
+              primary: "#3b7dd8",
+              secondary: "#7b5bb6",
+              accent: "#d68c27",
+              danger: "#d05c76",
+            };
+
+      container.classList.toggle("opencode-dark", resolvedTheme === "dark");
+      container.style.colorScheme = resolvedTheme;
+      iframe.style.colorScheme = resolvedTheme;
+      container.style.setProperty("--opencode-primary", palette.primary);
+      container.style.setProperty("--opencode-secondary", palette.secondary);
+      container.style.setProperty("--opencode-accent", palette.accent);
+      container.style.setProperty("--opencode-danger", palette.danger);
     }
 
-    applyTheme()
+    applyTheme();
 
-    if (theme === 'auto') {
-      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme)
+    if (theme === "auto") {
+      window
+        .matchMedia("(prefers-color-scheme: dark)")
+        .addEventListener("change", applyTheme);
     }
 
     /**
@@ -698,52 +756,52 @@
      */
     async function toggle() {
       if (lazy && !servicesStarted) {
-        button.classList.add('loading')
-        const started = await ensureServicesStarted()
-        button.classList.remove('loading')
+        button.classList.add("loading");
+        const started = await ensureServicesStarted();
+        button.classList.remove("loading");
         if (!started) {
-          showNotification('服务启动失败，请检查控制台')
-          return
+          showNotification("服务启动失败，请检查控制台");
+          return;
         }
       }
 
       if (isSelectMode) {
-        exitSelectMode()
-        updateContext()
-        return
+        exitSelectMode();
+        updateContext();
+        return;
       }
 
-      isOpen = !isOpen
-      chat.classList.toggle('open', isOpen)
-      button.classList.toggle('active', isOpen)
+      isOpen = !isOpen;
+      chat.classList.toggle("open", isOpen);
+      button.classList.toggle("active", isOpen);
 
       if (isOpen) {
-        updateContext()
+        updateContext();
       }
     }
 
-    button.addEventListener('click', toggle)
+    button.addEventListener("click", toggle);
 
-    document.addEventListener('keydown', (e) => {
+    document.addEventListener("keydown", (e) => {
       if (matchHotkey(e, mainHotkey)) {
-        e.preventDefault()
-        toggle()
+        e.preventDefault();
+        toggle();
       }
-      
+
       if (matchHotkey(e, selectHotkey)) {
-        e.preventDefault()
+        e.preventDefault();
         if (window.__VUE_INSPECTOR__) {
-          toggleSelectMode()
+          toggleSelectMode();
         } else {
-          showNotification('Vue Inspector 未加载，无法使用元素选择功能')
+          showNotification("Vue Inspector 未加载，无法使用元素选择功能");
         }
       }
-    })
+    });
 
     if (open && servicesStarted) {
       setTimeout(() => {
-        toggle()
-      }, AUTO_OPEN_DELAY)
+        toggle();
+      }, AUTO_OPEN_DELAY);
     }
 
     /**
@@ -753,15 +811,15 @@
      */
     function showConfirmDialog(message) {
       return new Promise((resolve) => {
-        const overlay = document.createElement('div')
-        overlay.className = 'opencode-dialog-overlay'
+        const overlay = document.createElement("div");
+        overlay.className = "opencode-dialog-overlay";
 
-        const dialog = document.createElement('div')
-        dialog.className = 'opencode-dialog'
-        dialog.setAttribute('role', 'alertdialog')
-        dialog.setAttribute('aria-modal', 'true')
-        dialog.setAttribute('aria-labelledby', 'opencode-dialog-title')
-        dialog.setAttribute('aria-describedby', 'opencode-dialog-desc')
+        const dialog = document.createElement("div");
+        dialog.className = "opencode-dialog";
+        dialog.setAttribute("role", "alertdialog");
+        dialog.setAttribute("aria-modal", "true");
+        dialog.setAttribute("aria-labelledby", "opencode-dialog-title");
+        dialog.setAttribute("aria-describedby", "opencode-dialog-desc");
 
         dialog.innerHTML = `
           <div class="opencode-dialog-content">
@@ -771,39 +829,41 @@
             <button class="opencode-dialog-btn cancel" aria-label="取消">取消</button>
             <button class="opencode-dialog-btn confirm" aria-label="确认">确认</button>
           </div>
-        `
+        `;
 
         const handleConfirm = () => {
-          overlay.remove()
-          resolve(true)
-        }
+          overlay.remove();
+          resolve(true);
+        };
 
         const handleCancel = () => {
-          overlay.remove()
-          resolve(false)
-        }
+          overlay.remove();
+          resolve(false);
+        };
 
-        dialog.querySelector('.confirm').addEventListener('click', handleConfirm)
-        dialog.querySelector('.cancel').addEventListener('click', handleCancel)
+        dialog
+          .querySelector(".confirm")
+          .addEventListener("click", handleConfirm);
+        dialog.querySelector(".cancel").addEventListener("click", handleCancel);
 
-        overlay.addEventListener('click', (e) => {
+        overlay.addEventListener("click", (e) => {
           if (e.target === overlay) {
-            handleCancel()
+            handleCancel();
           }
-        })
+        });
 
-        document.addEventListener('keydown', function handleEscape(e) {
-          if (e.key === 'Escape') {
-            document.removeEventListener('keydown', handleEscape)
-            handleCancel()
+        document.addEventListener("keydown", function handleEscape(e) {
+          if (e.key === "Escape") {
+            document.removeEventListener("keydown", handleEscape);
+            handleCancel();
           }
-        })
+        });
 
-        overlay.appendChild(dialog)
-        document.body.appendChild(overlay)
+        overlay.appendChild(dialog);
+        document.body.appendChild(overlay);
 
-        dialog.querySelector('.confirm').focus()
-      })
+        dialog.querySelector(".confirm").focus();
+      });
     }
 
     /**
@@ -811,14 +871,14 @@
      * @param {string} message - 通知消息
      */
     function showNotification(message) {
-      const notification = document.createElement('div')
-      notification.className = 'opencode-notification'
-      notification.textContent = message
-      chat.appendChild(notification)
+      const notification = document.createElement("div");
+      notification.className = "opencode-notification";
+      notification.textContent = message;
+      chat.appendChild(notification);
 
       setTimeout(() => {
-        notification.remove()
-      }, NOTIFICATION_DURATION)
+        notification.remove();
+      }, NOTIFICATION_DURATION);
     }
 
     /**
@@ -826,25 +886,29 @@
      * @param {SelectedElement} elementInfo - 元素信息
      */
     function addElement(elementInfo) {
-      const key = elementInfo.filePath && elementInfo.line
-        ? `${elementInfo.filePath}:${elementInfo.line}`
-        : null
+      const key =
+        elementInfo.filePath && elementInfo.line
+          ? `${elementInfo.filePath}:${elementInfo.line}`
+          : null;
 
-      const exists = key && selectedElements.some(el => {
-        const elKey = el.filePath && el.line ? `${el.filePath}:${el.line}` : null
-        return elKey === key
-      })
+      const exists =
+        key &&
+        selectedElements.some((el) => {
+          const elKey =
+            el.filePath && el.line ? `${el.filePath}:${el.line}` : null;
+          return elKey === key;
+        });
 
       if (!exists) {
-        selectedElements.push(elementInfo)
-        saveSelectedElements(selectedElements)
-        renderSelectedNodes()
+        selectedElements.push(elementInfo);
+        saveSelectedElements(selectedElements);
+        renderSelectedNodes();
         if (isSelectMode) {
-          renderSelectedBubbles()
+          renderSelectedBubbles();
         }
-        showNotification(`已选中元素 (${selectedElements.length}个)`)
+        showNotification(`已选中元素 (${selectedElements.length}个)`);
       } else {
-        showNotification('该元素已选中')
+        showNotification("该元素已选中");
       }
     }
 
@@ -853,23 +917,23 @@
      * @param {number} index - 元素索引
      */
     function removeElement(index) {
-      selectedElements.splice(index, 1)
-      saveSelectedElements(selectedElements)
-      renderSelectedNodes()
-      updateToolbarState()
-      sendSelectedElements()
+      selectedElements.splice(index, 1);
+      saveSelectedElements(selectedElements);
+      renderSelectedNodes();
+      updateToolbarState();
+      sendSelectedElements();
     }
 
     /**
      * 清除所有选中元素
      */
     function clearAllElements() {
-      selectedElements = []
-      saveSelectedElements(selectedElements)
-      renderSelectedNodes()
-      updateToolbarState()
-      sendSelectedElements()
-      showNotification('已清除所有选中元素')
+      selectedElements = [];
+      saveSelectedElements(selectedElements);
+      renderSelectedNodes();
+      updateToolbarState();
+      sendSelectedElements();
+      showNotification("已清除所有选中元素");
     }
 
     /**
@@ -877,68 +941,68 @@
      */
     function updateToolbarState() {
       if (selectedElements.length > 0) {
-        rightToolbar.classList.remove('collapsed')
+        rightToolbar.classList.remove("collapsed");
       } else {
-        rightToolbar.classList.add('collapsed')
+        rightToolbar.classList.add("collapsed");
       }
     }
 
     /** @type {boolean} 是否处于元素选择模式 */
-    let isSelectMode = false
+    let isSelectMode = false;
 
     /**
      * 处理鼠标移动事件（选择模式下高亮元素）
      * @param {MouseEvent} e - 鼠标事件
      */
     function handleMouseMove(e) {
-      if (!isSelectMode) return
+      if (!isSelectMode) return;
 
-      const inspector = window.__VUE_INSPECTOR__
-      if (!inspector) return
+      const inspector = window.__VUE_INSPECTOR__;
+      if (!inspector) return;
 
-      const { targetNode, params } = inspector.getTargetNode(e)
-      
+      const { targetNode, params } = inspector.getTargetNode(e);
+
       if (targetNode && params) {
-        const rect = targetNode.getBoundingClientRect()
-        
-        elementHighlight.style.display = 'block'
-        elementHighlight.style.top = `${rect.top}px`
-        elementHighlight.style.left = `${rect.left}px`
-        elementHighlight.style.width = `${rect.width}px`
-        elementHighlight.style.height = `${rect.height}px`
+        const rect = targetNode.getBoundingClientRect();
 
-        const description = getElementDescription(targetNode)
-        const fileName = params.file ? params.file.split('/').pop() : ''
-        let lineInfo = ''
+        elementHighlight.style.display = "block";
+        elementHighlight.style.top = `${rect.top}px`;
+        elementHighlight.style.left = `${rect.left}px`;
+        elementHighlight.style.width = `${rect.width}px`;
+        elementHighlight.style.height = `${rect.height}px`;
+
+        const description = getElementDescription(targetNode);
+        const fileName = params.file ? params.file.split("/").pop() : "";
+        let lineInfo = "";
         if (params.line) {
-          lineInfo = `:${params.line}`
+          lineInfo = `:${params.line}`;
           if (params.column) {
-            lineInfo += `:${params.column}`
+            lineInfo += `:${params.column}`;
           }
         }
 
         elementTooltip.innerHTML = `
           <div class="opencode-tooltip-tag">${description}</div>
-          ${fileName ? `<div class="opencode-tooltip-file">${fileName}${lineInfo}</div>` : ''}
-        `
-        elementTooltip.style.display = 'block'
-        
-        const tooltipRect = elementTooltip.getBoundingClientRect()
-        let tooltipTop = rect.top - tooltipRect.height - 8
-        let tooltipLeft = rect.left
+          ${fileName ? `<div class="opencode-tooltip-file">${fileName}${lineInfo}</div>` : ""}
+        `;
+        elementTooltip.style.display = "block";
+
+        const tooltipRect = elementTooltip.getBoundingClientRect();
+        let tooltipTop = rect.top - tooltipRect.height - 8;
+        let tooltipLeft = rect.left;
 
         if (tooltipTop < 10) {
-          tooltipTop = rect.bottom + 8
+          tooltipTop = rect.bottom + 8;
         }
         if (tooltipLeft + tooltipRect.width > window.innerWidth - 10) {
-          tooltipLeft = window.innerWidth - tooltipRect.width - 10
+          tooltipLeft = window.innerWidth - tooltipRect.width - 10;
         }
 
-        elementTooltip.style.top = `${tooltipTop}px`
-        elementTooltip.style.left = `${tooltipLeft}px`
+        elementTooltip.style.top = `${tooltipTop}px`;
+        elementTooltip.style.left = `${tooltipLeft}px`;
       } else {
-        elementHighlight.style.display = 'none'
-        elementTooltip.style.display = 'none'
+        elementHighlight.style.display = "none";
+        elementTooltip.style.display = "none";
       }
     }
 
@@ -946,38 +1010,38 @@
      * 切换元素选择模式
      */
     function toggleSelectMode() {
-      const inspector = window.__VUE_INSPECTOR__
-      
+      const inspector = window.__VUE_INSPECTOR__;
+
       if (!inspector) {
-        showNotification('Vue Inspector 未加载，无法使用元素选择功能')
-        return
+        showNotification("Vue Inspector 未加载，无法使用元素选择功能");
+        return;
       }
-      
-      isSelectMode = !isSelectMode
-      selectButton.classList.toggle('active', isSelectMode)
-      selectButton.setAttribute('aria-pressed', String(isSelectMode))
-      selectModeHint.classList.toggle('visible', isSelectMode)
-      selectedBubbles.classList.toggle('visible', isSelectMode)
-      
+
+      isSelectMode = !isSelectMode;
+      selectButton.classList.toggle("active", isSelectMode);
+      selectButton.setAttribute("aria-pressed", String(isSelectMode));
+      selectModeHint.classList.toggle("visible", isSelectMode);
+      selectedBubbles.classList.toggle("visible", isSelectMode);
+
       if (isSelectMode) {
         if (isOpen) {
-          isOpen = false
-          chat.classList.remove('open')
-          button.classList.remove('active')
+          isOpen = false;
+          chat.classList.remove("open");
+          button.classList.remove("active");
         }
-        chat.style.display = 'none'
-        inspector.enable()
-        renderSelectedBubbles()
-        document.addEventListener('mousemove', handleMouseMove)
+        chat.style.display = "none";
+        inspector.enable();
+        renderSelectedBubbles();
+        document.addEventListener("mousemove", handleMouseMove);
       } else {
-        chat.style.display = ''
-        isOpen = true
-        chat.classList.add('open')
-        button.classList.add('active')
-        inspector.disable()
-        document.removeEventListener('mousemove', handleMouseMove)
-        elementHighlight.style.display = 'none'
-        elementTooltip.style.display = 'none'
+        chat.style.display = "";
+        isOpen = true;
+        chat.classList.add("open");
+        button.classList.add("active");
+        inspector.disable();
+        document.removeEventListener("mousemove", handleMouseMove);
+        elementHighlight.style.display = "none";
+        elementTooltip.style.display = "none";
       }
     }
 
@@ -985,181 +1049,202 @@
      * 退出选择模式
      */
     function exitSelectMode() {
-      if (!isSelectMode) return
-      
-      const inspector = window.__VUE_INSPECTOR__
+      if (!isSelectMode) return;
+
+      const inspector = window.__VUE_INSPECTOR__;
       if (inspector) {
-        inspector.disable()
+        inspector.disable();
       }
-      
-      isSelectMode = false
-      selectButton.classList.remove('active')
-      selectModeHint.classList.remove('visible')
-      selectedBubbles.classList.remove('visible')
-      chat.style.display = ''
-      
-      isOpen = true
-      chat.classList.add('open')
-      button.classList.add('active')
-      
-      document.removeEventListener('mousemove', handleMouseMove)
-      elementHighlight.style.display = 'none'
-      elementTooltip.style.display = 'none'
+
+      isSelectMode = false;
+      selectButton.classList.remove("active");
+      selectModeHint.classList.remove("visible");
+      selectedBubbles.classList.remove("visible");
+      chat.style.display = "";
+
+      isOpen = true;
+      chat.classList.add("open");
+      button.classList.add("active");
+
+      document.removeEventListener("mousemove", handleMouseMove);
+      elementHighlight.style.display = "none";
+      elementTooltip.style.display = "none";
     }
 
     // ESC 键退出选择模式（使用捕获阶段确保优先处理）
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && isSelectMode) {
-        e.preventDefault()
-        e.stopPropagation()
-        exitSelectMode()
-      }
-    }, true)
+    document.addEventListener(
+      "keydown",
+      (e) => {
+        if (e.key === "Escape" && isSelectMode) {
+          e.preventDefault();
+          e.stopPropagation();
+          exitSelectMode();
+        }
+      },
+      true,
+    );
 
     /**
      * 建立 SSE 连接监听服务端事件
      */
     function setupSSEConnection() {
-      if (!servicesStarted) return
+      if (!servicesStarted) return;
 
-      const eventSource = new EventSource('/__opencode_events__')
-      
+      const eventSource = new EventSource("/__opencode_events__");
+
       eventSource.onopen = () => {
-        console.log('[OpenCode] SSE connected')
-      }
-      
+        console.log("[OpenCode] SSE connected");
+      };
+
       eventSource.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data)
-          console.log('[OpenCode] SSE message:', data)
-          
-          if (data.type === 'CONNECTED') {
+          const data = JSON.parse(event.data);
+          console.log("[OpenCode] SSE message:", data);
+
+          if (data.type === "CONNECTED") {
             // 连接成功后，主动同步当前节点到服务端
             if (selectedElements.length > 0) {
-              fetch('/__opencode_context__', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+              fetch("/__opencode_context__", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   url: window.location.href,
                   title: document.title,
-                  selectedElements: selectedElements
-                })
-              }).catch(() => {})
+                  selectedElements: selectedElements,
+                }),
+              }).catch(() => {});
             }
           }
-          
-          if (data.type === 'CLEAR_ELEMENTS' && selectedElements.length > 0) {
-            console.log('[OpenCode] Clearing elements')
-            selectedElements = []
-            saveSelectedElements(selectedElements)
-            renderSelectedNodes()
-            updateToolbarState()
+
+          if (data.type === "CLEAR_ELEMENTS" && selectedElements.length > 0) {
+            console.log("[OpenCode] Clearing elements");
+            selectedElements = [];
+            saveSelectedElements(selectedElements);
+            renderSelectedNodes();
+            updateToolbarState();
             if (isSelectMode) {
-              renderSelectedBubbles()
+              renderSelectedBubbles();
             }
           }
         } catch (e) {
-          console.error('[OpenCode] SSE parse error:', e)
+          console.error("[OpenCode] SSE parse error:", e);
         }
-      }
-      
+      };
+
       eventSource.onerror = (e) => {
-        console.error('[OpenCode] SSE error:', e)
+        console.error("[OpenCode] SSE error:", e);
         // 连接失败时自动重连
-        eventSource.close()
-        setTimeout(setupSSEConnection, 3000)
-      }
+        eventSource.close();
+        setTimeout(setupSSEConnection, 3000);
+      };
     }
 
     /**
      * 渲染已选节点气泡
      */
     function renderSelectedBubbles() {
-      selectedBubbles.innerHTML = ''
-      
+      selectedBubbles.innerHTML = "";
+
       if (selectedElements.length === 0) {
-        selectedBubbles.innerHTML = '<div class="opencode-bubble-empty">暂无选中元素</div>'
-        return
+        selectedBubbles.innerHTML =
+          '<div class="opencode-bubble-empty">暂无选中元素</div>';
+        return;
       }
-      
+
       selectedElements.forEach((element, index) => {
-        const bubble = document.createElement('div')
-        bubble.className = 'opencode-selected-bubble'
-        bubble.setAttribute('role', 'listitem')
-        
-        const description = element.description || '未知元素'
-        const fileName = element.filePath ? element.filePath.split('/').pop() : ''
-        const lineInfo = element.line ? `:${element.line}${element.column ? `:${element.column}` : ''}` : ''
-        
+        const bubble = document.createElement("div");
+        bubble.className = "opencode-selected-bubble";
+        bubble.setAttribute("role", "listitem");
+
+        const description = element.description || "未知元素";
+        const fileName = element.filePath
+          ? element.filePath.split("/").pop()
+          : "";
+        const lineInfo = element.line
+          ? `:${element.line}${element.column ? `:${element.column}` : ""}`
+          : "";
+
         bubble.innerHTML = `
           <span class="opencode-bubble-text">${description}</span>
-          ${fileName ? `<span class="opencode-bubble-file">${fileName}${lineInfo}</span>` : ''}
+          ${fileName ? `<span class="opencode-bubble-file">${fileName}${lineInfo}</span>` : ""}
           <button class="opencode-bubble-remove" data-index="${index}" aria-label="移除元素: ${description}">×</button>
-        `
-        
-        bubble.querySelector('.opencode-bubble-remove').addEventListener('click', (e) => {
-          e.stopPropagation()
-          removeElement(index)
-          renderSelectedBubbles()
-        })
-        
-        selectedBubbles.appendChild(bubble)
-      })
+        `;
+
+        bubble
+          .querySelector(".opencode-bubble-remove")
+          .addEventListener("click", (e) => {
+            e.stopPropagation();
+            removeElement(index);
+            renderSelectedBubbles();
+          });
+
+        selectedBubbles.appendChild(bubble);
+      });
     }
     function renderSelectedNodes() {
-      selectedNodesContainer.innerHTML = ''
-      
+      selectedNodesContainer.innerHTML = "";
+
       if (selectedElements.length === 0) {
-        rightToolbar.classList.add('collapsed')
-        clearAllButton.style.display = 'none'
+        rightToolbar.classList.add("collapsed");
+        clearAllButton.style.display = "none";
       } else {
-        rightToolbar.classList.remove('collapsed')
-        clearAllButton.style.display = 'block'
+        rightToolbar.classList.remove("collapsed");
+        clearAllButton.style.display = "block";
       }
-      
+
       selectedElements.forEach((element, index) => {
-        const node = document.createElement('div')
-        node.className = 'opencode-selected-node'
-        node.setAttribute('role', 'listitem')
-        
-        const description = element.description || '未知元素'
-        const textPreview = element.innerText ? element.innerText.substring(0, 30) : ''
-        const fileName = element.filePath ? element.filePath.split('/').pop() : '未知文件'
-        const lineInfo = element.line ? `:${element.line}${element.column ? `:${element.column}` : ''}` : ''
-        
+        const node = document.createElement("div");
+        node.className = "opencode-selected-node";
+        node.setAttribute("role", "listitem");
+
+        const description = element.description || "未知元素";
+        const textPreview = element.innerText
+          ? element.innerText.substring(0, 30)
+          : "";
+        const fileName = element.filePath
+          ? element.filePath.split("/").pop()
+          : "未知文件";
+        const lineInfo = element.line
+          ? `:${element.line}${element.column ? `:${element.column}` : ""}`
+          : "";
+
         node.innerHTML = `
           <div class="opencode-node-content">
             <span class="opencode-node-text">${description}</span>
-            <span class="opencode-node-file">${textPreview ? textPreview + ' · ' : ''}${fileName}${lineInfo}</span>
+            <span class="opencode-node-file">${textPreview ? textPreview + " · " : ""}${fileName}${lineInfo}</span>
           </div>
           <button class="opencode-node-remove" data-index="${index}" aria-label="移除元素: ${description}">×</button>
-        `
-        
-        node.querySelector('.opencode-node-remove').addEventListener('click', (e) => {
-          e.stopPropagation()
-          removeElement(index)
-        })
-        
-        node.addEventListener('click', () => {
-          highlightElement(element)
-        })
-        
-        selectedNodesContainer.appendChild(node)
-      })
+        `;
+
+        node
+          .querySelector(".opencode-node-remove")
+          .addEventListener("click", (e) => {
+            e.stopPropagation();
+            removeElement(index);
+          });
+
+        node.addEventListener("click", () => {
+          highlightElement(element);
+        });
+
+        selectedNodesContainer.appendChild(node);
+      });
     }
 
     // 绑定清空按钮点击事件
-    clearAllButton.addEventListener('click', async () => {
-      if (selectedElements.length === 0) return
-      
-      const confirmed = await showConfirmDialog(`确定要清空所有 ${selectedElements.length} 个已选节点吗？`)
+    clearAllButton.addEventListener("click", async () => {
+      if (selectedElements.length === 0) return;
+
+      const confirmed = await showConfirmDialog(
+        `确定要清空所有 ${selectedElements.length} 个已选节点吗？`,
+      );
       if (confirmed) {
-        clearAllElements()
+        clearAllElements();
       }
-    })
+    });
 
     // 绑定选择按钮点击事件
-    selectButton.addEventListener('click', toggleSelectMode)
+    selectButton.addEventListener("click", toggleSelectMode);
 
     /**
      * 高亮页面元素
@@ -1167,54 +1252,54 @@
      */
     function highlightElement(element) {
       try {
-        const description = element.description
-        if (!description) return
-        
-        let targetElement = null
-        
-        if (description.includes('#')) {
-          const idMatch = description.match(/#([^\.\[\s]+)/)
+        const description = element.description;
+        if (!description) return;
+
+        let targetElement = null;
+
+        if (description.includes("#")) {
+          const idMatch = description.match(/#([^\.\[\s]+)/);
           if (idMatch) {
-            targetElement = document.getElementById(idMatch[1])
+            targetElement = document.getElementById(idMatch[1]);
           }
         }
-        
-        if (!targetElement && description.includes('.')) {
-          const classMatch = description.match(/^([a-z]+)\.([^\[\s]+)/i)
+
+        if (!targetElement && description.includes(".")) {
+          const classMatch = description.match(/^([a-z]+)\.([^\[\s]+)/i);
           if (classMatch) {
-            const tagName = classMatch[1]
-            const classes = classMatch[2].split('.').filter(Boolean)
-            const selector = `${tagName}.${classes.join('.')}`
-            targetElement = document.querySelector(selector)
+            const tagName = classMatch[1];
+            const classes = classMatch[2].split(".").filter(Boolean);
+            const selector = `${tagName}.${classes.join(".")}`;
+            targetElement = document.querySelector(selector);
           }
         }
-        
+
         if (!targetElement) {
-          const tagMatch = description.match(/^([a-z]+)/i)
+          const tagMatch = description.match(/^([a-z]+)/i);
           if (tagMatch) {
-            const simpleSelector = description.split(/[\.\[\s]/)[0]
-            targetElement = document.querySelector(simpleSelector)
+            const simpleSelector = description.split(/[\.\[\s]/)[0];
+            targetElement = document.querySelector(simpleSelector);
           }
         }
-        
+
         if (targetElement) {
-          targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
-          
-          const highlightOverlay = document.createElement('div')
-          highlightOverlay.className = 'opencode-element-highlight-temp'
-          const rect = targetElement.getBoundingClientRect()
-          highlightOverlay.style.top = `${rect.top + window.scrollY}px`
-          highlightOverlay.style.left = `${rect.left + window.scrollX}px`
-          highlightOverlay.style.width = `${rect.width}px`
-          highlightOverlay.style.height = `${rect.height}px`
-          document.body.appendChild(highlightOverlay)
-          
+          targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+
+          const highlightOverlay = document.createElement("div");
+          highlightOverlay.className = "opencode-element-highlight-temp";
+          const rect = targetElement.getBoundingClientRect();
+          highlightOverlay.style.top = `${rect.top + window.scrollY}px`;
+          highlightOverlay.style.left = `${rect.left + window.scrollX}px`;
+          highlightOverlay.style.width = `${rect.width}px`;
+          highlightOverlay.style.height = `${rect.height}px`;
+          document.body.appendChild(highlightOverlay);
+
           setTimeout(() => {
-            highlightOverlay.remove()
-          }, 2000)
+            highlightOverlay.remove();
+          }, 2000);
         }
       } catch (e) {
-        console.error('Failed to highlight element:', e)
+        console.error("Failed to highlight element:", e);
       }
     }
 
@@ -1223,27 +1308,27 @@
      */
     function sendSelectedElements() {
       if (!servicesStarted) {
-        console.log('[OpenCode] sendSelectedElements: services not started')
-        return
+        console.log("[OpenCode] sendSelectedElements: services not started");
+        return;
       }
 
-      console.log('[OpenCode] Sending selected elements:', selectedElements)
-      fetch('/__opencode_context__', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      console.log("[OpenCode] Sending selected elements:", selectedElements);
+      fetch("/__opencode_context__", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: currentPageUrl,
           title: currentPageTitle,
-          selectedElements: selectedElements
-        })
-      }).then(() => {
-        console.log('[OpenCode] Selected elements sent successfully')
-      }).catch((e) => {
-        console.error('[OpenCode] Failed to send selected elements:', e)
+          selectedElements: selectedElements,
+        }),
       })
+        .then(() => {
+          console.log("[OpenCode] Selected elements sent successfully");
+        })
+        .catch((e) => {
+          console.error("[OpenCode] Failed to send selected elements:", e);
+        });
     }
-
-
 
     /**
      * 截断字符串
@@ -1252,8 +1337,8 @@
      * @returns {string} 截断后的字符串
      */
     function truncate(str, maxLength) {
-      if (!str) return ''
-      return str.length > maxLength ? str.substring(0, maxLength) + '...' : str
+      if (!str) return "";
+      return str.length > maxLength ? str.substring(0, maxLength) + "..." : str;
     }
 
     /**
@@ -1262,13 +1347,13 @@
      * @returns {string} 直接文本内容
      */
     function getDirectText(element) {
-      let text = ''
+      let text = "";
       for (const child of element.childNodes) {
         if (child.nodeType === Node.TEXT_NODE) {
-          text += child.textContent || ''
+          text += child.textContent || "";
         }
       }
-      return text.trim()
+      return text.trim();
     }
 
     /**
@@ -1277,30 +1362,37 @@
      * @returns {string} 元素描述
      */
     function getElementDescription(element) {
-      const tag = element.tagName.toLowerCase()
-      const parts = [tag]
-      
-      const id = element.id
-      if (id) parts.push(`#${id}`)
-      
-      const className = element.className && typeof element.className === 'string'
-        ? element.className.trim().split(/\s+/).filter(Boolean).slice(0, 2).join('.')
-        : ''
-      if (className) parts.push(`.${className}`)
-      
-      const name = element.getAttribute('name')
-      if (name) parts.push(`[name="${name}"]`)
-      
-      const placeholder = element.getAttribute('placeholder')
-      if (placeholder) parts.push(`[placeholder="${placeholder.substring(0, 20)}"]`)
-      
-      const src = element.getAttribute('src')
-      if (src) parts.push(`[src]`)
-      
-      const href = element.getAttribute('href')
-      if (href && href !== '#') parts.push(`[href]`)
-      
-      return parts.join('')
+      const tag = element.tagName.toLowerCase();
+      const parts = [tag];
+
+      const id = element.id;
+      if (id) parts.push(`#${id}`);
+
+      const className =
+        element.className && typeof element.className === "string"
+          ? element.className
+              .trim()
+              .split(/\s+/)
+              .filter(Boolean)
+              .slice(0, 2)
+              .join(".")
+          : "";
+      if (className) parts.push(`.${className}`);
+
+      const name = element.getAttribute("name");
+      if (name) parts.push(`[name="${name}"]`);
+
+      const placeholder = element.getAttribute("placeholder");
+      if (placeholder)
+        parts.push(`[placeholder="${placeholder.substring(0, 20)}"]`);
+
+      const src = element.getAttribute("src");
+      if (src) parts.push(`[src]`);
+
+      const href = element.getAttribute("href");
+      if (href && href !== "#") parts.push(`[href]`);
+
+      return parts.join("");
     }
 
     /**
@@ -1308,53 +1400,57 @@
      */
     function setupInspectorHook() {
       if (window.__VUE_INSPECTOR__) {
-        const inspector = window.__VUE_INSPECTOR__
-        const originalHandleClick = inspector.handleClick.bind(inspector)
+        const inspector = window.__VUE_INSPECTOR__;
+        const originalHandleClick = inspector.handleClick.bind(inspector);
 
-        inspector.handleClick = function(e) {
+        inspector.handleClick = function (e) {
           if (isSelectMode) {
-            const { targetNode, params } = inspector.getTargetNode(e)
+            const { targetNode, params } = inspector.getTargetNode(e);
             if (targetNode && params) {
-              const innerText = getDirectText(targetNode)
-              const description = getElementDescription(targetNode)
+              const innerText = getDirectText(targetNode);
+              const description = getElementDescription(targetNode);
 
               const elementInfo = {
                 filePath: params.file,
                 line: params.line,
                 column: params.column,
                 innerText: truncate(innerText, 200),
-                description
-              }
-              addElement(elementInfo)
-              sendSelectedElements()
+                description,
+              };
+              addElement(elementInfo);
+              sendSelectedElements();
             }
-            return
+            return;
           }
 
-          return originalHandleClick.call(inspector, e)
-        }
+          return originalHandleClick.call(inspector, e);
+        };
       }
     }
 
     if (window.__VUE_INSPECTOR__) {
-      setupInspectorHook()
+      setupInspectorHook();
     } else {
       const checkInspector = setInterval(() => {
         if (window.__VUE_INSPECTOR__) {
-          setupInspectorHook()
-          clearInterval(checkInspector)
+          setupInspectorHook();
+          clearInterval(checkInspector);
         }
-      }, INSPECTOR_CHECK_INTERVAL)
+      }, INSPECTOR_CHECK_INTERVAL);
     }
 
     // 导出全局 API
     window.OpenCodeWidget = {
-      open: () => { if (!isOpen) toggle() },
-      close: () => { if (isOpen) toggle() },
+      open: () => {
+        if (!isOpen) toggle();
+      },
+      close: () => {
+        if (isOpen) toggle();
+      },
       toggle,
       showNotification,
       updateContext,
-    }
+    };
   }
 
   /**
@@ -2426,36 +2522,38 @@
           height: calc(100vh - 100px);
         }
       }
-    `
+    `;
   }
 
   /**
    * 自动初始化挂件
    */
   function autoInit() {
-    const script = document.currentScript || document.querySelector('script[data-opencode-config]')
+    const script =
+      document.currentScript ||
+      document.querySelector("script[data-opencode-config]");
     if (script) {
-      const configBase64 = script.getAttribute('data-opencode-config')
+      const configBase64 = script.getAttribute("data-opencode-config");
       if (configBase64) {
         try {
-          const config = JSON.parse(atob(configBase64))
-          if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', function() {
-              initOpenCodeWidget(config)
-            })
+          const config = JSON.parse(atob(configBase64));
+          if (document.readyState === "loading") {
+            document.addEventListener("DOMContentLoaded", function () {
+              initOpenCodeWidget(config);
+            });
           } else {
-            initOpenCodeWidget(config)
+            initOpenCodeWidget(config);
           }
         } catch (e) {
-          console.error('[OpenCode Widget] Failed to parse config:', e)
+          console.error("[OpenCode Widget] Failed to parse config:", e);
         }
       }
     }
   }
 
   // 导出全局初始化函数
-  window.initOpenCodeWidget = initOpenCodeWidget
+  window.initOpenCodeWidget = initOpenCodeWidget;
 
   // 自动初始化
-  autoInit()
+  autoInit();
 })();
