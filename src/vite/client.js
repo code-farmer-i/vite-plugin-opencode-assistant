@@ -462,6 +462,25 @@
       <div class="opencode-loading-text">加载中...</div>
     `;
 
+    // 创建空状态提示
+    const emptyStateOverlay = document.createElement("div");
+    emptyStateOverlay.className = "opencode-empty-state-overlay";
+    emptyStateOverlay.innerHTML = `
+      <div class="opencode-empty-state-icon">
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+      </div>
+      <div class="opencode-empty-state-text">当前项目暂无会话</div>
+      <button class="opencode-empty-state-btn">立即创建</button>
+    `;
+
+    emptyStateOverlay
+      .querySelector(".opencode-empty-state-btn")
+      .addEventListener("click", () => {
+        createNewSession();
+      });
+
     // 创建 iframe
     const iframe = document.createElement("iframe");
     iframe.className = "opencode-iframe";
@@ -487,6 +506,7 @@
       }
     };
 
+    iframeContainer.appendChild(emptyStateOverlay);
     iframeContainer.appendChild(loadingOverlay);
     iframeContainer.appendChild(iframe);
 
@@ -601,6 +621,14 @@
       const currentProjectSessions = sessions.filter(
         (session) => session.directory === cwd,
       );
+
+      if (currentProjectSessions.length === 0) {
+        emptyStateOverlay.classList.add("visible");
+        iframe.style.display = "none";
+      } else {
+        emptyStateOverlay.classList.remove("visible");
+        iframe.style.display = "";
+      }
 
       currentProjectSessions.forEach((session) => {
         const item = document.createElement("div");
@@ -873,7 +901,7 @@
         });
 
         overlay.appendChild(dialog);
-        document.body.appendChild(overlay);
+        container.appendChild(overlay);
 
         dialog.querySelector(".confirm").focus();
       });
@@ -1972,6 +2000,61 @@
         color: #6b7280;
       }
 
+      .opencode-empty-state-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: #f8f9fa;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 5;
+        transition: opacity 0.3s ease;
+        margin-top: 42px;
+      }
+
+      .opencode-empty-state-overlay.visible {
+        display: flex;
+      }
+
+      .opencode-empty-state-icon {
+        color: #9ca3af;
+        margin-bottom: 16px;
+      }
+
+      .opencode-empty-state-text {
+        color: #4b5563;
+        font-size: 16px;
+        font-weight: 500;
+        margin-bottom: 24px;
+      }
+
+      .opencode-empty-state-btn {
+        padding: 10px 24px;
+        border-radius: 8px;
+        border: none;
+        background: #3b82f6;
+        color: white;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+      }
+
+      .opencode-empty-state-btn:hover {
+        background: #2563eb;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(59, 130, 246, 0.3);
+      }
+
+      .opencode-empty-state-btn:active {
+        transform: translateY(0);
+      }
+
       .opencode-iframe {
         width: 100%;
         height: 100%;
@@ -2006,8 +2089,13 @@
         background: #282828;
       }
 
+      .opencode-dark .opencode-session-item {
+        color: #d1d5db;
+      }
+
       .opencode-dark .opencode-session-item.active {
         background: #3b82f6;
+        color: white;
       }
 
       .opencode-dark .opencode-loading-overlay {
@@ -2021,6 +2109,18 @@
 
       .opencode-dark .opencode-loading-text {
         color: #9ca3af;
+      }
+
+      .opencode-dark .opencode-empty-state-overlay {
+        background: #1a1a1a;
+      }
+
+      .opencode-dark .opencode-empty-state-icon {
+        color: #4b5563;
+      }
+
+      .opencode-dark .opencode-empty-state-text {
+        color: #d1d5db;
       }
 
       .opencode-right-toolbar {
@@ -2309,6 +2409,7 @@
 
       .opencode-dialog-btn.cancel:hover {
         background: #282828;
+        color: white;
       }
 
       .opencode-dialog-btn.confirm {
