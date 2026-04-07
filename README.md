@@ -1,282 +1,287 @@
-# vite-plugin-opencode
+# vite-plugin-opencode-assistant
 
-A Vite plugin that embeds OpenCode Web UI in your development environment, enabling real-time code modification through AI chat.
+一个面向 Vite 开发环境的插件：在页面内注入 OpenCode 对话挂件，自动启动 OpenCode Web，并把当前页面 URL、标题以及选中的页面节点同步给 AI，便于一边聊天一边改代码、立即通过 HMR 看到结果。
 
-## Features
+## 它能做什么
 
-- 🚀 **Auto-start OpenCode services** - Automatically starts OpenCode Server and Web UI
-- 💬 **Embedded Chat Interface** - Customer support-like chat widget in your app
-- 🔄 **Real-time Code Modification** - AI can modify your code and see changes instantly via HMR
-- 🎨 **Customizable** - Configurable position, theme, and behavior
-- ⚡ **Zero Configuration** - Works out of the box with sensible defaults
-- 🔧 **Framework Agnostic** - Works with React, Vue, Svelte, and more
+- 在 `vite serve` 时自动注入一个悬浮 AI 按钮和对话面板
+- 自动启动本地 OpenCode Web 服务，并为当前项目复用或创建会话
+- 把当前页面 URL、标题同步到 OpenCode 会话上下文
+- 支持把页面上选中的节点信息同步给 AI，帮助它直接定位组件文件与行号
+- 内置会话列表，可在挂件中切换、新建、删除当前项目的 OpenCode 会话
+- 支持快捷键、主题、初始展开状态、悬浮位置等配置
+- 支持启动后预热 Chrome DevTools MCP，减少首次使用浏览器工具时的等待
 
-## Installation
+## 工作方式
+
+启动 Vite 开发服务器后，插件会做这几件事：
+
+1. 在 HTML 中注入浏览器端挂件脚本
+2. 检查本机是否已安装 `opencode`
+3. 启动 OpenCode Web 服务，默认使用 `127.0.0.1:4097`
+4. 在当前项目目录下查找已有会话；如果没有，则创建新会话
+5. 把页面上下文通过本地接口同步给 OpenCode
+6. 页面代码被 OpenCode 修改后，由 Vite HMR 立即刷新效果
+
+当前实现只在开发模式生效：
+
+- 仅在 `vite serve` 时启用
+- `build` 阶段不会注入挂件
+- `enabled` 默认值是 `false`，需要显式开启
+
+## 安装
 
 ```bash
-npm install -D vite-plugin-opencode
+npm install -D vite-plugin-opencode-assistant
 ```
 
-## Prerequisites
+## 前置条件
 
-This plugin requires [OpenCode](https://opencode.ai) to be installed on your system.
+本插件依赖本机已安装 [OpenCode](https://opencode.ai) CLI。
 
-### Install OpenCode
+推荐安装方式：
 
-**Using Homebrew (macOS):**
 ```bash
-brew install opencode-ai/tap/opencode
+curl -fsSL https://opencode.ai/install | bash
 ```
 
-**Using the install script:**
+也可以使用包管理器：
+
 ```bash
-curl -fsSL https://raw.githubusercontent.com/opencode-ai/opencode/main/install | bash
+npm i -g opencode-ai@latest
+brew install anomalyco/tap/opencode
 ```
 
-**Using Go:**
-```bash
-go install github.com/opencode-ai/opencode@latest
-```
+如果你保留默认的 `warmupChromeMcp: true`，首次启动时还会通过 `npx` 拉起 `chrome-devtools-mcp` 来预热浏览器工具链。
 
-## Usage
+## 快速开始
 
-### Basic Setup
+由于当前实现默认 `enabled: false`，最小可用配置如下：
 
-Add the plugin to your `vite.config.ts`:
-
-```typescript
-import { defineConfig } from 'vite'
-import opencode from 'vite-plugin-opencode'
+```ts
+import { defineConfig } from "vite";
+import opencodeAssistant from "vite-plugin-opencode-assistant";
 
 export default defineConfig({
   plugins: [
-    opencode(),
-  ],
-})
-```
-
-### With Configuration
-
-```typescript
-import { defineConfig } from 'vite'
-import opencode from 'vite-plugin-opencode'
-
-export default defineConfig({
-  plugins: [
-    opencode({
-      serverPort: 4096,      // OpenCode Server port
-      webPort: 4097,         // OpenCode Web UI port
-      hostname: 'localhost',
-      position: 'bottom-right',
-      theme: 'auto',
-      open: false,
-      autoReload: true,
+    opencodeAssistant({
+      enabled: true,
     }),
   ],
-})
+});
 ```
 
-### Start Development
+启动开发服务器：
 
 ```bash
 npm run dev
 ```
 
-You'll see a floating button in the bottom-right corner of your app. Click it to open the AI chat interface!
+启动后页面右下角会出现悬浮按钮，点击即可打开 OpenCode 面板。
 
-## How It Works
+## 推荐配置示例
 
-```
-┌─────────────────────────────────────────────────┐
-│           Vite Dev Server (5173)                │
-│                                                 │
-│  ┌───────────────────────────────────────────┐ │
-│  │   Your App (with HMR)                     │ │
-│  │   - Embedded OpenCode Widget              │ │
-│  └───────────────────────────────────────────┘ │
-│                                                 │
-│  ┌───────────────────────────────────────────┐ │
-│  │   vite-plugin-opencode                    │ │
-│  │   - OpenCode Server (4096)                │ │
-│  │   - OpenCode Web (4097)                   │ │
-│  └───────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────┘
-```
-
-### Workflow
-
-1. **User** asks AI to modify code (e.g., "Change button color to red")
-2. **OpenCode Web** sends request to OpenCode Server
-3. **OpenCode Server** reads and modifies the file
-4. **Vite HMR** detects file change and hot-reloads the page
-5. **User** sees the change instantly!
-
-## Configuration Options
-
-```typescript
-interface OpenCodeOptions {
-  // Enable/disable the plugin (default: true)
-  enabled?: boolean
-  
-  // OpenCode Server port (default: 4096)
-  serverPort?: number
-  
-  // OpenCode Web UI port (default: 4097)
-  webPort?: number
-  
-  // Hostname (default: 'localhost')
-  hostname?: string
-  
-  // Widget position (default: 'bottom-right')
-  position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
-  
-  // Theme (default: 'auto')
-  theme?: 'light' | 'dark' | 'auto'
-  
-  // Auto-open chat window (default: false)
-  open?: boolean
-  
-  // Enable auto-reload notifications (default: true)
-  autoReload?: boolean
-}
-```
-
-## Examples
-
-### React
-
-```typescript
-// vite.config.ts
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import opencode from 'vite-plugin-opencode'
-
-export default defineConfig({
-  plugins: [
-    react(),
-    opencode(),
-  ],
-})
-```
-
-### Vue
-
-```typescript
-// vite.config.ts
-import { defineConfig } from 'vite'
-import vue from '@vitejs/plugin-vue'
-import opencode from 'vite-plugin-opencode'
+```ts
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import opencodeAssistant from "vite-plugin-opencode-assistant";
 
 export default defineConfig({
   plugins: [
     vue(),
-    opencode(),
+    opencodeAssistant({
+      enabled: true,
+      webPort: 4097,
+      hostname: "127.0.0.1",
+      position: "bottom-right",
+      theme: "auto",
+      open: false,
+      autoReload: true,
+      verbose: false,
+      hotkey: "ctrl+k",
+      warmupChromeMcp: true,
+    }),
   ],
-})
+});
 ```
 
-## Use Cases
+## 配置项
 
-### 1. Style Modifications
-```
-User: "Change the button color to red"
-AI: Modifies App.css
-Result: Button turns red instantly
-```
-
-### 2. Component Creation
-```
-User: "Add a login form"
-AI: Creates LoginForm.jsx
-Result: Login form appears on page
-```
-
-### 3. Bug Fixes
-```
-User: "Fix the counter not working"
-AI: Modifies App.jsx
-Result: Counter works correctly
+```ts
+interface OpenCodeOptions {
+  enabled?: boolean;
+  webPort?: number;
+  hostname?: string;
+  position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
+  theme?: "light" | "dark" | "auto";
+  open?: boolean;
+  autoReload?: boolean;
+  verbose?: boolean;
+  hotkey?: string;
+  warmupChromeMcp?: boolean;
+}
 ```
 
-## API
+配置说明：
 
-The plugin exposes a global API that you can use in your code:
+| 配置项            | 默认值           | 说明                                                                |
+| ----------------- | ---------------- | ------------------------------------------------------------------- |
+| `enabled`         | `false`          | 是否启用插件。当前版本必须手动设为 `true` 才会生效                  |
+| `webPort`         | `4097`           | OpenCode Web 端口。如果端口被占用，会从当前端口开始向后寻找可用端口 |
+| `hostname`        | `127.0.0.1`      | OpenCode Web 绑定地址                                               |
+| `position`        | `"bottom-right"` | 悬浮挂件位置                                                        |
+| `theme`           | `"auto"`         | 挂件主题，`auto` 会跟随系统明暗色                                   |
+| `open`            | `false`          | 页面初始化后是否自动展开挂件                                        |
+| `autoReload`      | `true`           | 控制挂件侧的自动重载提示行为                                        |
+| `verbose`         | `false`          | 是否输出更详细的插件日志                                            |
+| `hotkey`          | `"ctrl+k"`       | 切换挂件的快捷键，macOS 下同样支持 `cmd+k`                          |
+| `warmupChromeMcp` | `true`           | 启动后是否预热 Chrome DevTools MCP                                  |
 
-```javascript
-// Open the chat widget
-window.OpenCodeWidget.open()
+## 使用说明
 
-// Close the chat widget
-window.OpenCodeWidget.close()
+### 1. 打开对话挂件
 
-// Toggle the chat widget
-window.OpenCodeWidget.toggle()
+- 点击页面右下角悬浮按钮
+- 或使用默认快捷键 `Ctrl/Cmd + K`
 
-// Show a notification
-window.OpenCodeWidget.showNotification('Code updated!')
+### 2. 切换会话
+
+挂件左侧带有当前项目的会话列表，支持：
+
+- 查看当前项目下已有会话
+- 新建会话
+- 切换会话
+- 删除会话
+
+### 3. 同步页面上下文
+
+挂件会自动同步以下信息：
+
+- 当前页面 URL
+- 当前页面标题
+- 当前选中的页面节点
+
+它会监听：
+
+- `history.pushState`
+- `history.replaceState`
+- `popstate`
+- `hashchange`
+- `document.title` 变化
+
+这意味着在 SPA 场景下切页后，上下文也会自动更新。
+
+### 4. 选择页面节点
+
+当前实现支持把页面节点作为上下文传给 AI，节点信息包括：
+
+- 源文件路径
+- 行号和列号
+- 节点文本
+- 节点描述
+
+默认通过 `Ctrl/Cmd + P` 进入选择模式。
+
+需要注意：
+
+- 这项能力依赖页面中可用的 Vue Inspector 钩子
+- 如果页面中没有可用的 Inspector，挂件会提示“Vue Inspector 未加载，无法使用元素选择功能”
+- 选中的节点会暂存在 `sessionStorage` 中
+
+## 浏览器端全局 API
+
+挂件会暴露一个全局对象：
+
+```js
+window.OpenCodeWidget.open();
+window.OpenCodeWidget.close();
+window.OpenCodeWidget.toggle();
+window.OpenCodeWidget.showNotification("Code updated!");
+window.OpenCodeWidget.updateContext();
 ```
 
-## Keyboard Shortcuts
+适用场景：
 
-- `Ctrl/Cmd + K` - Toggle chat widget
+- 从你自己的调试面板中主动打开挂件
+- 在页面状态发生重要变化后手动触发一次上下文同步
+- 在自定义流程中复用现有的通知能力
 
-## Troubleshooting
+## 本地接口
+
+插件会在 Vite 开发服务器上挂出几个内部接口，供挂件与 OpenCode 协作使用：
+
+| 路径                      | 说明                                       |
+| ------------------------- | ------------------------------------------ |
+| `/__opencode_widget__.js` | 浏览器端挂件脚本                           |
+| `/__opencode_start__`     | 返回当前服务启动状态与会话地址             |
+| `/__opencode_context__`   | 读写页面上下文、清空已选节点               |
+| `/__opencode_sessions__`  | 查询、创建、删除 OpenCode 会话             |
+| `/__opencode_events__`    | SSE 事件流，用于同步会话就绪和节点清空事件 |
+
+这些接口是插件内部实现细节，通常不需要业务代码直接调用。
+
+## 常见问题
 
 ### OpenCode not installed
 
-If you see an error message about OpenCode not being installed, follow the installation instructions above.
+如果控制台提示未安装 OpenCode，先确认命令行里可以正常执行：
 
-### Port conflicts
+```bash
+opencode --version
+```
 
-If ports 4096 or 4097 are already in use, you can configure different ports:
+若无法执行，请先完成 OpenCode CLI 安装。
 
-```typescript
-opencode({
-  serverPort: 5000,
+### 端口冲突
+
+当前实现只开放了 `webPort` 配置项，没有单独暴露 server 端口配置。
+
+如果默认端口被占用，可以改成：
+
+```ts
+opencodeAssistant({
+  enabled: true,
   webPort: 5001,
-})
+});
 ```
 
-### CORS issues
+如果你不改配置，插件也会从 `webPort` 开始继续向后寻找可用端口。
 
-The plugin automatically configures CORS for local development. If you encounter CORS issues, make sure you're using the correct hostname and ports.
+### 页面里没有节点选择能力
 
-## Development
+这通常意味着当前页面里没有可用的 Vue Inspector 钩子。挂件仍然可以正常聊天和同步 URL/标题，只是无法通过页面点选节点来辅助定位代码。
 
-### Build the plugin
+### 构建产物里为什么没有挂件
+
+这是当前实现的预期行为。插件只在开发服务器模式下工作，不会影响生产构建结果。
+
+## 示例项目
+
+仓库自带了一个 `example` 工作区用于本地联调。
+
+由于示例直接引用 `../dist/vite/index`，请先在仓库根目录构建插件：
 
 ```bash
+npm install
 npm run build
-```
-
-### Run tests
-
-```bash
-npm test
-```
-
-### Run the example
-
-```bash
 cd example
 npm install
 npm run dev
 ```
 
-## Contributing
+## 开发
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+```bash
+npm run build
+npm test
+```
 
 ## License
 
 MIT
 
-## Links
+## 相关链接
 
-- [OpenCode Documentation](https://opencode.ai/docs)
+- [OpenCode](https://opencode.ai)
 - [OpenCode GitHub](https://github.com/opencode-ai/opencode)
 - [Vite Plugin API](https://vite.dev/guide/api-plugin.html)
-
-## Acknowledgments
-
-This plugin is built on top of [OpenCode](https://opencode.ai), an open-source AI coding assistant.
