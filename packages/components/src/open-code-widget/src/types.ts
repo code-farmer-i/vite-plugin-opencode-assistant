@@ -27,6 +27,7 @@ export interface OpenCodeWidgetProps {
   selectShortcutLabel?: string;
   selectMode?: boolean;
   sessionListCollapsed?: boolean;
+  sessionKey?: string;
   loading?: boolean;
   loadingSessionList?: boolean;
   showEmptyState?: boolean;
@@ -71,6 +72,8 @@ export interface OpenCodeWidgetSessionItem {
   meta: string;
   active: boolean;
   session: OpenCodeWidgetSession;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
 }
 
 export interface OpenCodeSelectedElementItem {

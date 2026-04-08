@@ -308,6 +308,7 @@ const App = {
         iframeSrc: iframeSrc.value,
         currentSessionId: currentSessionId.value,
         sessions: sessions.value,
+        sessionKey: "id",
         selectedElements: selectedElements.value,
         hotkeyLabel: hotkey,
         "onUpdate:open": handleToggle,

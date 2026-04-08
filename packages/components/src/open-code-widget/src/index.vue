@@ -26,6 +26,7 @@ const props = withDefaults(defineProps<OpenCodeWidgetProps>(), {
   hotkeyLabel: "Ctrl+K",
   selectShortcutLabel: "按 ESC 或 Ctrl+P 退出",
   selectMode: false,
+  sessionKey: "id",
   sessionListCollapsed: true,
   loading: false,
   showEmptyState: false,
@@ -190,6 +191,7 @@ provideOpenCodeWidgetContext({
   selectMode: toRef(props, "selectMode"),
   selectEnabled: toRef(props, "selectEnabled"),
   sessionListCollapsed: localSessionListCollapsed,
+  sessionKey: toRef(props, "sessionKey"),
   loading: toRef(props, "loading"),
   loadingSessionList: toRef(props, "loadingSessionList"),
   showEmptyState: toRef(props, "showEmptyState"),
@@ -222,30 +224,50 @@ provideOpenCodeWidgetContext({
 <template>
   <div :class="containerClasses">
     <Trigger>
-      <template v-if="slots['button-icon']" #default>
+      <template
+        v-if="slots['button-icon']"
+        #default
+      >
         <slot name="button-icon" />
       </template>
     </Trigger>
 
     <SelectedBubbles v-if="bubbleVisible" />
 
-    <div v-show="!selectMode" class="opencode-chat" :class="{ open }">
+    <div
+      v-show="!selectMode"
+      class="opencode-chat"
+      :class="{ open }"
+    >
       <Header>
-        <template v-if="slots['session-toggle-icon']" #session-toggle-icon>
+        <template
+          v-if="slots['session-toggle-icon']"
+          #session-toggle-icon
+        >
           <slot name="session-toggle-icon" />
         </template>
 
-        <template v-if="slots['select-icon']" #select-icon>
+        <template
+          v-if="slots['select-icon']"
+          #select-icon
+        >
           <slot name="select-icon" />
         </template>
 
-        <template v-if="slots['close-icon']" #close-icon>
+        <template
+          v-if="slots['close-icon']"
+          #close-icon
+        >
           <slot name="close-icon" />
         </template>
       </Header>
 
       <!-- Notification -->
-      <div v-if="notificationVisible" class="opencode-notification" role="alert">
+      <div
+        v-if="notificationVisible"
+        class="opencode-notification"
+        role="alert"
+      >
         {{ notificationMessage }}
       </div>
 
@@ -259,15 +281,24 @@ provideOpenCodeWidgetContext({
         </SessionList>
 
         <Frame>
-          <template v-if="slots['empty-state']" #empty-state>
+          <template
+            v-if="slots['empty-state']"
+            #empty-state
+          >
             <slot name="empty-state" />
           </template>
 
-          <template v-if="slots.loading" #loading>
+          <template
+            v-if="slots.loading"
+            #loading
+          >
             <slot name="loading" />
           </template>
 
-          <template v-if="slots.content" #content>
+          <template
+            v-if="slots.content"
+            #content
+          >
             <slot name="content" />
           </template>
         </Frame>
@@ -306,14 +337,27 @@ provideOpenCodeWidgetContext({
     </div>
 
     <!-- Dialog -->
-    <div v-if="dialogVisible" class="opencode-dialog-overlay">
-      <div class="opencode-dialog" role="alertdialog" aria-modal="true">
+    <div
+      v-if="dialogVisible"
+      class="opencode-dialog-overlay"
+    >
+      <div
+        class="opencode-dialog"
+        role="alertdialog"
+        aria-modal="true"
+      >
         <div class="opencode-dialog-content">
           <div class="opencode-dialog-message">{{ dialogMessage }}</div>
         </div>
         <div class="opencode-dialog-actions">
-          <button class="opencode-dialog-btn cancel" @click="handleDialogCancel">取消</button>
-          <button class="opencode-dialog-btn confirm" @click="handleDialogConfirm">确认</button>
+          <button
+            class="opencode-dialog-btn cancel"
+            @click="handleDialogCancel"
+          >取消</button>
+          <button
+            class="opencode-dialog-btn confirm"
+            @click="handleDialogConfirm"
+          >确认</button>
         </div>
       </div>
     </div>

@@ -9,6 +9,7 @@ const {
   handleCreateSession,
   handleSelectSession,
   handleDeleteSession,
+  sessionKey,
 } = useOpenCodeWidgetContext();
 
 const isAnimating = ref(false);
@@ -29,9 +30,15 @@ const showSkeleton = computed(() => {
 </script>
 
 <template>
-  <div class="opencode-session-list" :class="{ collapsed }">
+  <div
+    class="opencode-session-list"
+    :class="{ collapsed }"
+  >
     <!-- Header -->
-    <div v-if="!showSkeleton" class="opencode-session-list-header">
+    <div
+      v-if="!showSkeleton"
+      class="opencode-session-list-header"
+    >
       <span id="opencode-session-list-title">会话列表</span>
       <button
         class="opencode-new-session-btn"
@@ -45,14 +52,24 @@ const showSkeleton = computed(() => {
     </div>
 
     <!-- Header Skeleton -->
-    <div v-else class="opencode-session-header-skeleton visible">
+    <div
+      v-else
+      class="opencode-session-header-skeleton visible"
+    >
       <div class="opencode-skeleton-header-title" />
       <div class="opencode-skeleton-header-btn" />
     </div>
 
     <!-- Content Skeleton -->
-    <div v-if="showSkeleton" class="opencode-session-skeleton visible">
-      <div v-for="i in 5" :key="`skeleton-${i}`" class="opencode-skeleton-item">
+    <div
+      v-if="showSkeleton"
+      class="opencode-session-skeleton visible"
+    >
+      <div
+        v-for="i in 5"
+        :key="`skeleton-${i}`"
+        class="opencode-skeleton-item"
+      >
         <div class="opencode-skeleton-title" />
         <div class="opencode-skeleton-meta" />
       </div>
@@ -65,14 +82,17 @@ const showSkeleton = computed(() => {
       role="listbox"
       aria-labelledby="opencode-session-list-title"
     >
-      <div v-if="loadingSessionList" class="opencode-session-list-loading-overlay">
+      <div
+        v-if="loadingSessionList"
+        class="opencode-session-list-loading-overlay"
+      >
         <div class="opencode-loading-spinner small" />
       </div>
 
       <template v-if="sessions.length > 0">
         <div
           v-for="item in sessions"
-          :key="item.key"
+          :key="item[sessionKey]"
           class="opencode-session-item"
           :class="{ active: item.active }"
           role="option"
