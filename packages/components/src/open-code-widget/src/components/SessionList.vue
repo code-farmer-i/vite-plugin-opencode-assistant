@@ -1,14 +1,31 @@
 <script setup lang="ts">
+import { ref, watch, computed } from "vue";
 import { useOpenCodeWidgetContext } from "../context";
 
 const {
   sessionListCollapsed: collapsed,
   sessionItems: sessions,
-  loading,
+  loadingSessionList,
   handleCreateSession,
   handleSelectSession,
   handleDeleteSession,
 } = useOpenCodeWidgetContext();
+
+const isAnimating = ref(false);
+let animTimer: ReturnType<typeof setTimeout> | null = null;
+
+watch(collapsed, () => {
+  isAnimating.value = true;
+  if (animTimer) clearTimeout(animTimer);
+  animTimer = setTimeout(() => {
+    isAnimating.value = false;
+  }, 200); // 匹配 CSS width transition 时间
+});
+
+const showSkeleton = computed(() => {
+  if (isAnimating.value) return true;
+  return false;
+});
 </script>
 
 <template>
@@ -18,7 +35,7 @@ const {
   >
     <!-- Header -->
     <div
-      v-if="!loading"
+      v-if="!showSkeleton"
       class="opencode-session-list-header"
     >
       <span id="opencode-session-list-title">会话列表</span>
@@ -44,7 +61,7 @@ const {
 
     <!-- Content Skeleton -->
     <div
-      v-if="loading"
+      v-if="showSkeleton"
       class="opencode-session-skeleton visible"
     >
       <div
@@ -59,41 +76,47 @@ const {
 
     <!-- Content -->
     <div
-      v-else-if="sessions.length > 0"
+      v-else
       class="opencode-session-list-content"
       role="listbox"
       aria-labelledby="opencode-session-list-title"
     >
       <div
-        v-for="item in sessions"
-        :key="item.key"
-        class="opencode-session-item"
-        :class="{ active: item.active }"
-        role="option"
-        :aria-selected="item.active"
-        @click="handleSelectSession(item)"
+        v-if="loadingSessionList"
+        class="opencode-session-list-loading-overlay"
       >
-        <div class="opencode-session-header">
-          <div class="opencode-session-title">{{ item.title }}</div>
-          <button
-            class="opencode-session-delete-btn"
-            type="button"
-            :aria-label="`删除会话: ${item.title}`"
-            @click.stop="handleDeleteSession(item)"
-          >
-            ×
-          </button>
-        </div>
-        <div class="opencode-session-meta">{{ item.meta }}</div>
+        <div class="opencode-loading-spinner small" />
       </div>
-    </div>
 
-    <!-- Empty State -->
-    <div
-      v-else
-      class="opencode-session-list-content"
-    >
-      <slot name="empty" />
+      <template v-if="sessions.length > 0">
+        <div
+          v-for="item in sessions"
+          :key="item.key"
+          class="opencode-session-item"
+          :class="{ active: item.active }"
+          role="option"
+          :aria-selected="item.active"
+          @click="handleSelectSession(item)"
+        >
+          <div class="opencode-session-header">
+            <div class="opencode-session-title">{{ item.title }}</div>
+            <button
+              class="opencode-session-delete-btn"
+              type="button"
+              :aria-label="`删除会话: ${item.title}`"
+              @click.stop="handleDeleteSession(item)"
+            >
+              ×
+            </button>
+          </div>
+          <div class="opencode-session-meta">{{ item.meta }}</div>
+        </div>
+      </template>
+
+      <!-- Empty State -->
+      <template v-else>
+        <slot name="empty" />
+      </template>
     </div>
   </div>
 </template>
@@ -154,6 +177,27 @@ const {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
+  position: relative;
+}
+
+.opencode-session-list-loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--oc-overlay-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: 8px;
+}
+
+.opencode-loading-spinner.small {
+  width: 24px;
+  height: 24px;
+  border-width: 2px;
 }
 
 .opencode-session-item {

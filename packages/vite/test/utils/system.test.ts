@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import http from "http";
 import net from "net";
@@ -32,7 +32,7 @@ describe("system utility", () => {
     it("should retry and resolve if server becomes ready", async () => {
       const mockReq = new EventEmitter();
       const mockRes = new EventEmitter() as any;
-      
+
       let attempts = 0;
       vi.mocked(http.get).mockImplementation(((url: any, cb: any) => {
         attempts++;

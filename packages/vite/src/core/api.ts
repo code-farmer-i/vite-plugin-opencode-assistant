@@ -21,7 +21,7 @@ export class OpenCodeAPI {
   constructor(
     private hostname: string,
     private getPort: () => number,
-    private warmupChromeMcpConfig: boolean = false
+    private warmupChromeMcpConfig: boolean = false,
   ) {}
 
   private createHttpRequest<T>(options: http.RequestOptions, body?: string): Promise<T> {
@@ -252,9 +252,10 @@ export class OpenCodeAPI {
     } finally {
       if (warmupSessionId) {
         try {
-          await this.deleteSession(warmupSessionId);
+          // Increase retries for deleting the warmup session to ensure it's deleted
+          await this.deleteSession(warmupSessionId, 5);
         } catch (e) {
-          log.debug("Failed to delete warmup session", {
+          log.warn("Failed to delete warmup session after retries", {
             error: e,
             warmupSessionId,
           });

@@ -1,4 +1,4 @@
-import { createApp, ref, watch, onMounted, h } from "vue";
+import { createApp, ref, watch, onMounted, h, computed } from "vue";
 import { OpenCodeWidget } from "@vite-plugin-opencode-assistant/components";
 import "@vite-plugin-opencode-assistant/components/style.css";
 import { CONFIG_DATA_ATTR } from "@vite-plugin-opencode-assistant/shared";
@@ -41,6 +41,7 @@ const App = {
     const selectMode = ref(false);
     const sessionListCollapsed = ref(true);
     const loading = ref(false);
+    const loadingSessionList = ref<boolean | undefined>(undefined);
     const iframeSrc = ref("");
     const currentSessionId = ref<string | null>(null);
     const sessions = ref<OpenCodeWidgetSession[]>([]);
@@ -57,6 +58,9 @@ const App = {
       hotkey = "ctrl+k",
       cwd = "",
     } = config;
+
+    const isWaitingForSession = ref(!initialSessionUrl);
+    const computedLoading = computed(() => loading.value || isWaitingForSession.value);
 
     let servicesStarted = !lazy;
 
@@ -93,13 +97,14 @@ const App = {
     };
 
     const loadSessions = async () => {
+      loadingSessionList.value = true;
       try {
         const response = await fetch("/__opencode_sessions__");
         const data = await response.json();
         // format session data
         sessions.value = data
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((s: any) => s.directory === cwd)
+          .filter((s: any) => s.directory === cwd && s.title !== "__chrome_mcp_warmup__")
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((s: any) => ({
             ...s,
@@ -107,6 +112,8 @@ const App = {
           }));
       } catch (e) {
         console.error("[OpenCode] Failed to load sessions:", e);
+      } finally {
+        loadingSessionList.value = false;
       }
     };
 
@@ -167,6 +174,7 @@ const App = {
               iframeSrc.value = data.sessionUrl;
               currentSessionId.value = extractSessionId(data.sessionUrl);
             }
+            isWaitingForSession.value = false;
           } else if (data.type === "CLEAR_ELEMENTS") {
             selectedElements.value = [];
           }
@@ -207,6 +215,7 @@ const App = {
           if (data.sessionUrl) {
             iframeSrc.value = data.sessionUrl;
             currentSessionId.value = extractSessionId(data.sessionUrl);
+            isWaitingForSession.value = false;
           }
           setupSSE();
           return true;
@@ -294,7 +303,8 @@ const App = {
         open: open.value,
         selectMode: selectMode.value,
         sessionListCollapsed: sessionListCollapsed.value,
-        loading: loading.value,
+        loading: computedLoading.value,
+        loadingSessionList: loadingSessionList.value,
         iframeSrc: iframeSrc.value,
         currentSessionId: currentSessionId.value,
         sessions: sessions.value,

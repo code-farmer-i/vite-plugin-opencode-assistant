@@ -195,6 +195,7 @@ provideOpenCodeWidgetContext({
   selectEnabled: toRef(props, "selectEnabled"),
   sessionListCollapsed: localSessionListCollapsed,
   loading: toRef(props, "loading"),
+  loadingSessionList: toRef(props, "loadingSessionList"),
   showEmptyState: toRef(props, "showEmptyState"),
   emptyStateText: toRef(props, "emptyStateText"),
   emptyStateActionText: toRef(props, "emptyStateActionText"),
