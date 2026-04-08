@@ -123,6 +123,23 @@ async function main() {
     console.log(`⏪ Rollback completed!\n`);
   };
 
+  // Register process exit handlers for unexpected termination
+  let isCompleted = false;
+  const handleExit = () => {
+    if (!isCompleted) {
+      console.log("\n⚠️ Process interrupted! Initiating rollback...");
+      rollbackVersion(currentVersion);
+    }
+    process.exit(1);
+  };
+
+  process.on("SIGINT", handleExit);
+  process.on("SIGTERM", handleExit);
+  process.on("uncaughtException", (err) => {
+    console.error("\n❌ Uncaught Exception:", err);
+    handleExit();
+  });
+
   // Update root package.json
   rootPackageJson.version = targetVersion;
   fs.writeFileSync(rootPackageJsonPath, JSON.stringify(rootPackageJson, null, 2) + "\n");
@@ -173,6 +190,7 @@ async function main() {
   } catch (e) {
     console.error("❌ Build failed!", e.message);
     rollbackVersion(currentVersion);
+    isCompleted = true; // Prevent double rollback in exit handler
     process.exit(1);
   }
 
@@ -186,6 +204,7 @@ async function main() {
         cwd: rootDir,
       },
     );
+    isCompleted = true; // Mark as successfully completed
     console.log(`\n🎉 Release process for v${targetVersion} completed!\n`);
   } catch (err) {
     console.error(
@@ -193,10 +212,12 @@ async function main() {
       err instanceof Error ? err.message : String(err),
     );
     rollbackVersion(currentVersion);
+    isCompleted = true; // Prevent double rollback in exit handler
     process.exit(1);
   }
 }
 
 main().catch((err) => {
-  console.error(err);
+  console.error("Release script error:", err);
+  process.exit(1);
 });
