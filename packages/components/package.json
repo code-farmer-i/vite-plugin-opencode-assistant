@@ -18,6 +18,10 @@
     },
     "./style.css": "./lib/index.css"
   },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "sideEffects": [
     "**/*.css",
     "**/*.vue"

@@ -112,7 +112,7 @@ async function main() {
         const pkgJsonPath = path.join(pkgDir, "package.json");
         if (fs.existsSync(pkgJsonPath)) {
           const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
-          if (pkgJson.version !== version) {
+          if (!pkgJson.private && pkgJson.version !== version) {
             pkgJson.version = version;
             fs.writeFileSync(pkgJsonPath, JSON.stringify(pkgJson, null, 2) + "\n");
             console.log(`   ✅ Rolled back ${pkgJson.name} to v${version}`);
@@ -148,6 +148,12 @@ async function main() {
 
     if (fs.existsSync(pkgJsonPath)) {
       const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
+
+      // Skip private packages
+      if (pkgJson.private) {
+        console.log(`   ⏭️  Skipping private package ${pkgJson.name}`);
+        return;
+      }
 
       if (pkgJson.version !== targetVersion) {
         pkgJson.version = targetVersion;
