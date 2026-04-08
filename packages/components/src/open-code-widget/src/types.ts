@@ -68,12 +68,11 @@ export interface OpenCodeRemoveSelectedPayload {
 
 export interface OpenCodeWidgetSessionItem {
   key: string;
+  id: string;
   title: string;
   meta: string;
   active: boolean;
   session: OpenCodeWidgetSession;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
 }
 
 export interface OpenCodeSelectedElementItem {

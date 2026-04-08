@@ -32,6 +32,7 @@ export function useSession(options: UseSessionOptions) {
   const sessionItems = computed<OpenCodeWidgetSessionItem[]>(() =>
     (options.sessions.value || []).map((session: OpenCodeWidgetSession) => ({
       key: session.id,
+      id: session.id,
       title: session.title || "新会话",
       meta: formatSessionMeta(session),
       active: session.id === options.currentSessionId.value,

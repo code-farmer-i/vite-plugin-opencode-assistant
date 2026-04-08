@@ -21,6 +21,12 @@ interface OpenCodeSelectedElement {
   description: string;
 }
 
+function utf8ToBase64(str: string): string {
+  const bytes = new TextEncoder().encode(str);
+  const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
+  return btoa(binString);
+}
+
 // 提取配置
 let config: Partial<WidgetOptions> & { lazy?: boolean } = {};
 const scriptTag = document.querySelector(`script[${CONFIG_DATA_ATTR}]`);
@@ -28,7 +34,10 @@ if (scriptTag) {
   const configBase64 = scriptTag.getAttribute(CONFIG_DATA_ATTR);
   if (configBase64) {
     try {
-      config = JSON.parse(atob(configBase64));
+      const decoded = new TextDecoder().decode(
+        Uint8Array.from(atob(configBase64), (c) => c.charCodeAt(0)),
+      );
+      config = JSON.parse(decoded);
     } catch (e) {
       console.error("[OpenCode] Failed to parse config:", e);
     }
@@ -123,7 +132,7 @@ const App = {
         const newSession = await response.json();
         await loadSessions();
         currentSessionId.value = newSession.id;
-        iframeSrc.value = `${webUrl}/${btoa(cwd)}/session/${newSession.id}`;
+        iframeSrc.value = `${webUrl}/${utf8ToBase64(cwd)}/session/${newSession.id}`;
       } catch {
         showNotification("创建会话失败");
       }
@@ -138,7 +147,7 @@ const App = {
           if (sessions.value.length > 0) {
             const nextSession = sessions.value[0];
             currentSessionId.value = nextSession.id;
-            iframeSrc.value = `${webUrl}/${btoa(cwd)}/session/${nextSession.id}`;
+            iframeSrc.value = `${webUrl}/${utf8ToBase64(cwd)}/session/${nextSession.id}`;
           } else {
             currentSessionId.value = null;
             iframeSrc.value = "";
@@ -153,7 +162,7 @@ const App = {
       if (currentSessionId.value === session.id) return;
       currentSessionId.value = session.id;
       loading.value = true;
-      iframeSrc.value = `${webUrl}/${btoa(cwd)}/session/${session.id}`;
+      iframeSrc.value = `${webUrl}/${utf8ToBase64(cwd)}/session/${session.id}`;
       // iframe loaded event should clear loading, but for simplicity we can use a timeout or let it be
       setTimeout(() => {
         loading.value = false;
