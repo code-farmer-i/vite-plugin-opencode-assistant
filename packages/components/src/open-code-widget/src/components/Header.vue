@@ -1,0 +1,165 @@
+<script setup lang="ts">
+import { useOpenCodeWidgetContext } from "../context";
+
+const {
+  title,
+  sessionListTitle,
+  sessionListCollapsed,
+  selectMode,
+  selectEnabled,
+  handleToggleSessionList,
+  handleToggleSelectMode,
+  handleClose,
+} = useOpenCodeWidgetContext();
+</script>
+
+<template>
+  <div class="opencode-chat-header">
+    <div class="opencode-chat-header-left">
+      <button
+        class="opencode-header-btn session-toggle"
+        type="button"
+        :title="sessionListTitle"
+        :aria-label="sessionListTitle"
+        :aria-expanded="!sessionListCollapsed"
+        @click="handleToggleSessionList"
+      >
+        <slot name="session-toggle-icon">
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path
+              d="M4 6h16M4 12h16M4 18h16"
+              stroke-linecap="round"
+            />
+          </svg>
+        </slot>
+      </button>
+
+      <button
+        class="opencode-header-btn select-btn"
+        :class="{ active: selectMode }"
+        type="button"
+        title="选择页面元素 (Ctrl+P)"
+        aria-label="选择页面元素"
+        :aria-pressed="selectMode"
+        :disabled="!selectEnabled"
+        @click="handleToggleSelectMode"
+      >
+        <slot name="select-icon">
+          <svg
+            viewBox="0 0 1024 1024"
+            width="16"
+            height="16"
+            aria-hidden="true"
+          >
+            <path
+              fill="currentColor"
+              d="M512 896a384 384 0 1 0 0-768 384 384 0 0 0 0 768m0 64a448 448 0 1 1 0-896 448 448 0 0 1 0 896"
+            />
+            <path
+              fill="currentColor"
+              d="M512 96a32 32 0 0 1 32 32v192a32 32 0 0 1-64 0V128a32 32 0 0 1 32-32m0 576a32 32 0 0 1 32 32v192a32 32 0 1 1-64 0V704a32 32 0 0 1 32-32M96 512a32 32 0 0 1 32-32h192a32 32 0 0 1 0 64H128a32 32 0 0 1-32-32m576 0a32 32 0 0 1 32-32h192a32 32 0 1 1 0 64H704a32 32 0 0 1-32-32"
+            />
+          </svg>
+        </slot>
+      </button>
+    </div>
+
+    <span class="opencode-chat-header-title">{{ title }}</span>
+
+    <div class="opencode-chat-header-actions">
+      <button
+        class="opencode-header-btn close"
+        type="button"
+        title="关闭"
+        aria-label="关闭面板"
+        @click="handleClose"
+      >
+        <slot name="close-icon">
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </slot>
+      </button>
+    </div>
+  </div>
+</template>
+
+<style>
+.opencode-chat-header {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  height: 40px;
+  background: var(--oc-bg-secondary);
+  border-bottom: 1px solid var(--oc-border-primary);
+  z-index: 5;
+}
+
+.opencode-chat-header-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.opencode-chat-header-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--oc-text-primary);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.opencode-chat-header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.opencode-header-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--oc-text-placeholder);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.opencode-header-btn:hover {
+  background: var(--oc-bg-tertiary);
+  color: var(--oc-text-primary);
+}
+
+.opencode-header-btn.close:hover {
+  background: var(--oc-danger);
+  color: white;
+}
+
+.opencode-header-btn.select-btn.active {
+  background: var(--oc-primary);
+  color: white;
+}
+</style>

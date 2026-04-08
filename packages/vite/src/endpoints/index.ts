@@ -1,0 +1,17 @@
+import type { ViteDevServer } from "vite";
+import type { EndpointContext } from "./types.js";
+import { setupWidgetEndpoints } from "./widget.js";
+import { setupContextEndpoint } from "./context.js";
+import { setupStartEndpoint } from "./start.js";
+import { setupSseEndpoint } from "./sse.js";
+import { setupSessionsEndpoint } from "./sessions.js";
+
+export * from "./types.js";
+
+export function setupMiddlewares(server: ViteDevServer, ctx: EndpointContext) {
+  setupWidgetEndpoints(server, ctx);
+  setupContextEndpoint(server, ctx);
+  setupStartEndpoint(server, ctx);
+  setupSseEndpoint(server, ctx);
+  setupSessionsEndpoint(server, ctx);
+}

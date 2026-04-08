@@ -3,7 +3,7 @@ import {
   CONFIG_DATA_ATTR,
   WIDGET_SCRIPT_PATH,
 } from "@vite-plugin-opencode-assistant/shared";
-import { injectWidget } from "./injector.js";
+import { injectWidget } from "../../src/core/injector.js";
 
 describe("injectWidget", () => {
   it("injects script tag with encoded config", () => {
@@ -19,7 +19,7 @@ describe("injectWidget", () => {
       hotkey: "ctrl+k",
     });
 
-    expect(html).toContain(`<script src="${WIDGET_SCRIPT_PATH}"`);
+    expect(html).toContain(`<script type="module" src="${WIDGET_SCRIPT_PATH}"`);
     expect(html).toContain(`${CONFIG_DATA_ATTR}=`);
 
     const match = html.match(new RegExp(`${CONFIG_DATA_ATTR}="([^"]+)"`));

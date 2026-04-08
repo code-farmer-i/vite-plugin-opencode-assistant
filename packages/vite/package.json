@@ -21,7 +21,7 @@
     "registry": "https://registry.npmjs.org"
   },
   "scripts": {
-    "build": "pagoda-cli build",
+    "build": "pagoda-cli build && vite build -c vite.client.config.ts",
     "dev": "pagoda-cli dev",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -41,11 +41,20 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@vite-plugin-opencode-assistant/components": "workspace:*",
     "@vite-plugin-opencode-assistant/opencode": "workspace:*",
     "@vite-plugin-opencode-assistant/shared": "workspace:*",
     "unplugin-vue-inspector": "^2.4.0"
   },
   "peerDependencies": {
     "vite": ">=4.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "execa": "^9.6.1",
+    "typescript": "^5.9.3",
+    "vite": "^5.0.0",
+    "vue": "^3.5.32",
+    "vue-tsc": "^2.2.12"
   }
 }
