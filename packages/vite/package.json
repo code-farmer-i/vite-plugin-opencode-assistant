@@ -1,6 +1,6 @@
 {
   "name": "vite-plugin-opencode-assistant",
-  "version": "1.0.4",
+  "version": "1.0.7",
   "description": "Embed OpenCode Web UI in your Vite dev server for real-time code modification and preview",
   "type": "module",
   "main": "lib/index.js",
@@ -25,8 +25,7 @@
     "build": "pagoda-cli build && vite build -c vite.client.config.ts",
     "dev": "pagoda-cli dev",
     "test": "vitest run",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prepublishOnly": "pnpm run build"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "keywords": [
     "vite",

@@ -1,7 +1,6 @@
 {
   "name": "@vite-plugin-opencode-assistant/opencode",
-  "version": "1.0.4",
-  "private": true,
+  "version": "1.0.7",
   "type": "module",
   "main": "lib/index.js",
   "module": "es/index.js",
@@ -16,6 +15,10 @@
       "import": "./es/index.js",
       "require": "./lib/index.js"
     }
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
     "build": "pagoda-cli build && vite build -c vite.plugin.config.ts",

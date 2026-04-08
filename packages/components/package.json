@@ -1,6 +1,6 @@
 {
   "name": "@vite-plugin-opencode-assistant/components",
-  "version": "1.0.4",
+  "version": "1.0.7",
   "description": "Reusable OpenCode widget components built with Pagoda CLI",
   "type": "module",
   "main": "lib/index.js",
@@ -30,8 +30,7 @@
     "build": "pagoda-cli build",
     "docs:dev": "pagoda-cli site",
     "docs:build": "pagoda-cli build-site",
-    "test": "vitest run",
-    "prepublishOnly": "pnpm run build"
+    "test": "vitest run"
   },
   "peerDependencies": {
     "vue": "^3.5.0"
