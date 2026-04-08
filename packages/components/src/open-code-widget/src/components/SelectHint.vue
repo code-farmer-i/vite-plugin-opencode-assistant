@@ -5,10 +5,7 @@ const { selectMode: visible, selectShortcutLabel: shortcutLabel } = useOpenCodeW
 </script>
 
 <template>
-  <div
-    class="opencode-select-mode-hint"
-    :class="{ visible }"
-  >
+  <div class="opencode-select-mode-hint" :class="{ visible }">
     <span>🎯 选择模式已开启 - 点击元素进行选择</span>
     <span class="opencode-hint-shortcut">{{ shortcutLabel }}</span>
   </div>

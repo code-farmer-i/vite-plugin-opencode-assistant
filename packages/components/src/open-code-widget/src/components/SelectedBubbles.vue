@@ -10,16 +10,8 @@ const {
 </script>
 
 <template>
-  <div
-    class="opencode-selected-bubbles"
-    :class="{ visible }"
-    role="list"
-    aria-label="已选元素列表"
-  >
-    <div
-      v-if="items.length === 0"
-      class="opencode-bubble-empty"
-    >暂无选中元素</div>
+  <div class="opencode-selected-bubbles" :class="{ visible }" role="list" aria-label="已选元素列表">
+    <div v-if="items.length === 0" class="opencode-bubble-empty">暂无选中元素</div>
 
     <div
       v-for="(item, index) in items"
@@ -30,10 +22,7 @@ const {
       @click="handleClickSelectedNode(item)"
     >
       <span class="opencode-bubble-text">{{ item.description }}</span>
-      <span
-        v-if="item.bubbleFileText"
-        class="opencode-bubble-file"
-      >
+      <span v-if="item.bubbleFileText" class="opencode-bubble-file">
         {{ item.bubbleFileText }}
       </span>
       <button

@@ -11,22 +11,13 @@ const {
 </script>
 
 <template>
-  <div
-    class="opencode-right-toolbar"
-    :class="{ collapsed: items.length === 0 }"
-  >
+  <div class="opencode-right-toolbar" :class="{ collapsed: items.length === 0 }">
     <div class="opencode-selected-nodes-header">
       <div class="opencode-selected-nodes-title">已选节点</div>
-      <div class="opencode-selected-nodes-desc">
-        选中的节点会在对话时一起发送给助手
-      </div>
+      <div class="opencode-selected-nodes-desc">选中的节点会在对话时一起发送给助手</div>
     </div>
 
-    <div
-      class="opencode-selected-nodes"
-      role="list"
-      aria-label="已选元素列表"
-    >
+    <div class="opencode-selected-nodes" role="list" aria-label="已选元素列表">
       <div
         v-for="(item, index) in items"
         :key="item.key"
@@ -113,7 +104,7 @@ const {
 }
 
 .opencode-selected-nodes:empty::before {
-  content: '暂无选中元素';
+  content: "暂无选中元素";
   color: var(--oc-text-placeholder);
   font-size: 12px;
   text-align: center;

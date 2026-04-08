@@ -17,14 +17,26 @@ describe("SelectedNodes.vue", () => {
       description: "div.header",
       bubbleFileText: "src/Header.vue",
       panelFileText: "src/Header.vue:10",
-      element: { filePath: "src/Header.vue", line: 10, column: 5, innerText: "Logo", description: "div.header" },
+      element: {
+        filePath: "src/Header.vue",
+        line: 10,
+        column: 5,
+        innerText: "Logo",
+        description: "div.header",
+      },
     },
     {
       key: "2",
       description: "button.submit",
       bubbleFileText: "src/Button.vue",
       panelFileText: "src/Button.vue:20",
-      element: { filePath: "src/Button.vue", line: 20, column: 2, innerText: "Submit", description: "button.submit" },
+      element: {
+        filePath: "src/Button.vue",
+        line: 20,
+        column: 2,
+        innerText: "Submit",
+        description: "button.submit",
+      },
     },
   ];
 
@@ -37,23 +49,25 @@ describe("SelectedNodes.vue", () => {
   };
 
   beforeEach(() => {
-    vi.mocked(contextModule.useOpenCodeWidgetContext).mockReturnValue(defaultContext as unknown as OpenCodeWidgetContext);
+    vi.mocked(contextModule.useOpenCodeWidgetContext).mockReturnValue(
+      defaultContext as unknown as OpenCodeWidgetContext,
+    );
   });
 
   it("should render correctly with items", () => {
     const wrapper = mount(SelectedNodes);
-    
+
     expect(wrapper.classes()).not.toContain("collapsed");
-    
+
     const items = wrapper.findAll(".opencode-selected-node");
     expect(items).toHaveLength(2);
-    
+
     expect(items[0].find(".opencode-node-text").text()).toBe("div.header");
     expect(items[0].find(".opencode-node-file").text()).toBe("src/Header.vue:10");
 
     expect(items[1].find(".opencode-node-text").text()).toBe("button.submit");
     expect(items[1].find(".opencode-node-file").text()).toBe("src/Button.vue:20");
-    
+
     expect(wrapper.find(".opencode-clear-all-btn").exists()).toBe(true);
   });
 
@@ -92,9 +106,9 @@ describe("SelectedNodes.vue", () => {
     } as unknown as OpenCodeWidgetContext);
 
     const wrapper = mount(SelectedNodes);
-    
+
     const items = wrapper.findAll(".opencode-selected-node");
-    
+
     // Click node
     await items[0].trigger("click");
     expect(handleClickSelectedNode).toHaveBeenCalledTimes(1);

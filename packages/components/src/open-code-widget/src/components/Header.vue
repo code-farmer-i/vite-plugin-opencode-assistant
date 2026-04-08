@@ -34,10 +34,7 @@ const {
             stroke-width="2"
             aria-hidden="true"
           >
-            <path
-              d="M4 6h16M4 12h16M4 18h16"
-              stroke-linecap="round"
-            />
+            <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" />
           </svg>
         </slot>
       </button>
@@ -53,12 +50,7 @@ const {
         @click="handleToggleSelectMode"
       >
         <slot name="select-icon">
-          <svg
-            viewBox="0 0 1024 1024"
-            width="16"
-            height="16"
-            aria-hidden="true"
-          >
+          <svg viewBox="0 0 1024 1024" width="16" height="16" aria-hidden="true">
             <path
               fill="currentColor"
               d="M512 896a384 384 0 1 0 0-768 384 384 0 0 0 0 768m0 64a448 448 0 1 1 0-896 448 448 0 0 1 0 896"

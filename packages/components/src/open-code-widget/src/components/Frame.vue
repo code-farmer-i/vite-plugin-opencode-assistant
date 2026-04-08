@@ -13,10 +13,7 @@ const {
 
 <template>
   <div class="opencode-iframe-container">
-    <div
-      class="opencode-empty-state-overlay"
-      :class="{ visible: showEmptyState }"
-    >
+    <div class="opencode-empty-state-overlay" :class="{ visible: showEmptyState }">
       <slot name="empty-state">
         <div class="opencode-empty-state-icon">
           <svg
@@ -36,20 +33,13 @@ const {
           </svg>
         </div>
         <div class="opencode-empty-state-text">{{ emptyStateText }}</div>
-        <button
-          class="opencode-empty-state-btn"
-          type="button"
-          @click="handleEmptyAction"
-        >
+        <button class="opencode-empty-state-btn" type="button" @click="handleEmptyAction">
           {{ emptyStateActionText }}
         </button>
       </slot>
     </div>
 
-    <div
-      class="opencode-loading-overlay"
-      :class="{ visible: loading }"
-    >
+    <div class="opencode-loading-overlay" :class="{ visible: loading }">
       <slot name="loading">
         <div class="opencode-loading-spinner" />
         <div class="opencode-loading-text">加载中...</div>

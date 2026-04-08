@@ -38,12 +38,7 @@ export function prepareOpenCodeRuntime(cwd: string): string {
         mcp: {
           "chrome-devtools": {
             type: "local",
-            command: [
-              "npx",
-              "-y",
-              "chrome-devtools-mcp@latest",
-              "--autoConnect",
-            ],
+            command: ["npx", "-y", "chrome-devtools-mcp@latest", "--autoConnect"],
             enabled: true,
           },
         },
@@ -63,8 +58,7 @@ export function prepareOpenCodeRuntime(cwd: string): string {
 }
 
 export function startOpenCodeWeb(options: WebOptions): ResultPromise {
-  const { port, hostname, cwd, configDir, corsOrigins, contextApiUrl } =
-    options;
+  const { port, hostname, cwd, configDir, corsOrigins, contextApiUrl } = options;
   const stateDir = createStateDirectory(cwd);
   const pluginPath = path.join(stateDir, "plugins", "page-context.js");
 

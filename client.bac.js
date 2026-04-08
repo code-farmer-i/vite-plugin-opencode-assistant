@@ -113,10 +113,7 @@
       const key = parts.pop();
 
       return {
-        ctrl:
-          parts.includes("ctrl") ||
-          parts.includes("cmd") ||
-          parts.includes("meta"),
+        ctrl: parts.includes("ctrl") || parts.includes("cmd") || parts.includes("meta"),
         shift: parts.includes("shift"),
         alt: parts.includes("alt"),
         key: key || "k",
@@ -136,9 +133,7 @@
      * @returns {boolean} 是否匹配
      */
     function matchHotkey(e, hotkeyConfig) {
-      const ctrlMatch = hotkeyConfig.ctrl
-        ? e.ctrlKey || e.metaKey
-        : !(e.ctrlKey || e.metaKey);
+      const ctrlMatch = hotkeyConfig.ctrl ? e.ctrlKey || e.metaKey : !(e.ctrlKey || e.metaKey);
       const shiftMatch = hotkeyConfig.shift ? e.shiftKey : !e.shiftKey;
       const altMatch = hotkeyConfig.alt ? e.altKey : !e.altKey;
       const keyMatch = e.key.toLowerCase() === hotkeyConfig.key.toLowerCase();
@@ -381,10 +376,7 @@
     const sessionListContent = document.createElement("div");
     sessionListContent.className = "opencode-session-list-content";
     sessionListContent.setAttribute("role", "listbox");
-    sessionListContent.setAttribute(
-      "aria-labelledby",
-      "opencode-session-list-title",
-    );
+    sessionListContent.setAttribute("aria-labelledby", "opencode-session-list-title");
 
     // 创建会话列表内容骨架屏
     const sessionSkeleton = document.createElement("div");
@@ -430,9 +422,7 @@
       }
 
       sessionList.classList.toggle("collapsed", isSessionListCollapsed);
-      toggleBtn.title = isSessionListCollapsed
-        ? "展开会话列表"
-        : "折叠会话列表";
+      toggleBtn.title = isSessionListCollapsed ? "展开会话列表" : "折叠会话列表";
       toggleBtn.setAttribute(
         "aria-label",
         isSessionListCollapsed ? "展开会话列表" : "折叠会话列表",
@@ -475,11 +465,9 @@
       <button class="opencode-empty-state-btn">立即创建</button>
     `;
 
-    emptyStateOverlay
-      .querySelector(".opencode-empty-state-btn")
-      .addEventListener("click", () => {
-        createNewSession();
-      });
+    emptyStateOverlay.querySelector(".opencode-empty-state-btn").addEventListener("click", () => {
+      createNewSession();
+    });
 
     // 创建 iframe
     const iframe = document.createElement("iframe");
@@ -493,11 +481,7 @@
     }
 
     iframe.onload = function () {
-      if (
-        servicesStarted &&
-        iframe.src !== "about:blank" &&
-        iframe.src !== window.location.href
-      ) {
+      if (servicesStarted && iframe.src !== "about:blank" && iframe.src !== window.location.href) {
         updateContext();
         loadSessions();
       }
@@ -618,9 +602,7 @@
     function renderSessionList() {
       sessionListContent.innerHTML = "";
 
-      const currentProjectSessions = sessions.filter(
-        (session) => session.directory === cwd,
-      );
+      const currentProjectSessions = sessions.filter((session) => session.directory === cwd);
 
       if (currentProjectSessions.length === 0) {
         emptyStateOverlay.classList.add("visible");
@@ -634,10 +616,7 @@
         const item = document.createElement("div");
         item.className = "opencode-session-item";
         item.setAttribute("role", "option");
-        item.setAttribute(
-          "aria-selected",
-          String(session.id === currentSessionId),
-        );
+        item.setAttribute("aria-selected", String(session.id === currentSessionId));
         if (session.id === currentSessionId) {
           item.classList.add("active");
         }
@@ -653,10 +632,7 @@
         deleteBtn.className = "opencode-session-delete-btn";
         deleteBtn.innerHTML = "×";
         deleteBtn.title = "删除会话";
-        deleteBtn.setAttribute(
-          "aria-label",
-          `删除会话: ${session.title || "新会话"}`,
-        );
+        deleteBtn.setAttribute("aria-label", `删除会话: ${session.title || "新会话"}`);
         deleteBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           confirmDeleteSession(session);
@@ -668,8 +644,7 @@
         const meta = document.createElement("div");
         meta.className = "opencode-session-meta";
         const date = new Date(session.time.updated);
-        meta.textContent =
-          date.toLocaleDateString() + " " + date.toLocaleTimeString();
+        meta.textContent = date.toLocaleDateString() + " " + date.toLocaleTimeString();
 
         item.appendChild(header);
         item.appendChild(meta);
@@ -732,12 +707,9 @@
      */
     async function deleteSession(session) {
       try {
-        const response = await fetch(
-          `/__opencode_sessions__?id=${session.id}`,
-          {
-            method: "DELETE",
-          },
-        );
+        const response = await fetch(`/__opencode_sessions__?id=${session.id}`, {
+          method: "DELETE",
+        });
 
         if (!response.ok) {
           throw new Error("Delete failed");
@@ -786,9 +758,7 @@
     applyTheme();
 
     if (theme === "auto") {
-      window
-        .matchMedia("(prefers-color-scheme: dark)")
-        .addEventListener("change", applyTheme);
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
     }
 
     /**
@@ -882,9 +852,7 @@
           resolve(false);
         };
 
-        dialog
-          .querySelector(".confirm")
-          .addEventListener("click", handleConfirm);
+        dialog.querySelector(".confirm").addEventListener("click", handleConfirm);
         dialog.querySelector(".cancel").addEventListener("click", handleCancel);
 
         overlay.addEventListener("click", (e) => {
@@ -935,8 +903,7 @@
       const exists =
         key &&
         selectedElements.some((el) => {
-          const elKey =
-            el.filePath && el.line ? `${el.filePath}:${el.line}` : null;
+          const elKey = el.filePath && el.line ? `${el.filePath}:${el.line}` : null;
           return elKey === key;
         });
 
@@ -1200,8 +1167,7 @@
       selectedBubbles.innerHTML = "";
 
       if (selectedElements.length === 0) {
-        selectedBubbles.innerHTML =
-          '<div class="opencode-bubble-empty">暂无选中元素</div>';
+        selectedBubbles.innerHTML = '<div class="opencode-bubble-empty">暂无选中元素</div>';
         return;
       }
 
@@ -1211,9 +1177,7 @@
         bubble.setAttribute("role", "listitem");
 
         const description = element.description || "未知元素";
-        const fileName = element.filePath
-          ? element.filePath.split("/").pop()
-          : "";
+        const fileName = element.filePath ? element.filePath.split("/").pop() : "";
         const lineInfo = element.line
           ? `:${element.line}${element.column ? `:${element.column}` : ""}`
           : "";
@@ -1224,13 +1188,11 @@
           <button class="opencode-bubble-remove" data-index="${index}" aria-label="移除元素: ${description}">×</button>
         `;
 
-        bubble
-          .querySelector(".opencode-bubble-remove")
-          .addEventListener("click", (e) => {
-            e.stopPropagation();
-            removeElement(index);
-            renderSelectedBubbles();
-          });
+        bubble.querySelector(".opencode-bubble-remove").addEventListener("click", (e) => {
+          e.stopPropagation();
+          removeElement(index);
+          renderSelectedBubbles();
+        });
 
         selectedBubbles.appendChild(bubble);
       });
@@ -1252,12 +1214,8 @@
         node.setAttribute("role", "listitem");
 
         const description = element.description || "未知元素";
-        const textPreview = element.innerText
-          ? element.innerText.substring(0, 30)
-          : "";
-        const fileName = element.filePath
-          ? element.filePath.split("/").pop()
-          : "未知文件";
+        const textPreview = element.innerText ? element.innerText.substring(0, 30) : "";
+        const fileName = element.filePath ? element.filePath.split("/").pop() : "未知文件";
         const lineInfo = element.line
           ? `:${element.line}${element.column ? `:${element.column}` : ""}`
           : "";
@@ -1270,12 +1228,10 @@
           <button class="opencode-node-remove" data-index="${index}" aria-label="移除元素: ${description}">×</button>
         `;
 
-        node
-          .querySelector(".opencode-node-remove")
-          .addEventListener("click", (e) => {
-            e.stopPropagation();
-            removeElement(index);
-          });
+        node.querySelector(".opencode-node-remove").addEventListener("click", (e) => {
+          e.stopPropagation();
+          removeElement(index);
+        });
 
         node.addEventListener("click", () => {
           highlightElement(element);
@@ -1424,12 +1380,7 @@
 
       const className =
         element.className && typeof element.className === "string"
-          ? element.className
-              .trim()
-              .split(/\s+/)
-              .filter(Boolean)
-              .slice(0, 2)
-              .join(".")
+          ? element.className.trim().split(/\s+/).filter(Boolean).slice(0, 2).join(".")
           : "";
       if (className) parts.push(`.${className}`);
 
@@ -1437,8 +1388,7 @@
       if (name) parts.push(`[name="${name}"]`);
 
       const placeholder = element.getAttribute("placeholder");
-      if (placeholder)
-        parts.push(`[placeholder="${placeholder.substring(0, 20)}"]`);
+      if (placeholder) parts.push(`[placeholder="${placeholder.substring(0, 20)}"]`);
 
       const src = element.getAttribute("src");
       if (src) parts.push(`[src]`);
@@ -2658,9 +2608,7 @@
    * 自动初始化挂件
    */
   function autoInit() {
-    const script =
-      document.currentScript ||
-      document.querySelector("script[data-opencode-config]");
+    const script = document.currentScript || document.querySelector("script[data-opencode-config]");
     if (script) {
       const configBase64 = script.getAttribute("data-opencode-config");
       if (configBase64) {

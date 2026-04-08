@@ -1,7 +1,11 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import path from "path";
 import fs from "fs";
-import { resolvePackageDir, resolveWidgetPath, resolveWidgetStylePath } from "../../src/utils/paths.js";
+import {
+  resolvePackageDir,
+  resolveWidgetPath,
+  resolveWidgetStylePath,
+} from "../../src/utils/paths.js";
 
 vi.mock("fs");
 

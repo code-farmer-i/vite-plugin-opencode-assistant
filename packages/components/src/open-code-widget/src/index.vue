@@ -85,9 +85,12 @@ defineExpose({
 });
 
 const localSessionListCollapsed = ref(props.sessionListCollapsed);
-watch(() => props.sessionListCollapsed, (val: boolean) => {
-  localSessionListCollapsed.value = val;
-});
+watch(
+  () => props.sessionListCollapsed,
+  (val: boolean) => {
+    localSessionListCollapsed.value = val;
+  },
+);
 
 const {
   buttonActive,
@@ -127,12 +130,7 @@ const {
   },
 });
 
-const {
-  sessionItems,
-  handleCreateSession,
-  handleDeleteSession,
-  handleSelectSession,
-} = useSession({
+const { sessionItems, handleCreateSession, handleDeleteSession, handleSelectSession } = useSession({
   sessions: toRef(props, "sessions"),
   currentSessionId: toRef(props, "currentSessionId"),
   onCreateSession: () => emit("create-session"),
@@ -172,22 +170,17 @@ const {
   showConfirmDialog,
 });
 
-const {
-  highlightVisible,
-  highlightStyle,
-  tooltipVisible,
-  tooltipStyle,
-  tooltipContent,
-} = useInspector({
-  selectMode: toRef(props, "selectMode"),
-  onAddSelectedNode: (element) => {
-    emit("click-selected-node", element);
-  },
-  onExitSelectMode: () => {
-    emit("update:selectMode", false);
-    emit("toggle-select-mode", false);
-  }
-});
+const { highlightVisible, highlightStyle, tooltipVisible, tooltipStyle, tooltipContent } =
+  useInspector({
+    selectMode: toRef(props, "selectMode"),
+    onAddSelectedNode: (element) => {
+      emit("click-selected-node", element);
+    },
+    onExitSelectMode: () => {
+      emit("update:selectMode", false);
+      emit("toggle-select-mode", false);
+    },
+  });
 
 provideOpenCodeWidgetContext({
   theme: toRef(props, "theme"),
@@ -220,7 +213,8 @@ provideOpenCodeWidgetContext({
   handleDeleteSession,
   handleToggleSelectMode,
   handleClickSelectedNode,
-  handleRemoveSelectedNode: (payload) => handleRemoveSelectedNode(payload.item, payload.index, payload.source),
+  handleRemoveSelectedNode: (payload) =>
+    handleRemoveSelectedNode(payload.item, payload.index, payload.source),
   handleClearSelectedNodes,
 });
 </script>
@@ -228,50 +222,30 @@ provideOpenCodeWidgetContext({
 <template>
   <div :class="containerClasses">
     <Trigger>
-      <template
-        v-if="slots['button-icon']"
-        #default
-      >
+      <template v-if="slots['button-icon']" #default>
         <slot name="button-icon" />
       </template>
     </Trigger>
 
     <SelectedBubbles v-if="bubbleVisible" />
 
-    <div
-      v-show="!selectMode"
-      class="opencode-chat"
-      :class="{ open }"
-    >
+    <div v-show="!selectMode" class="opencode-chat" :class="{ open }">
       <Header>
-        <template
-          v-if="slots['session-toggle-icon']"
-          #session-toggle-icon
-        >
+        <template v-if="slots['session-toggle-icon']" #session-toggle-icon>
           <slot name="session-toggle-icon" />
         </template>
 
-        <template
-          v-if="slots['select-icon']"
-          #select-icon
-        >
+        <template v-if="slots['select-icon']" #select-icon>
           <slot name="select-icon" />
         </template>
 
-        <template
-          v-if="slots['close-icon']"
-          #close-icon
-        >
+        <template v-if="slots['close-icon']" #close-icon>
           <slot name="close-icon" />
         </template>
       </Header>
 
       <!-- Notification -->
-      <div
-        v-if="notificationVisible"
-        class="opencode-notification"
-        role="alert"
-      >
+      <div v-if="notificationVisible" class="opencode-notification" role="alert">
         {{ notificationMessage }}
       </div>
 
@@ -285,24 +259,15 @@ provideOpenCodeWidgetContext({
         </SessionList>
 
         <Frame>
-          <template
-            v-if="slots['empty-state']"
-            #empty-state
-          >
+          <template v-if="slots['empty-state']" #empty-state>
             <slot name="empty-state" />
           </template>
 
-          <template
-            v-if="slots.loading"
-            #loading
-          >
+          <template v-if="slots.loading" #loading>
             <slot name="loading" />
           </template>
 
-          <template
-            v-if="slots.content"
-            #content
-          >
+          <template v-if="slots.content" #content>
             <slot name="content" />
           </template>
         </Frame>
@@ -319,7 +284,7 @@ provideOpenCodeWidgetContext({
       class="opencode-element-highlight"
       :style="{
         display: highlightVisible ? 'block' : 'none',
-        ...highlightStyle
+        ...highlightStyle,
       }"
     />
 
@@ -329,7 +294,7 @@ provideOpenCodeWidgetContext({
       class="opencode-element-tooltip"
       :style="{
         display: tooltipVisible ? 'block' : 'none',
-        ...tooltipStyle
+        ...tooltipStyle,
       }"
     >
       <div class="opencode-tooltip-tag">
@@ -341,31 +306,14 @@ provideOpenCodeWidgetContext({
     </div>
 
     <!-- Dialog -->
-    <div
-      v-if="dialogVisible"
-      class="opencode-dialog-overlay"
-    >
-      <div
-        class="opencode-dialog"
-        role="alertdialog"
-        aria-modal="true"
-      >
+    <div v-if="dialogVisible" class="opencode-dialog-overlay">
+      <div class="opencode-dialog" role="alertdialog" aria-modal="true">
         <div class="opencode-dialog-content">
           <div class="opencode-dialog-message">{{ dialogMessage }}</div>
         </div>
         <div class="opencode-dialog-actions">
-          <button
-            class="opencode-dialog-btn cancel"
-            @click="handleDialogCancel"
-          >
-            取消
-          </button>
-          <button
-            class="opencode-dialog-btn confirm"
-            @click="handleDialogConfirm"
-          >
-            确认
-          </button>
+          <button class="opencode-dialog-btn cancel" @click="handleDialogCancel">取消</button>
+          <button class="opencode-dialog-btn confirm" @click="handleDialogConfirm">确认</button>
         </div>
       </div>
     </div>
@@ -427,7 +375,7 @@ provideOpenCodeWidgetContext({
 
   position: fixed;
   z-index: 999999;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 .opencode-widget.opencode-theme-dark {
@@ -502,8 +450,6 @@ provideOpenCodeWidgetContext({
   top: 20px;
   left: 20px;
 }
-
-
 
 .opencode-chat {
   position: absolute;

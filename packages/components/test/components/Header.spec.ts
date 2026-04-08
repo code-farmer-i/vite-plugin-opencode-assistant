@@ -22,14 +22,16 @@ describe("Header.vue", () => {
   };
 
   beforeEach(() => {
-    vi.mocked(contextModule.useOpenCodeWidgetContext).mockReturnValue(defaultContext as unknown as OpenCodeWidgetContext);
+    vi.mocked(contextModule.useOpenCodeWidgetContext).mockReturnValue(
+      defaultContext as unknown as OpenCodeWidgetContext,
+    );
   });
 
   it("should render correctly", () => {
     const wrapper = mount(Header);
-    
+
     expect(wrapper.find(".opencode-chat-header-title").text()).toBe("Trae AI 助手");
-    
+
     const sessionToggle = wrapper.find(".session-toggle");
     expect(sessionToggle.attributes("title")).toBe("展开会话列表");
     expect(sessionToggle.attributes("aria-expanded")).toBe("false");
@@ -63,7 +65,7 @@ describe("Header.vue", () => {
 
     const wrapper = mount(Header);
     const selectBtn = wrapper.find(".select-btn");
-    
+
     expect(selectBtn.classes()).toContain("active");
     expect(selectBtn.attributes("aria-pressed")).toBe("true");
     expect(selectBtn.attributes("disabled")).toBeDefined();
@@ -82,7 +84,7 @@ describe("Header.vue", () => {
     } as unknown as OpenCodeWidgetContext);
 
     const wrapper = mount(Header);
-    
+
     await wrapper.find(".session-toggle").trigger("click");
     expect(handleToggleSessionList).toHaveBeenCalledTimes(1);
 

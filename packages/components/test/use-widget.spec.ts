@@ -25,11 +25,7 @@ describe("useWidget composable", () => {
     ]);
 
     options.position.value = "top-left";
-    expect(containerClasses.value).toEqual([
-      "opencode-widget",
-      "top-left",
-      "opencode-theme-dark",
-    ]);
+    expect(containerClasses.value).toEqual(["opencode-widget", "top-left", "opencode-theme-dark"]);
   });
 
   it("should compute buttonActive based on open or selectMode", () => {
@@ -92,12 +88,8 @@ describe("useWidget composable", () => {
       onEmptyAction: vi.fn(),
     };
 
-    const {
-      handleToggle,
-      handleClose,
-      handleToggleSessionList,
-      handleEmptyAction,
-    } = useWidget(options);
+    const { handleToggle, handleClose, handleToggleSessionList, handleEmptyAction } =
+      useWidget(options);
 
     handleToggle();
     expect(options.onToggle).toHaveBeenCalledWith(true);

@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  CONFIG_DATA_ATTR,
-  WIDGET_SCRIPT_PATH,
-} from "@vite-plugin-opencode-assistant/shared";
+import { CONFIG_DATA_ATTR, WIDGET_SCRIPT_PATH } from "@vite-plugin-opencode-assistant/shared";
 import { injectWidget } from "../../src/core/injector.js";
 
 describe("injectWidget", () => {

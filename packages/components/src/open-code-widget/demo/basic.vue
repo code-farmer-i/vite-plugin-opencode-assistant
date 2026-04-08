@@ -1,24 +1,24 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted } from "vue";
 
-import type { OpenCodeSelectedElement } from '../src/types';
+import type { OpenCodeSelectedElement } from "../src/types";
 
 const open = ref(false);
 const loading = ref(true);
 const selectMode = ref(false);
-const theme = ref<'light' | 'dark'>('light');
+const theme = ref<"light" | "dark">("light");
 const currentSessionId = ref<string | null>(null);
-const sessions = ref<{ id: string; title: string; updatedAt: number; }[]>([]);
+const sessions = ref<{ id: string; title: string; updatedAt: number }[]>([]);
 const selectedElements = ref<OpenCodeSelectedElement[]>([]);
 
 onMounted(() => {
   // 模拟异步加载数据
   setTimeout(() => {
     sessions.value = [
-      { id: '1', title: '如何使用 Vue 3 的 Composition API？', updatedAt: Date.now() },
-      { id: '2', title: '解释一下这段代码的含义', updatedAt: Date.now() - 86400000 },
+      { id: "1", title: "如何使用 Vue 3 的 Composition API？", updatedAt: Date.now() },
+      { id: "2", title: "解释一下这段代码的含义", updatedAt: Date.now() - 86400000 },
     ];
-    currentSessionId.value = '1';
+    currentSessionId.value = "1";
 
     selectedElements.value = [
       {
@@ -27,7 +27,7 @@ onMounted(() => {
         line: 4,
         column: 14,
         innerText: "ref(false)",
-      }
+      },
     ];
 
     loading.value = false;
@@ -42,7 +42,7 @@ const handleToggleSelectMode = (val: boolean) => {
   selectMode.value = val;
 };
 
-const handleSelectSession = (session: { id: string; }) => {
+const handleSelectSession = (session: { id: string }) => {
   loading.value = true;
   // 模拟异步加载会话内容
   setTimeout(() => {
@@ -51,11 +51,11 @@ const handleSelectSession = (session: { id: string; }) => {
   }, 500);
 };
 
-const handleDeleteSession = (session: { id: string; }) => {
+const handleDeleteSession = (session: { id: string }) => {
   loading.value = true;
   // 模拟异步删除会话
   setTimeout(() => {
-    sessions.value = sessions.value.filter(s => s.id !== session.id);
+    sessions.value = sessions.value.filter((s) => s.id !== session.id);
     if (currentSessionId.value === session.id && sessions.value.length > 0) {
       currentSessionId.value = sessions.value[0].id;
     }
@@ -70,8 +70,8 @@ const handleCreateSession = () => {
     const id = Date.now().toString();
     sessions.value.unshift({
       id,
-      title: '新会话',
-      updatedAt: Date.now()
+      title: "新会话",
+      updatedAt: Date.now(),
     });
     currentSessionId.value = id;
     loading.value = false;
@@ -80,14 +80,28 @@ const handleCreateSession = () => {
 
 const handleClickSelectedNode = (element: OpenCodeSelectedElement) => {
   // If element is not already in the list, add it
-  const exists = selectedElements.value.find(e => e.filePath === element.filePath && e.line === element.line && e.column === element.column);
+  const exists = selectedElements.value.find(
+    (e) =>
+      e.filePath === element.filePath && e.line === element.line && e.column === element.column,
+  );
   if (!exists) {
     selectedElements.value.push(element);
   }
 };
 
-const handleRemoveSelectedNode = (payload: { element: OpenCodeSelectedElement; index: number; source: 'bubble' | 'panel'; }) => {
-  selectedElements.value = selectedElements.value.filter(e => !(e.filePath === payload.element.filePath && e.line === payload.element.line && e.column === payload.element.column));
+const handleRemoveSelectedNode = (payload: {
+  element: OpenCodeSelectedElement;
+  index: number;
+  source: "bubble" | "panel";
+}) => {
+  selectedElements.value = selectedElements.value.filter(
+    (e) =>
+      !(
+        e.filePath === payload.element.filePath &&
+        e.line === payload.element.line &&
+        e.column === payload.element.column
+      ),
+  );
 };
 
 const handleClearSelectedNodes = () => {
@@ -96,16 +110,18 @@ const handleClearSelectedNodes = () => {
 </script>
 
 <template>
-  <div
-    class="demo-container"
-    :class="[theme === 'dark' ? 'demo-dark' : '']"
-  >
+  <div class="demo-container" :class="[theme === 'dark' ? 'demo-dark' : '']">
     <div class="controls">
-      <button @click="open = !open">切换挂件 (当前: {{ open ? '打开' : '关闭' }})</button>
-      <button @click="selectMode = !selectMode">切换选择模式 (当前: {{ selectMode ? '开启' : '关闭' }})</button>
-      <button @click="theme = theme === 'light' ? 'dark' : 'light'">切换主题 (当前: {{ theme === 'light' ? '亮色' : '暗色'
-        }})</button>
-      <button @click="loading = !loading">切换加载状态 (当前: {{ loading ? '加载中' : '空闲' }})</button>
+      <button @click="open = !open">切换挂件 (当前: {{ open ? "打开" : "关闭" }})</button>
+      <button @click="selectMode = !selectMode">
+        切换选择模式 (当前: {{ selectMode ? "开启" : "关闭" }})
+      </button>
+      <button @click="theme = theme === 'light' ? 'dark' : 'light'">
+        切换主题 (当前: {{ theme === "light" ? "亮色" : "暗色" }})
+      </button>
+      <button @click="loading = !loading">
+        切换加载状态 (当前: {{ loading ? "加载中" : "空闲" }})
+      </button>
     </div>
 
     <opencode-widget

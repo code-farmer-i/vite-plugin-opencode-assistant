@@ -65,7 +65,7 @@ const { buttonActive: active, open, hotkeyLabel, handleToggle } = useOpenCodeWid
 }
 
 .opencode-button::before {
-  content: '';
+  content: "";
   position: absolute;
   top: -8px;
   left: -8px;
@@ -98,7 +98,6 @@ const { buttonActive: active, open, hotkeyLabel, handleToggle } = useOpenCodeWid
 }
 
 @keyframes pulse {
-
   0%,
   100% {
     opacity: 1;

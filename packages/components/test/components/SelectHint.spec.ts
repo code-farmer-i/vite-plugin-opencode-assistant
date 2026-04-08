@@ -16,7 +16,9 @@ describe("SelectHint.vue", () => {
   };
 
   beforeEach(() => {
-    vi.mocked(contextModule.useOpenCodeWidgetContext).mockReturnValue(defaultContext as unknown as OpenCodeWidgetContext);
+    vi.mocked(contextModule.useOpenCodeWidgetContext).mockReturnValue(
+      defaultContext as unknown as OpenCodeWidgetContext,
+    );
   });
 
   it("should render correctly and reflect selectMode", () => {
