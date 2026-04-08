@@ -65,15 +65,9 @@ importers:
       '@vue/test-utils':
         specifier: ^2.4.6
         version: 2.4.6
-      enquirer:
-        specifier: ^2.4.1
-        version: 2.4.1
       jsdom:
         specifier: ^29.0.2
         version: 29.0.2
-      semver:
-        specifier: ^7.7.4
-        version: 7.7.4
       vitest:
         specifier: ^1.6.1
         version: 1.6.1(@types/node@20.19.39)(jsdom@29.0.2)(less@4.6.4)(lightningcss@1.32.0)(sass@1.79.3)

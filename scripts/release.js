@@ -30,7 +30,28 @@ const versionIncrements = [
 
 const inc = (i) => semver.inc(currentVersion, i, preReleaseId);
 
+async function checkNpmLogin() {
+  try {
+    const user = execSync("npm whoami --registry=https://registry.npmjs.org/ --silent", {
+      encoding: "utf-8",
+      stdio: ["pipe", "pipe", "ignore"], // 忽略标准错误输出
+    }).trim();
+    console.log(`✅ Logged in to npm as: ${user}`);
+    return true;
+  } catch {
+    console.error(
+      "❌ Not logged in to npm. Please run `npm login --registry=https://registry.npmjs.org/` first.",
+    );
+    return false;
+  }
+}
+
 async function main() {
+  console.log("\n🔍 Checking npm login status...");
+  if (!(await checkNpmLogin())) {
+    process.exit(1);
+  }
+
   const { release } = await prompt({
     type: "select",
     name: "release",
@@ -68,6 +89,39 @@ async function main() {
   }
 
   console.log(`\n🚀 Starting release process for version v${targetVersion}...\n`);
+
+  // Define rollback function
+  const rollbackVersion = (version) => {
+    console.log(`\n⏪ Rolling back versions to v${version}...`);
+
+    // Rollback root package.json
+    const rootPkg = JSON.parse(fs.readFileSync(rootPackageJsonPath, "utf-8"));
+    rootPkg.version = version;
+    fs.writeFileSync(rootPackageJsonPath, JSON.stringify(rootPkg, null, 2) + "\n");
+    console.log(`   ✅ Rolled back root package.json to v${version}`);
+
+    // Rollback all packages
+    const packagesDir = path.join(rootDir, "packages");
+    if (fs.existsSync(packagesDir)) {
+      const packages = fs.readdirSync(packagesDir).filter((pkg) => {
+        return fs.statSync(path.join(packagesDir, pkg)).isDirectory();
+      });
+
+      packages.forEach((pkg) => {
+        const pkgDir = path.join(packagesDir, pkg);
+        const pkgJsonPath = path.join(pkgDir, "package.json");
+        if (fs.existsSync(pkgJsonPath)) {
+          const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
+          if (pkgJson.version !== version) {
+            pkgJson.version = version;
+            fs.writeFileSync(pkgJsonPath, JSON.stringify(pkgJson, null, 2) + "\n");
+            console.log(`   ✅ Rolled back ${pkgJson.name} to v${version}`);
+          }
+        }
+      });
+    }
+    console.log(`⏪ Rollback completed!\n`);
+  };
 
   // Update root package.json
   rootPackageJson.version = targetVersion;
@@ -112,16 +166,27 @@ async function main() {
     console.log("   ✅ Build successful!");
   } catch (e) {
     console.error("❌ Build failed!", e.message);
+    rollbackVersion(currentVersion);
     process.exit(1);
   }
 
   // 5. Publish packages
   console.log("\n📤 Publishing packages...");
   try {
-    execSync("pnpm -r publish --access public --no-git-checks", { stdio: "inherit", cwd: rootDir });
+    execSync(
+      "pnpm -r publish --access public --no-git-checks --registry=https://registry.npmjs.org/",
+      {
+        stdio: "inherit",
+        cwd: rootDir,
+      },
+    );
     console.log(`\n🎉 Release process for v${targetVersion} completed!\n`);
-  } catch (e) {
-    console.error("\n❌ Failed to publish packages:", e.message);
+  } catch (err) {
+    console.error(
+      "\n❌ Failed to publish packages:",
+      err instanceof Error ? err.message : String(err),
+    );
+    rollbackVersion(currentVersion);
     process.exit(1);
   }
 }
