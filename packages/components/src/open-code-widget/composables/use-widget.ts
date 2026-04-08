@@ -8,6 +8,7 @@ export interface UseWidgetOptions {
   iframeSrc: Ref<string>;
   sessionListCollapsed: Ref<boolean>;
   onToggle: (nextOpen: boolean) => void;
+  onToggleSelectMode?: (mode: boolean) => void;
   onClose: () => void;
   onToggleSessionList: (collapsed: boolean) => void;
   onEmptyAction: () => void;
@@ -29,6 +30,11 @@ export function useWidget(options: UseWidgetOptions) {
   );
 
   function handleToggle(): void {
+    if (options.selectMode.value) {
+      // If in select mode, toggle it off instead of opening/closing the chat
+      options.onToggleSelectMode?.(false);
+      return;
+    }
     const nextOpen = !options.open.value;
     options.onToggle(nextOpen);
   }

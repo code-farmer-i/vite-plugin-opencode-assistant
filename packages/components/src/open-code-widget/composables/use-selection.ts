@@ -46,16 +46,13 @@ export interface UseSelectionOptions {
   selectMode: Ref<boolean>;
   selectedElements: Ref<OpenCodeSelectedElement[]>;
   onToggleSelectMode: (mode: boolean) => void;
-  onClickSelectedNode: (element: OpenCodeSelectedElement) => void;
   onRemoveSelectedNode: (payload: OpenCodeRemoveSelectedPayload) => void;
   onClearSelectedNodes: () => void;
   showConfirmDialog: (message: string) => Promise<boolean>;
 }
 
 export function useSelection(options: UseSelectionOptions) {
-  const bubbleVisible = computed(
-    () => options.selectMode.value || (options.selectedElements.value || []).length > 0,
-  );
+  const bubbleVisible = computed(() => options.selectMode.value);
 
   const selectedElementItems = computed<OpenCodeSelectedElementItem[]>(() =>
     (options.selectedElements.value || []).map(
@@ -76,7 +73,65 @@ export function useSelection(options: UseSelectionOptions) {
   }
 
   function handleClickSelectedNode(item: OpenCodeSelectedElementItem): void {
-    options.onClickSelectedNode(item.element);
+    const description = item.element.description;
+    if (!description) return;
+
+    let targetElement: Element | null = null;
+
+    if (description.includes("#")) {
+      const idMatch = description.match(/#([^.[\s]+)/);
+      if (idMatch) {
+        targetElement = document.getElementById(idMatch[1]);
+      }
+    }
+
+    if (!targetElement && description.includes(".")) {
+      const classMatch = description.match(/^([a-z]+)\.([^[\s]+)/i);
+      if (classMatch) {
+        const tagName = classMatch[1];
+        const classes = classMatch[2].split(".").filter(Boolean);
+        const selector = `${tagName}.${classes.join(".")}`;
+        targetElement = document.querySelector(selector);
+      }
+    }
+
+    if (!targetElement) {
+      const tagMatch = description.match(/^([a-z]+)/i);
+      if (tagMatch) {
+        const simpleSelector = description.split(/[.[\s]/)[0];
+        targetElement = document.querySelector(simpleSelector);
+      }
+    }
+
+    if (targetElement) {
+      targetElement.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      const highlightOverlay = document.createElement("div");
+      highlightOverlay.className = "opencode-element-highlight-temp";
+
+      const widget = document.querySelector(".opencode-widget");
+      let primary = "#3b82f6";
+      let primaryBg = "rgba(59, 130, 246, 0.1)";
+      if (widget) {
+        const style = getComputedStyle(widget);
+        primary = style.getPropertyValue("--oc-primary").trim() || primary;
+        primaryBg = style.getPropertyValue("--oc-primary-bg").trim() || primaryBg;
+      }
+
+      highlightOverlay.style.border = `2px solid ${primary}`;
+      highlightOverlay.style.background = primaryBg;
+
+      const rect = targetElement.getBoundingClientRect();
+      highlightOverlay.style.top = `${rect.top + window.scrollY}px`;
+      highlightOverlay.style.left = `${rect.left + window.scrollX}px`;
+      highlightOverlay.style.width = `${rect.width}px`;
+      highlightOverlay.style.height = `${rect.height}px`;
+      document.body.appendChild(highlightOverlay);
+
+      setTimeout(() => {
+        highlightOverlay.remove();
+      }, 2000);
+    }
   }
 
   function handleRemoveSelectedNode(

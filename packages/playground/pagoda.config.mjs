@@ -5,8 +5,7 @@ export default defineConfig({
   name: "@vite-plugin-opencode-assistant/docs",
   site: {
     title: "vite-plugin-opencode-assistant",
-    description:
-      "基于 Pagoda CLI 的文档站，内置接入 vite-plugin-opencode-assistant。",
+    description: "基于 Pagoda CLI 的文档站，内置接入 vite-plugin-opencode-assistant。",
     defaultRoute: "home",
     nav: [
       {
@@ -28,7 +27,7 @@ export default defineConfig({
           config.plugins = config.plugins || [];
           config.plugins.push(
             ...opencode({
-              enabled: true,
+              verbose: true,
             }),
           );
           return config;

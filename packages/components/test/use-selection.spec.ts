@@ -31,7 +31,7 @@ describe("useSelection composable", () => {
         innerText: "Hello",
       },
     ];
-    expect(bubbleVisible.value).toBe(true);
+    expect(bubbleVisible.value).toBe(false);
   });
 
   it("should compute selectedElementItems correctly", () => {
@@ -56,7 +56,6 @@ describe("useSelection composable", () => {
       selectMode: ref(false),
       selectedElements: ref(mockElements),
       onToggleSelectMode: vi.fn(),
-      onClickSelectedNode: vi.fn(),
       onRemoveSelectedNode: vi.fn(),
       onClearSelectedNodes: vi.fn(),
       showConfirmDialog: vi.fn().mockResolvedValue(true),
@@ -94,7 +93,6 @@ describe("useSelection composable", () => {
       selectMode: ref(false),
       selectedElements: ref(mockElements),
       onToggleSelectMode: vi.fn(),
-      onClickSelectedNode: vi.fn(),
       onRemoveSelectedNode: vi.fn(),
       onClearSelectedNodes: vi.fn(),
       showConfirmDialog: vi.fn().mockResolvedValue(true),
@@ -113,7 +111,7 @@ describe("useSelection composable", () => {
 
     const item = selectedElementItems.value[0];
     handleClickSelectedNode(item);
-    expect(options.onClickSelectedNode).toHaveBeenCalledWith(item.element);
+    // Removed onClickSelectedNode expectation since it's handled internally now
 
     handleRemoveSelectedNode(item, 0, "bubble");
     expect(options.onRemoveSelectedNode).toHaveBeenCalledWith({

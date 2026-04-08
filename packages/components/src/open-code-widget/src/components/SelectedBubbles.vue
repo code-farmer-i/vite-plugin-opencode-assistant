@@ -4,6 +4,7 @@ import { useOpenCodeWidgetContext } from "../context";
 const {
   bubbleVisible: visible,
   selectedElementItems: items,
+  handleClickSelectedNode,
   handleRemoveSelectedNode,
 } = useOpenCodeWidgetContext();
 </script>
@@ -26,6 +27,7 @@ const {
       :key="item.key"
       class="opencode-selected-bubble"
       role="listitem"
+      @click="handleClickSelectedNode(item)"
     >
       <span class="opencode-bubble-text">{{ item.description }}</span>
       <span
@@ -49,8 +51,6 @@ const {
 <style>
 .opencode-selected-bubbles {
   position: absolute;
-  bottom: 44px;
-  right: 0;
   display: none;
   flex-direction: column;
   gap: 6px;
@@ -67,13 +67,21 @@ const {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 10px;
+  padding: 8px 24px 8px 10px;
+  /* 增加右侧 padding 避免文字被关闭按钮覆盖 */
   background: var(--oc-bg-main);
   border: 1px solid var(--oc-border-primary);
   border-radius: 8px;
   font-size: 12px;
   box-shadow: var(--oc-shadow-sm);
   position: relative;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.opencode-selected-bubble:hover {
+  border-color: var(--oc-primary);
+  box-shadow: var(--oc-shadow-primary);
 }
 
 .opencode-bubble-text {
@@ -94,8 +102,9 @@ const {
 
 .opencode-bubble-remove {
   position: absolute;
-  top: 4px;
-  right: 4px;
+  top: 8px;
+  /* 稍微下移，使其垂直居中更自然 */
+  right: 6px;
   width: 16px;
   height: 16px;
   border-radius: 50%;

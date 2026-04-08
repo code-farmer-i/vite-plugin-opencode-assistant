@@ -32,9 +32,7 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
   log.debug("Context API URL:", { contextApiUrl });
 
   if (!contextApiUrl) {
-    log.warn(
-      "OPENCODE_CONTEXT_API_URL is not set, page context plugin will not work",
-    );
+    log.warn("OPENCODE_CONTEXT_API_URL is not set, page context plugin will not work");
     return {};
   }
 
@@ -63,8 +61,7 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
         selectedElements: data.selectedElements,
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       const errorName = error instanceof Error ? error.name : "UnknownError";
       log.error("Failed to get context", {
         error: errorMessage,
@@ -81,8 +78,7 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
       const response = await fetch(apiUrl, { method: "DELETE" });
       log.debug("Clear response", { status: response.status });
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       const errorName = error instanceof Error ? error.name : "UnknownError";
       log.error("Failed to clear selected elements", {
         error: errorMessage,
@@ -92,10 +88,7 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
     }
   }
 
-  function formatSelectedElement(
-    element: SelectedElement,
-    index: number,
-  ): string {
+  function formatSelectedElement(element: SelectedElement, index: number): string {
     const parts: string[] = [];
 
     parts.push(`### 选中节点 ${index + 1}`);
@@ -113,10 +106,7 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 
     if (element.innerText?.trim()) {
       const text = element.innerText.trim().substring(0, MAX_TEXT_LENGTH);
-      const suffix =
-        element.innerText.length > MAX_TEXT_LENGTH
-          ? "\n... (已省略部分内容)"
-          : "";
+      const suffix = element.innerText.length > MAX_TEXT_LENGTH ? "\n... (已省略部分内容)" : "";
       parts.push(`- **节点文本**:\n\`\`\`text\n${text}${suffix}\n\`\`\``);
     }
 
@@ -124,9 +114,7 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
   }
 
   function buildContextPrefix(context: PageContextData): string {
-    const pageLink = context.title
-      ? `[${context.title}](${context.url})`
-      : context.url;
+    const pageLink = context.title ? `[${context.title}](${context.url})` : context.url;
     let prefix = `【系统提示：以下是用户当前正在浏览的页面上下文，请将其作为最高优先级的背景信息来理解和响应用户的请求。】\n\n`;
     prefix += `用户现在正在浏览项目中的这个页面：${pageLink}\n\n`;
 
@@ -168,9 +156,7 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 
       if (!context?.url) return;
 
-      const lastUserMsg = [...output.messages]
-        .reverse()
-        .find((m) => m.info.role === "user");
+      const lastUserMsg = [...output.messages].reverse().find((m) => m.info.role === "user");
       if (!lastUserMsg) return;
 
       const textPart = lastUserMsg.parts.find((p) => p.type === "text");

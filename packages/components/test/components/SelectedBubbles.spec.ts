@@ -17,28 +17,37 @@ describe("SelectedBubbles.vue", () => {
       description: "div.container",
       bubbleFileText: "src/App.vue",
       panelFileText: "src/App.vue",
-      element: { filePath: "src/App.vue", line: 10, column: 5, innerText: "Hello", description: "div.container" },
+      element: {
+        filePath: "src/App.vue",
+        line: 10,
+        column: 5,
+        innerText: "Hello",
+        description: "div.container",
+      },
     },
   ];
 
   const defaultContext = {
     bubbleVisible: ref(true),
     selectedElementItems: ref(mockItems),
+    handleClickSelectedNode: vi.fn(),
     handleRemoveSelectedNode: vi.fn(),
   };
 
   beforeEach(() => {
-    vi.mocked(contextModule.useOpenCodeWidgetContext).mockReturnValue(defaultContext as unknown as OpenCodeWidgetContext);
+    vi.mocked(contextModule.useOpenCodeWidgetContext).mockReturnValue(
+      defaultContext as unknown as OpenCodeWidgetContext,
+    );
   });
 
   it("should render correctly with items", () => {
     const wrapper = mount(SelectedBubbles);
-    
+
     expect(wrapper.classes()).toContain("visible");
-    
+
     const items = wrapper.findAll(".opencode-selected-bubble");
     expect(items).toHaveLength(1);
-    
+
     expect(items[0].find(".opencode-bubble-text").text()).toBe("div.container");
     expect(items[0].find(".opencode-bubble-file").text()).toBe("src/App.vue");
   });
@@ -73,7 +82,7 @@ describe("SelectedBubbles.vue", () => {
     } as unknown as OpenCodeWidgetContext);
 
     const wrapper = mount(SelectedBubbles);
-    
+
     await wrapper.find(".opencode-bubble-remove").trigger("click");
     expect(handleRemoveSelectedNode).toHaveBeenCalledTimes(1);
     expect(handleRemoveSelectedNode).toHaveBeenCalledWith({
@@ -81,5 +90,19 @@ describe("SelectedBubbles.vue", () => {
       index: 0,
       source: "bubble",
     });
+  });
+
+  it("should call handleClickSelectedNode when bubble is clicked", async () => {
+    const handleClickSelectedNode = vi.fn();
+    vi.mocked(contextModule.useOpenCodeWidgetContext).mockReturnValue({
+      ...defaultContext,
+      handleClickSelectedNode,
+    } as unknown as OpenCodeWidgetContext);
+
+    const wrapper = mount(SelectedBubbles);
+
+    await wrapper.find(".opencode-selected-bubble").trigger("click");
+    expect(handleClickSelectedNode).toHaveBeenCalledTimes(1);
+    expect(handleClickSelectedNode).toHaveBeenCalledWith(mockItems[0]);
   });
 });

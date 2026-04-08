@@ -71,7 +71,12 @@ function getElementDescription(element: Element): string {
 
 export function useInspector(options: UseInspectorOptions) {
   const highlightVisible = ref(false);
-  const highlightStyle = ref({ top: "0px", left: "0px", width: "0px", height: "0px" });
+  const highlightStyle = ref<Record<string, string>>({
+    top: "0px",
+    left: "0px",
+    width: "0px",
+    height: "0px",
+  });
 
   const tooltipVisible = ref(false);
   const tooltipStyle = ref({ top: "0px", left: "0px" });
@@ -91,12 +96,23 @@ export function useInspector(options: UseInspectorOptions) {
     if (targetNode && params) {
       const rect = targetNode.getBoundingClientRect();
 
+      const widget = document.querySelector(".opencode-widget");
+      let primary = "#3b82f6";
+      let primaryBg = "rgba(59, 130, 246, 0.1)";
+      if (widget) {
+        const style = getComputedStyle(widget);
+        primary = style.getPropertyValue("--oc-primary").trim() || primary;
+        primaryBg = style.getPropertyValue("--oc-primary-bg").trim() || primaryBg;
+      }
+
       highlightVisible.value = true;
       highlightStyle.value = {
         top: `${rect.top}px`,
         left: `${rect.left}px`,
         width: `${rect.width}px`,
         height: `${rect.height}px`,
+        border: `2px solid ${primary}`,
+        background: primaryBg,
       };
 
       const description = getElementDescription(targetNode);

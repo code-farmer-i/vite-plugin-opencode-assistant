@@ -109,6 +109,10 @@ const {
     emit("update:open", nextOpen);
     emit("toggle", nextOpen);
   },
+  onToggleSelectMode: (mode) => {
+    emit("update:selectMode", mode);
+    emit("toggle-select-mode", mode);
+  },
   onClose: () => {
     emit("update:open", false);
     emit("close");
@@ -155,7 +159,6 @@ const {
     emit("update:selectMode", mode);
     emit("toggle-select-mode", mode);
   },
-  onClickSelectedNode: (element) => emit("click-selected-node", element),
   onRemoveSelectedNode: (payload) => {
     emit("remove-selected-node", payload);
     const newElements = [...props.selectedElements];
@@ -263,6 +266,15 @@ provideOpenCodeWidgetContext({
         </template>
       </Header>
 
+      <!-- Notification -->
+      <div
+        v-if="notificationVisible"
+        class="opencode-notification"
+        role="alert"
+      >
+        {{ notificationMessage }}
+      </div>
+
       <div class="opencode-chat-content">
         <SessionList>
           <template #empty>
@@ -326,15 +338,6 @@ provideOpenCodeWidgetContext({
       <div class="opencode-tooltip-file">
         {{ tooltipContent.fileInfo }}
       </div>
-    </div>
-
-    <!-- Notification -->
-    <div
-      v-if="notificationVisible"
-      class="opencode-notification"
-      role="alert"
-    >
-      {{ notificationMessage }}
     </div>
 
     <!-- Dialog -->
@@ -525,22 +528,44 @@ provideOpenCodeWidgetContext({
 }
 
 .opencode-widget.bottom-right .opencode-chat {
-  bottom: 48px;
+  bottom: 56px;
   right: 0;
 }
 
 .opencode-widget.bottom-left .opencode-chat {
-  bottom: 48px;
+  bottom: 56px;
   left: 0;
 }
 
 .opencode-widget.top-right .opencode-chat {
-  top: 48px;
+  top: 56px;
   right: 0;
 }
 
 .opencode-widget.top-left .opencode-chat {
-  top: 48px;
+  top: 56px;
+  left: 0;
+}
+
+.opencode-widget.bottom-right .opencode-selected-bubbles {
+  bottom: 56px;
+  right: 0;
+}
+
+.opencode-widget.bottom-left .opencode-selected-bubbles {
+  bottom: 56px;
+  left: 0;
+}
+
+.opencode-widget.top-right .opencode-selected-bubbles {
+  top: 56px;
+  bottom: auto;
+  right: 0;
+}
+
+.opencode-widget.top-left .opencode-selected-bubbles {
+  top: 56px;
+  bottom: auto;
   left: 0;
 }
 
@@ -556,13 +581,14 @@ provideOpenCodeWidgetContext({
   left: 50%;
   transform: translateX(-50%);
   padding: 12px 20px;
-  background: var(--oc-success);
-  color: white;
+  background: var(--oc-bg-main);
+  color: var(--oc-text-primary);
+  border: 1px solid var(--oc-border-primary);
   border-radius: 8px;
   font-size: 14px;
-  box-shadow: var(--oc-shadow-md);
+  box-shadow: var(--oc-shadow-lg);
   animation: slideDown 0.3s ease;
-  z-index: 10;
+  z-index: 10000000;
 }
 
 .opencode-dialog-overlay {
@@ -663,7 +689,7 @@ provideOpenCodeWidgetContext({
   }
 
   to {
-    transform: translateX(-50%) translateY(0);
+    transform: translateX(-50%) translateY(0px);
     opacity: 1;
   }
 }
@@ -671,9 +697,7 @@ provideOpenCodeWidgetContext({
 .opencode-element-highlight {
   position: fixed;
   pointer-events: none;
-  border: 2px solid var(--oc-primary);
-  background: var(--oc-primary-bg);
-  z-index: 9999998;
+  z-index: 999998;
   display: none;
   transition: all 0.1s ease;
   border-radius: 4px;
@@ -712,9 +736,7 @@ provideOpenCodeWidgetContext({
 .opencode-element-highlight-temp {
   position: absolute;
   pointer-events: none;
-  border: 3px solid var(--oc-primary);
-  background: var(--oc-primary-bg);
-  z-index: 9999;
+  z-index: 999998;
   border-radius: 4px;
   animation: highlight-pulse 2s ease-out forwards;
 }
