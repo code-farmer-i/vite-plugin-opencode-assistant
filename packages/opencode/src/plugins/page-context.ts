@@ -102,7 +102,7 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
         parts.push(`- **元素描述**: \`${element.description}\``);
         if (element.innerText?.trim()) {
           const text = element.innerText.trim().substring(0, 100);
-          parts.push(`- **文本内容**: \`${text}${element.innerText.length > 100 ? "..." : ""}\``);
+          parts.push(`- **节点文本**: \`${text}${element.innerText.length > 100 ? "..." : ""}\``);
         }
         parts.push(
           `- **分析建议**: 请使用 Chrome DevTools MCP 获取当前页面快照，结合 CSS 选择器 \`${element.description}\` 来获取更多的页面上下文`,
