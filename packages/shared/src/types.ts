@@ -1,4 +1,90 @@
 /**
+ * OpenCode 界面语言选项
+ */
+export type OpenCodeLanguage =
+  | "en"
+  | "zh"
+  | "zht"
+  | "ko"
+  | "ja"
+  | "de"
+  | "es"
+  | "fr"
+  | "da"
+  | "pl"
+  | "ru"
+  | "bs"
+  | "ar"
+  | "no"
+  | "br"
+  | "th"
+  | "tr";
+
+/**
+ * OpenCode 内部设置（与 localStorage settings.v3 对应）
+ * 用于配置 OpenCode Web 内部行为
+ */
+export interface OpenCodeSettings {
+  /** 通用设置 */
+  general?: {
+    /** 自动保存 */
+    autoSave?: boolean;
+    /** 显示更新说明 */
+    releaseNotes?: boolean;
+    /** 后续动作模式 */
+    followup?: "steer" | "suggest" | "none";
+    /** 显示推理摘要 */
+    showReasoningSummaries?: boolean;
+    /** 默认展开 shell 工具部分 */
+    shellToolPartsExpanded?: boolean;
+    /** 默认展开编辑工具部分 */
+    editToolPartsExpanded?: boolean;
+  };
+
+  /** 外观设置 */
+  appearance?: {
+    /** 界面字体大小 */
+    fontSize?: number;
+    /** 代码字体 */
+    mono?: string;
+    /** 界面字体 */
+    sans?: string;
+  };
+
+  /** 权限设置 */
+  permissions?: {
+    /** 自动批准权限请求 */
+    autoApprove?: boolean;
+  };
+
+  /** 通知设置 */
+  notifications?: {
+    /** 智能体完成时通知 */
+    agent?: boolean;
+    /** 权限请求时通知 */
+    permissions?: boolean;
+    /** 错误时通知 */
+    errors?: boolean;
+  };
+
+  /** 音效设置 */
+  sounds?: {
+    /** 启用智能体音效 */
+    agentEnabled?: boolean;
+    /** 智能体音效 */
+    agent?: string;
+    /** 启用权限音效 */
+    permissionsEnabled?: boolean;
+    /** 权限音效 */
+    permissions?: string;
+    /** 启用错误音效 */
+    errorsEnabled?: boolean;
+    /** 错误音效 */
+    errors?: string;
+  };
+}
+
+/**
  * OpenCode Vite 插件配置选项
  */
 export interface OpenCodeOptions {
@@ -6,6 +92,8 @@ export interface OpenCodeOptions {
   enabled?: boolean;
   /** Web 服务端口，默认 4097 */
   webPort?: number;
+  /** 代理服务端口，默认 4098 */
+  proxyPort?: number;
   /** 服务主机名，默认 '127.0.0.1' */
   hostname?: string;
   /** 挂件位置，默认 'bottom-right' */
@@ -22,6 +110,12 @@ export interface OpenCodeOptions {
   hotkey?: string;
   /** 服务启动后是否立即预热 Chrome MCP，默认 true */
   warmupChromeMcp?: boolean;
+
+  // === OpenCode 内部配置 ===
+  /** OpenCode 界面语言，默认跟随浏览器语言 */
+  language?: OpenCodeLanguage;
+  /** OpenCode 内部设置，直接映射到 localStorage settings.v3 */
+  settings?: OpenCodeSettings;
 }
 
 /**
@@ -50,6 +144,8 @@ export interface WebOptions {
 export interface WidgetOptions {
   /** Web 服务 URL */
   webUrl: string;
+  /** 代理服务 URL */
+  proxyUrl: string;
   /** 服务器 URL */
   serverUrl: string;
   /** 挂件位置 */

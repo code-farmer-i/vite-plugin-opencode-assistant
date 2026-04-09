@@ -5,6 +5,7 @@ import type { OpenCodeOptions, PageContext } from "@vite-plugin-opencode-assista
 import {
   CONTEXT_API_PATH,
   DEFAULT_CONFIG,
+  DEFAULT_PROXY_PORT,
   createLogger,
   setVerbose,
 } from "@vite-plugin-opencode-assistant/shared";
@@ -39,14 +40,23 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
   const log = createLogger("Plugin");
 
   let actualWebPort = config.webPort;
+  let actualProxyPort = config.proxyPort ?? DEFAULT_PROXY_PORT;
   let pageContext: PageContext = { url: "", title: "" };
 
   const sseClients: Set<http.ServerResponse> = new Set();
 
   const api = new OpenCodeAPI(config.hostname, () => actualWebPort, config.warmupChromeMcp);
-  const service = new OpenCodeService(config, api, sseClients, (port) => {
-    actualWebPort = port;
-  });
+  const service = new OpenCodeService(
+    config,
+    api,
+    sseClients,
+    (port) => {
+      actualWebPort = port;
+    },
+    (port) => {
+      actualProxyPort = port;
+    },
+  );
 
   return {
     name: "vite-plugin-opencode",
@@ -62,6 +72,9 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
       setupMiddlewares(server, {
         get sessionUrl() {
           return service.sessionUrl;
+        },
+        get webUrl() {
+          return actualWebPort ? `http://${config.hostname}:${actualWebPort}` : null;
         },
         get sseClients() {
           return sseClients;
@@ -142,6 +155,7 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
 
       const widget = injectWidget({
         webUrl: `http://${config.hostname}:${actualWebPort}`,
+        proxyUrl: `http://${config.hostname}:${actualProxyPort}`,
         serverUrl: `http://${config.hostname}:${actualWebPort}`,
         position: config.position,
         theme: config.theme,

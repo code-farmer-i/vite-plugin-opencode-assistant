@@ -27,6 +27,18 @@ function utf8ToBase64(str: string): string {
   return btoa(binString);
 }
 
+let proxyUrl = "";
+
+function toProxyUrl(url: string): string {
+  if (!url || !proxyUrl) return url;
+  try {
+    const urlObj = new URL(url, window.location.origin);
+    return `${proxyUrl}${urlObj.pathname}${urlObj.search}`;
+  } catch {
+    return url;
+  }
+}
+
 // 提取配置
 let config: Partial<WidgetOptions> & { lazy?: boolean } = {};
 const scriptTag = document.querySelector(`script[${CONFIG_DATA_ATTR}]`);
@@ -58,15 +70,19 @@ const App = {
     const widgetRef = ref<InstanceType<typeof OpenCodeWidget> | null>(null);
 
     const {
-      webUrl = "",
       position = "bottom-right" as OpenCodeWidgetPosition,
       theme: initialTheme = "auto" as OpenCodeWidgetTheme,
       open: autoOpen = false,
       sessionUrl: initialSessionUrl = "",
+      proxyUrl: configProxyUrl = "",
       lazy = false,
       hotkey = "ctrl+k",
       cwd = "",
     } = config;
+
+    if (configProxyUrl) {
+      proxyUrl = configProxyUrl;
+    }
 
     const theme = ref<OpenCodeWidgetTheme>(initialTheme as OpenCodeWidgetTheme);
 
@@ -83,7 +99,7 @@ const App = {
 
     currentSessionId.value = extractSessionId(initialSessionUrl);
     if (servicesStarted && initialSessionUrl) {
-      iframeSrc.value = initialSessionUrl;
+      iframeSrc.value = toProxyUrl(initialSessionUrl);
     }
 
     try {
@@ -138,7 +154,7 @@ const App = {
           updatedAt: Date.now(),
         });
         currentSessionId.value = newSession.id;
-        iframeSrc.value = `${webUrl}/${utf8ToBase64(cwd)}/session/${newSession.id}`;
+        iframeSrc.value = `${proxyUrl}/${utf8ToBase64(cwd)}/session/${newSession.id}`;
         loadSessions();
       } catch {
         showNotification("创建会话失败");
@@ -154,7 +170,7 @@ const App = {
           if (sessions.value.length > 0) {
             const nextSession = sessions.value[0];
             currentSessionId.value = nextSession.id;
-            iframeSrc.value = `${webUrl}/${utf8ToBase64(cwd)}/session/${nextSession.id}`;
+            iframeSrc.value = `${proxyUrl}/${utf8ToBase64(cwd)}/session/${nextSession.id}`;
           } else {
             currentSessionId.value = null;
             iframeSrc.value = "";
@@ -169,8 +185,7 @@ const App = {
       if (currentSessionId.value === session.id) return;
       currentSessionId.value = session.id;
       loading.value = true;
-      iframeSrc.value = `${webUrl}/${utf8ToBase64(cwd)}/session/${session.id}`;
-      // iframe loaded event should clear loading, but for simplicity we can use a timeout or let it be
+      iframeSrc.value = `${proxyUrl}/${utf8ToBase64(cwd)}/session/${session.id}`;
       setTimeout(() => {
         loading.value = false;
       }, 500);
@@ -187,7 +202,7 @@ const App = {
             updateContext(true);
           } else if (data.type === "SESSION_READY") {
             if (data.sessionUrl && !iframeSrc.value) {
-              iframeSrc.value = data.sessionUrl;
+              iframeSrc.value = toProxyUrl(data.sessionUrl);
               currentSessionId.value = extractSessionId(data.sessionUrl);
             }
             isWaitingForSession.value = false;
@@ -229,7 +244,7 @@ const App = {
         if (data.success) {
           servicesStarted = true;
           if (data.sessionUrl) {
-            iframeSrc.value = data.sessionUrl;
+            iframeSrc.value = toProxyUrl(data.sessionUrl);
             currentSessionId.value = extractSessionId(data.sessionUrl);
             isWaitingForSession.value = false;
           }

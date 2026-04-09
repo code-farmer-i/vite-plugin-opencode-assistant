@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from "vue";
+import { ref, watch, onMounted, onUnmounted } from "vue";
 import { useOpenCodeWidgetContext } from "../context";
 
 const iframeRef = ref<HTMLIFrameElement | null>(null);
@@ -11,34 +11,51 @@ const {
   emptyStateText,
   emptyStateActionText,
   handleEmptyAction,
+  theme,
   resolvedTheme,
 } = useOpenCodeWidgetContext();
 
-function syncIframeTheme(theme: "light" | "dark") {
-  if (!iframeRef.value) return;
-  try {
-    iframeRef.value.contentWindow?.postMessage({ type: "opencode-theme-change", theme }, "*");
-  } catch {
-    // iframe may not be accessible
+const iframeReady = ref(false);
+
+function sendMessageToIframe(type: string, data?: Record<string, unknown>) {
+  if (!iframeRef.value?.contentWindow) return;
+  iframeRef.value.contentWindow.postMessage({ type, ...data }, "*");
+}
+
+function syncIframeTheme() {
+  sendMessageToIframe("OPENCODE_SET_THEME", { theme: resolvedTheme.value });
+}
+
+function handleIframeMessage(event: MessageEvent) {
+  if (event.data?.type === "OPENCODE_READY") {
+    syncIframeTheme();
   }
 }
 
-watch(resolvedTheme, (theme) => {
-  syncIframeTheme(theme);
+watch([theme, resolvedTheme], () => {
+  syncIframeTheme();
 });
 
 onMounted(() => {
   if (iframeRef.value) {
     iframeRef.value.addEventListener("load", () => {
-      syncIframeTheme(resolvedTheme.value);
+      iframeReady.value = true;
     });
   }
+  window.addEventListener("message", handleIframeMessage);
+});
+
+onUnmounted(() => {
+  window.removeEventListener("message", handleIframeMessage);
 });
 </script>
 
 <template>
   <div class="opencode-iframe-container">
-    <div class="opencode-empty-state-overlay" :class="{ visible: showEmptyState }">
+    <div
+      class="opencode-empty-state-overlay"
+      :class="{ visible: showEmptyState }"
+    >
       <slot name="empty-state">
         <div class="opencode-empty-state-icon">
           <svg
@@ -58,13 +75,20 @@ onMounted(() => {
           </svg>
         </div>
         <div class="opencode-empty-state-text">{{ emptyStateText }}</div>
-        <button class="opencode-empty-state-btn" type="button" @click="handleEmptyAction">
+        <button
+          class="opencode-empty-state-btn"
+          type="button"
+          @click="handleEmptyAction"
+        >
           {{ emptyStateActionText }}
         </button>
       </slot>
     </div>
 
-    <div class="opencode-loading-overlay" :class="{ visible: loading }">
+    <div
+      class="opencode-loading-overlay"
+      :class="{ visible: loading }"
+    >
       <slot name="loading">
         <div class="opencode-loading-spinner" />
         <div class="opencode-loading-text">加载中...</div>

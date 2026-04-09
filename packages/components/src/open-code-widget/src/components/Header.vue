@@ -40,6 +40,7 @@ const themeIconLabel = computed(() => {
     <div class="opencode-chat-header-left">
       <button
         class="opencode-header-btn session-toggle"
+        :class="{ active: !sessionListCollapsed }"
         type="button"
         :title="sessionListTitle"
         :aria-label="sessionListTitle"
@@ -231,7 +232,8 @@ const themeIconLabel = computed(() => {
   color: white;
 }
 
-.opencode-header-btn.select-btn.active {
+.opencode-header-btn.select-btn.active,
+.opencode-header-btn.session-toggle.active {
   background: var(--oc-primary);
   color: white;
 }

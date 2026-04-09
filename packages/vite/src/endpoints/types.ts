@@ -3,6 +3,7 @@ import type http from "http";
 
 export interface EndpointContext {
   get sessionUrl(): string | null;
+  get webUrl(): string | null;
   get sseClients(): Set<http.ServerResponse>;
   get pageContext(): PageContext;
   set pageContext(ctx: PageContext);

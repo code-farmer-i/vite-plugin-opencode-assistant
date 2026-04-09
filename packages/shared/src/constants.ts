@@ -2,6 +2,8 @@
  * @fileoverview OpenCode 插件常量定义
  */
 
+import type { OpenCodeLanguage, OpenCodeSettings } from "./types.js";
+
 /** ==================== 网络相关 ==================== */
 
 /** 默认主机名 */
@@ -9,6 +11,9 @@ export const DEFAULT_HOSTNAME = "127.0.0.1";
 
 /** 默认 Web 服务端口 */
 export const DEFAULT_WEB_PORT = 4097;
+
+/** 默认代理服务端口 */
+export const DEFAULT_PROXY_PORT = 4098;
 
 /** 服务器启动超时时间（毫秒） */
 export const SERVER_START_TIMEOUT = 300000;
@@ -83,6 +88,27 @@ export const INIT_MARKER = "__OPENCODE_INITIALIZED__";
 /** 选中元素存储键 */
 export const SELECTED_ELEMENTS_KEY = "__opencode_selected_elements__";
 
+/** ==================== OpenCode localStorage 键 ==================== */
+
+/** OpenCode localStorage 配置键 */
+export const OPENCODE_STORAGE_KEYS = {
+  /** 设置键 (settings.v3) */
+  SETTINGS: "settings.v3",
+  /** 配色方案键 */
+  COLOR_SCHEME: "opencode-color-scheme",
+  /** 主题 ID 键 */
+  THEME_ID: "opencode-theme-id",
+} as const;
+
+/** ==================== OpenCode 默认设置 ==================== */
+
+/** OpenCode 默认设置（与 OpenCode Web localStorage settings.v3 对应） */
+export const DEFAULT_OPENCODE_SETTINGS = {
+  general: {
+    showReasoningSummaries: true,
+  },
+};
+
 /** ==================== 文本处理 ==================== */
 
 /** 元素文本最大显示长度 */
@@ -105,4 +131,7 @@ export const DEFAULT_CONFIG = {
   verbose: false,
   hotkey: "ctrl+k",
   warmupChromeMcp: true,
+  // OpenCode 内部配置默认值
+  language: undefined as OpenCodeLanguage | undefined,
+  settings: undefined as OpenCodeSettings | undefined,
 };

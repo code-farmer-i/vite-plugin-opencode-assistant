@@ -2,7 +2,11 @@ import type { ResultPromise } from "execa";
 import type http from "http";
 import { prepareOpenCodeRuntime, startOpenCodeWeb } from "@vite-plugin-opencode-assistant/opencode";
 import type { OpenCodeOptions } from "@vite-plugin-opencode-assistant/shared";
-import { SERVER_START_TIMEOUT, createLogger } from "@vite-plugin-opencode-assistant/shared";
+import {
+  DEFAULT_PROXY_PORT,
+  SERVER_START_TIMEOUT,
+  createLogger,
+} from "@vite-plugin-opencode-assistant/shared";
 import {
   checkOpenCodeInstalled,
   findAvailablePort,
@@ -10,23 +14,28 @@ import {
   waitForServer,
 } from "../utils/system.js";
 import type { OpenCodeAPI } from "./api.js";
+import { startProxyServer } from "./proxy-server.js";
 
 const log = createLogger("Service");
 
 export class OpenCodeService {
   public webProcess: ResultPromise | null = null;
   public actualWebPort: number;
+  public actualProxyPort: number;
   public isStarted = false;
   private startPromise: Promise<void> | null = null;
   public sessionUrl: string | null = null;
+  private proxyServer: http.Server | null = null;
 
   constructor(
     private config: Required<OpenCodeOptions>,
     private api: OpenCodeAPI,
     private sseClients: Set<http.ServerResponse>,
     private onPortAllocated: (port: number) => void,
+    private onProxyPortAllocated: (port: number) => void,
   ) {
     this.actualWebPort = config.webPort;
+    this.actualProxyPort = config.proxyPort ?? DEFAULT_PROXY_PORT;
   }
 
   async start(corsOrigins?: string[], contextApiUrl?: string, viteOrigin?: string): Promise<void> {
@@ -115,6 +124,27 @@ Please install OpenCode first:
       await waitForServer(webUrl, SERVER_START_TIMEOUT);
       log.info(`OpenCode Web started at ${webUrl}`);
 
+      this.actualProxyPort = await findAvailablePort(
+        this.config.proxyPort ?? DEFAULT_PROXY_PORT,
+        this.config.hostname,
+      );
+      this.onProxyPortAllocated(this.actualProxyPort);
+
+      if (this.actualProxyPort !== (this.config.proxyPort ?? DEFAULT_PROXY_PORT)) {
+        log.info(
+          `Proxy port ${this.config.proxyPort ?? DEFAULT_PROXY_PORT} is in use, using ${this.actualProxyPort} instead`,
+        );
+      } else {
+        log.debug(`Using proxy port ${this.actualProxyPort}`);
+      }
+
+      this.proxyServer = startProxyServer(webUrl, this.actualProxyPort, {
+        theme: this.config.theme,
+        language: this.config.language,
+        settings: this.config.settings,
+      });
+      timer.checkpoint("Proxy server started");
+
       await this.api.warmupChromeMcp(viteOrigin);
       timer.checkpoint("Chrome MCP warmup complete");
 
@@ -147,6 +177,12 @@ Please install OpenCode first:
   async stop(): Promise<void> {
     const timer = log.timer("stopServices");
     log.info("Stopping OpenCode services...");
+
+    if (this.proxyServer) {
+      log.debug("Closing proxy server");
+      this.proxyServer.close();
+      this.proxyServer = null;
+    }
 
     if (this.webProcess) {
       log.debug("Killing web process", { pid: this.webProcess.pid });
