@@ -100,7 +100,6 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
       if (isNodeModule) {
         // node_modules 中的元素：提供选择器信息，引导使用 Chrome MCP
         parts.push(`- **元素描述**: \`${element.description}\``);
-        parts.push(`- **来源**: \`${element.filePath}\``);
         if (element.innerText?.trim()) {
           const text = element.innerText.trim().substring(0, 100);
           parts.push(`- **文本内容**: \`${text}${element.innerText.length > 100 ? "..." : ""}\``);
@@ -207,11 +206,7 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 
 2. **理解上下文**：将页面 URL、标题和选中节点信息作为用户请求的背景，帮助理解用户的真实意图。
 
-3. **区分元素类型**：
-   - **项目内元素**：包含 \`文件位置\`，路径指向项目源码（如 \`src/...\`）。你可以直接读取、分析或修改这些文件。
-   - **外部元素（node_modules）**：包含 \`来源\` 和 \`分析建议\`，表示选中的是第三方库中的元素。**不要**尝试修改 node_modules 中的源码，必须先找到该元素在项目中的使用位置。
-
-4. **直接行动**：在明确节点位置后，针对用户的实际请求给出清晰、可执行的方案。
+3. **直接行动**：在明确节点位置后，针对用户的实际请求给出清晰、可执行的方案。
 `.trim();
 
       output.system.push(systemPrompt);

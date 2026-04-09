@@ -4,8 +4,39 @@ import "@vite-plugin-opencode-assistant/components/style.css";
 import { CONFIG_DATA_ATTR } from "@vite-plugin-opencode-assistant/shared";
 import type { WidgetOptions } from "@vite-plugin-opencode-assistant/shared";
 
+interface HotkeyConfig {
+  ctrl: boolean;
+  shift: boolean;
+  alt: boolean;
+  key: string;
+}
+
+function parseHotkey(hotkeyStr: string): HotkeyConfig {
+  if (!hotkeyStr) return { ctrl: true, shift: false, alt: false, key: "k" };
+
+  const parts = hotkeyStr.toLowerCase().split("+");
+  const key = parts.pop();
+
+  return {
+    ctrl: parts.includes("ctrl") || parts.includes("cmd") || parts.includes("meta"),
+    shift: parts.includes("shift"),
+    alt: parts.includes("alt"),
+    key: key || "k",
+  };
+}
+
+function matchHotkey(e: KeyboardEvent, hotkeyConfig: HotkeyConfig): boolean {
+  const ctrlMatch = hotkeyConfig.ctrl ? e.ctrlKey || e.metaKey : !(e.ctrlKey || e.metaKey);
+  const shiftMatch = hotkeyConfig.shift ? e.shiftKey : !e.shiftKey;
+  const altMatch = hotkeyConfig.alt ? e.altKey : !e.altKey;
+  const keyMatch = e.key.toLowerCase() === hotkeyConfig.key.toLowerCase();
+
+  return ctrlMatch && shiftMatch && altMatch && keyMatch;
+}
+
 type OpenCodeWidgetPosition = "bottom-right" | "bottom-left" | "top-right" | "top-left";
 type OpenCodeWidgetTheme = "light" | "dark" | "auto";
+
 interface OpenCodeWidgetSession {
   id: string;
   title?: string;
@@ -257,6 +288,9 @@ const App = {
       return false;
     };
 
+    const mainHotkey = parseHotkey(hotkey);
+    const selectHotkey = parseHotkey("ctrl+p");
+
     onMounted(() => {
       if (servicesStarted) {
         loadSessions();
@@ -289,6 +323,31 @@ const App = {
       if (document.head) {
         titleObserver.observe(document.head, { childList: true, subtree: true });
       }
+
+      // 注册全局快捷键
+      const handleKeydown = (e: KeyboardEvent) => {
+        if (matchHotkey(e, mainHotkey)) {
+          e.preventDefault();
+          handleToggle(!open.value);
+        }
+
+        if (matchHotkey(e, selectHotkey)) {
+          e.preventDefault();
+          const win = window as typeof window & { __VUE_INSPECTOR__?: unknown };
+          if (win.__VUE_INSPECTOR__) {
+            selectMode.value = !selectMode.value;
+          } else {
+            showNotification("Vue Inspector 未加载，无法使用元素选择功能");
+          }
+        }
+      };
+
+      document.addEventListener("keydown", handleKeydown);
+
+      // 返回清理函数
+      return () => {
+        document.removeEventListener("keydown", handleKeydown);
+      };
     });
 
     const handleToggle = async (val: boolean) => {
@@ -345,6 +404,10 @@ const App = {
         "onUpdate:open": handleToggle,
         "onUpdate:selectMode": (val: boolean) => {
           selectMode.value = val;
+          // 退出选择模式时自动打开面板
+          if (!val && !open.value) {
+            open.value = true;
+          }
         },
         "onUpdate:sessionListCollapsed": (val: boolean) => {
           sessionListCollapsed.value = val;
