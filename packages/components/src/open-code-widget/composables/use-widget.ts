@@ -1,4 +1,5 @@
-import { computed, type Ref } from "vue";
+import { computed, ref, onMounted, onUnmounted, type Ref } from "vue";
+import type { OpenCodeWidgetTheme } from "../src/types";
 
 export interface UseWidgetOptions {
   position: Ref<string>;
@@ -12,13 +13,49 @@ export interface UseWidgetOptions {
   onClose: () => void;
   onToggleSessionList: (collapsed: boolean) => void;
   onEmptyAction: () => void;
+  onToggleTheme?: (theme: OpenCodeWidgetTheme) => void;
 }
 
+const THEME_CYCLE: OpenCodeWidgetTheme[] = ["auto", "light", "dark"];
+
 export function useWidget(options: UseWidgetOptions) {
+  const systemTheme = ref<"light" | "dark">("light");
+
+  function getSystemTheme(): "light" | "dark" {
+    if (typeof window === "undefined") return "light";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  let mediaQuery: MediaQueryList | null = null;
+  let handleChange: ((e: MediaQueryListEvent) => void) | null = null;
+
+  onMounted(() => {
+    if (typeof window === "undefined") return;
+    systemTheme.value = getSystemTheme();
+    mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    handleChange = (e: MediaQueryListEvent) => {
+      systemTheme.value = e.matches ? "dark" : "light";
+    };
+    mediaQuery.addEventListener("change", handleChange);
+  });
+
+  onUnmounted(() => {
+    if (mediaQuery && handleChange) {
+      mediaQuery.removeEventListener("change", handleChange);
+    }
+  });
+
+  const resolvedTheme = computed(() => {
+    if (options.theme.value === "auto") {
+      return systemTheme.value;
+    }
+    return options.theme.value as "light" | "dark";
+  });
+
   const containerClasses = computed(() => [
     "opencode-widget",
     options.position.value,
-    `opencode-theme-${options.theme.value}`,
+    `opencode-theme-${resolvedTheme.value}`,
   ]);
 
   const buttonActive = computed(() => !!(options.open.value || options.selectMode.value));
@@ -31,7 +68,6 @@ export function useWidget(options: UseWidgetOptions) {
 
   function handleToggle(): void {
     if (options.selectMode.value) {
-      // If in select mode, toggle it off instead of opening/closing the chat
       options.onToggleSelectMode?.(false);
       return;
     }
@@ -51,14 +87,23 @@ export function useWidget(options: UseWidgetOptions) {
     options.onEmptyAction();
   }
 
+  function handleToggleTheme(): void {
+    const currentIndex = THEME_CYCLE.indexOf(options.theme.value as OpenCodeWidgetTheme);
+    const nextIndex = (currentIndex + 1) % THEME_CYCLE.length;
+    const nextTheme = THEME_CYCLE[nextIndex];
+    options.onToggleTheme?.(nextTheme);
+  }
+
   return {
     buttonActive,
     containerClasses,
     iframeSource,
     sessionListTitle,
+    resolvedTheme,
     handleClose,
     handleEmptyAction,
     handleToggle,
     handleToggleSessionList,
+    handleToggleTheme,
   };
 }

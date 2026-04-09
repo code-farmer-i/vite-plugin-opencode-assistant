@@ -47,10 +47,12 @@ export type OpenCodeWidgetEmits = {
   (e: "update:sessionListCollapsed", value: boolean): void;
   (e: "update:currentSessionId", value: string | null): void;
   (e: "update:selectedElements", value: OpenCodeSelectedElement[]): void;
+  (e: "update:theme", value: OpenCodeWidgetTheme): void;
   (e: "toggle", value: boolean): void;
   (e: "close"): void;
   (e: "toggle-session-list", value: boolean): void;
   (e: "toggle-select-mode", value: boolean): void;
+  (e: "toggle-theme", value: OpenCodeWidgetTheme): void;
   (e: "create-session"): void;
   (e: "select-session", session: OpenCodeWidgetSession): void;
   (e: "delete-session", session: OpenCodeWidgetSession): void;

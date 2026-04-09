@@ -60,13 +60,15 @@ const App = {
     const {
       webUrl = "",
       position = "bottom-right" as OpenCodeWidgetPosition,
-      theme = "auto" as OpenCodeWidgetTheme,
+      theme: initialTheme = "auto" as OpenCodeWidgetTheme,
       open: autoOpen = false,
       sessionUrl: initialSessionUrl = "",
       lazy = false,
       hotkey = "ctrl+k",
       cwd = "",
     } = config;
+
+    const theme = ref<OpenCodeWidgetTheme>(initialTheme as OpenCodeWidgetTheme);
 
     const isWaitingForSession = ref(!initialSessionUrl);
     const computedLoading = computed(() => loading.value || isWaitingForSession.value);
@@ -313,7 +315,7 @@ const App = {
       return h(OpenCodeWidget as any, {
         ref: widgetRef,
         position: position as OpenCodeWidgetPosition,
-        theme: theme as OpenCodeWidgetTheme,
+        theme: theme.value,
         open: open.value,
         selectMode: selectMode.value,
         sessionListCollapsed: sessionListCollapsed.value,
@@ -331,6 +333,12 @@ const App = {
         },
         "onUpdate:sessionListCollapsed": (val: boolean) => {
           sessionListCollapsed.value = val;
+        },
+        "onUpdate:theme": (val: OpenCodeWidgetTheme) => {
+          theme.value = val;
+        },
+        "onToggle-theme": (val: OpenCodeWidgetTheme) => {
+          theme.value = val;
         },
         "onCreate-session": createSession,
         "onDelete-session": deleteSession,

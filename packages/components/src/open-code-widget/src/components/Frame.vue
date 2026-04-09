@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { ref, watch, onMounted } from "vue";
 import { useOpenCodeWidgetContext } from "../context";
+
+const iframeRef = ref<HTMLIFrameElement | null>(null);
 
 const {
   loading,
@@ -8,7 +11,29 @@ const {
   emptyStateText,
   emptyStateActionText,
   handleEmptyAction,
+  resolvedTheme,
 } = useOpenCodeWidgetContext();
+
+function syncIframeTheme(theme: "light" | "dark") {
+  if (!iframeRef.value) return;
+  try {
+    iframeRef.value.contentWindow?.postMessage({ type: "opencode-theme-change", theme }, "*");
+  } catch {
+    // iframe may not be accessible
+  }
+}
+
+watch(resolvedTheme, (theme) => {
+  syncIframeTheme(theme);
+});
+
+onMounted(() => {
+  if (iframeRef.value) {
+    iframeRef.value.addEventListener("load", () => {
+      syncIframeTheme(resolvedTheme.value);
+    });
+  }
+});
 </script>
 
 <template>
@@ -48,6 +73,7 @@ const {
 
     <slot name="content">
       <iframe
+        ref="iframeRef"
         class="opencode-iframe"
         :src="iframeSrc"
         allow="clipboard-write; clipboard-read"

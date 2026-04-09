@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import { useOpenCodeWidgetContext } from "../context";
 
 const {
@@ -7,10 +8,31 @@ const {
   sessionListCollapsed,
   selectMode,
   selectEnabled,
+  theme,
+  resolvedTheme,
   handleToggleSessionList,
   handleToggleSelectMode,
+  handleToggleTheme,
   handleClose,
 } = useOpenCodeWidgetContext();
+
+const themeIconTitle = computed(() => {
+  const themeLabels = {
+    auto: "自动",
+    light: "亮色",
+    dark: "暗色",
+  };
+  return `主题: ${themeLabels[theme.value as keyof typeof themeLabels]} (${resolvedTheme.value})`;
+});
+
+const themeIconLabel = computed(() => {
+  const themeLabels = {
+    auto: "自动跟随系统",
+    light: "亮色主题",
+    dark: "暗色主题",
+  };
+  return `切换主题 - 当前: ${themeLabels[theme.value as keyof typeof themeLabels]}`;
+});
 </script>
 
 <template>
@@ -59,6 +81,65 @@ const {
               fill="currentColor"
               d="M512 96a32 32 0 0 1 32 32v192a32 32 0 0 1-64 0V128a32 32 0 0 1 32-32m0 576a32 32 0 0 1 32 32v192a32 32 0 1 1-64 0V704a32 32 0 0 1 32-32M96 512a32 32 0 0 1 32-32h192a32 32 0 0 1 0 64H128a32 32 0 0 1-32-32m576 0a32 32 0 0 1 32-32h192a32 32 0 1 1 0 64H704a32 32 0 0 1-32-32"
             />
+          </svg>
+        </slot>
+      </button>
+
+      <button
+        class="opencode-header-btn theme-btn"
+        type="button"
+        :title="themeIconTitle"
+        :aria-label="themeIconLabel"
+        @click="handleToggleTheme"
+      >
+        <slot name="theme-icon">
+          <svg
+            v-if="theme === 'light'"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="5" />
+            <line x1="12" y1="1" x2="12" y2="3" />
+            <line x1="12" y1="21" x2="12" y2="23" />
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+            <line x1="1" y1="12" x2="3" y2="12" />
+            <line x1="21" y1="12" x2="23" y2="12" />
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+          </svg>
+          <svg
+            v-else-if="theme === 'dark'"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+          <svg
+            v-else
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+            <line x1="8" y1="21" x2="16" y2="21" />
+            <line x1="12" y1="17" x2="12" y2="21" />
+            <circle cx="12" cy="10" r="3" />
+            <path d="M7 7l2 2M17 7l-2 2M7 13l2-2M17 13l-2-2" />
           </svg>
         </slot>
       </button>

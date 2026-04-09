@@ -8,6 +8,7 @@ import type {
 export interface OpenCodeWidgetContext {
   // Config & State
   theme: Ref<string>;
+  resolvedTheme: Ref<"light" | "dark">;
   title: Ref<string>;
   hotkeyLabel: Ref<string>;
   selectShortcutLabel: Ref<string>;
@@ -36,6 +37,7 @@ export interface OpenCodeWidgetContext {
   handleToggle: () => void;
   handleClose: () => void;
   handleToggleSessionList: () => void;
+  handleToggleTheme: () => void;
   handleEmptyAction: () => void;
   handleCreateSession: () => void;
   handleSelectSession: (item: OpenCodeWidgetSessionItem) => void;

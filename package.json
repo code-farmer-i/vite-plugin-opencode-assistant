@@ -1,13 +1,12 @@
 {
   "name": "vite-plugin-opencode-assistant-workspace",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.32.1",
   "scripts": {
     "build": "pnpm --filter @vite-plugin-opencode-assistant/shared build && pnpm --filter @vite-plugin-opencode-assistant/opencode build && pnpm --filter @vite-plugin-opencode-assistant/components build && pnpm --filter vite-plugin-opencode-assistant build",
-    "dev": "pnpm --filter vite-plugin-opencode-assistant dev",
-    "dev:docs": "pnpm --filter @vite-plugin-opencode-assistant/docs dev",
+    "dev:playground": "pnpm --filter @vite-plugin-opencode-assistant/docs dev",
     "build:docs": "pnpm --filter @vite-plugin-opencode-assistant/docs build",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -21,7 +21,7 @@ defineOptions({
 const props = withDefaults(defineProps<OpenCodeWidgetProps>(), {
   position: "bottom-right",
   open: false,
-  theme: "light",
+  theme: "auto",
   title: "AI 助手",
   hotkeyLabel: "Ctrl+K",
   selectShortcutLabel: "按 ESC 或 Ctrl+P 退出",
@@ -98,10 +98,12 @@ const {
   containerClasses,
   iframeSource,
   sessionListTitle,
+  resolvedTheme,
   handleClose,
   handleEmptyAction,
   handleToggle,
   handleToggleSessionList,
+  handleToggleTheme,
 } = useWidget({
   position: toRef(props, "position"),
   theme: toRef(props, "theme"),
@@ -128,6 +130,10 @@ const {
   },
   onEmptyAction: () => {
     emit("empty-action");
+  },
+  onToggleTheme: (newTheme) => {
+    emit("update:theme", newTheme);
+    emit("toggle-theme", newTheme);
   },
 });
 
@@ -185,6 +191,7 @@ const { highlightVisible, highlightStyle, tooltipVisible, tooltipStyle, tooltipC
 
 provideOpenCodeWidgetContext({
   theme: toRef(props, "theme"),
+  resolvedTheme,
   title: toRef(props, "title"),
   hotkeyLabel: toRef(props, "hotkeyLabel"),
   selectShortcutLabel: toRef(props, "selectShortcutLabel"),
@@ -209,6 +216,7 @@ provideOpenCodeWidgetContext({
   handleToggle,
   handleClose,
   handleToggleSessionList,
+  handleToggleTheme,
   handleEmptyAction,
   handleCreateSession,
   handleSelectSession,
@@ -224,50 +232,30 @@ provideOpenCodeWidgetContext({
 <template>
   <div :class="containerClasses">
     <Trigger>
-      <template
-        v-if="slots['button-icon']"
-        #default
-      >
+      <template v-if="slots['button-icon']" #default>
         <slot name="button-icon" />
       </template>
     </Trigger>
 
     <SelectedBubbles v-if="bubbleVisible" />
 
-    <div
-      v-show="!selectMode"
-      class="opencode-chat"
-      :class="{ open }"
-    >
+    <div v-show="!selectMode" class="opencode-chat" :class="{ open }">
       <Header>
-        <template
-          v-if="slots['session-toggle-icon']"
-          #session-toggle-icon
-        >
+        <template v-if="slots['session-toggle-icon']" #session-toggle-icon>
           <slot name="session-toggle-icon" />
         </template>
 
-        <template
-          v-if="slots['select-icon']"
-          #select-icon
-        >
+        <template v-if="slots['select-icon']" #select-icon>
           <slot name="select-icon" />
         </template>
 
-        <template
-          v-if="slots['close-icon']"
-          #close-icon
-        >
+        <template v-if="slots['close-icon']" #close-icon>
           <slot name="close-icon" />
         </template>
       </Header>
 
       <!-- Notification -->
-      <div
-        v-if="notificationVisible"
-        class="opencode-notification"
-        role="alert"
-      >
+      <div v-if="notificationVisible" class="opencode-notification" role="alert">
         {{ notificationMessage }}
       </div>
 
@@ -281,24 +269,15 @@ provideOpenCodeWidgetContext({
         </SessionList>
 
         <Frame>
-          <template
-            v-if="slots['empty-state']"
-            #empty-state
-          >
+          <template v-if="slots['empty-state']" #empty-state>
             <slot name="empty-state" />
           </template>
 
-          <template
-            v-if="slots.loading"
-            #loading
-          >
+          <template v-if="slots.loading" #loading>
             <slot name="loading" />
           </template>
 
-          <template
-            v-if="slots.content"
-            #content
-          >
+          <template v-if="slots.content" #content>
             <slot name="content" />
           </template>
         </Frame>
@@ -337,27 +316,14 @@ provideOpenCodeWidgetContext({
     </div>
 
     <!-- Dialog -->
-    <div
-      v-if="dialogVisible"
-      class="opencode-dialog-overlay"
-    >
-      <div
-        class="opencode-dialog"
-        role="alertdialog"
-        aria-modal="true"
-      >
+    <div v-if="dialogVisible" class="opencode-dialog-overlay">
+      <div class="opencode-dialog" role="alertdialog" aria-modal="true">
         <div class="opencode-dialog-content">
           <div class="opencode-dialog-message">{{ dialogMessage }}</div>
         </div>
         <div class="opencode-dialog-actions">
-          <button
-            class="opencode-dialog-btn cancel"
-            @click="handleDialogCancel"
-          >取消</button>
-          <button
-            class="opencode-dialog-btn confirm"
-            @click="handleDialogConfirm"
-          >确认</button>
+          <button class="opencode-dialog-btn cancel" @click="handleDialogCancel">取消</button>
+          <button class="opencode-dialog-btn confirm" @click="handleDialogConfirm">确认</button>
         </div>
       </div>
     </div>
@@ -570,15 +536,25 @@ provideOpenCodeWidgetContext({
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 12px 20px;
-  background: var(--oc-bg-main);
-  color: var(--oc-text-primary);
-  border: 1px solid var(--oc-border-primary);
-  border-radius: 8px;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border-radius: 10px;
   font-size: 14px;
-  box-shadow: var(--oc-shadow-lg);
+  font-weight: 500;
+  box-shadow:
+    0 4px 16px rgba(59, 130, 246, 0.4),
+    0 0 0 2px rgba(59, 130, 246, 0.2);
   animation: slideDown 0.3s ease;
   z-index: 10000000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.opencode-notification::before {
+  content: "💡";
+  font-size: 16px;
 }
 
 .opencode-dialog-overlay {
