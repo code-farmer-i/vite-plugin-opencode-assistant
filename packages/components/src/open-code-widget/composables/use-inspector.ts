@@ -69,6 +69,51 @@ function getElementDescription(element: Element): string {
   return parts.join("");
 }
 
+/**
+ * 获取鼠标位置下最精确的 DOM 元素（在指定边界内）
+ * 使用 document.elementsFromPoint 获取所有层叠元素，找到最深层且在边界内的元素
+ */
+function getPreciseElementAtPoint(x: number, y: number, boundary: Element): Element | null {
+  // 临时隐藏我们的高亮框，避免干扰元素检测
+  const highlight = document.querySelector(".opencode-element-highlight");
+  const tooltip = document.querySelector(".opencode-element-tooltip");
+  const highlightDisplay = highlight?.getAttribute("style")?.includes("display: block")
+    ? "block"
+    : "none";
+  const tooltipDisplay = tooltip?.getAttribute("style")?.includes("display: block")
+    ? "block"
+    : "none";
+
+  if (highlight) (highlight as HTMLElement).style.display = "none";
+  if (tooltip) (tooltip as HTMLElement).style.display = "none";
+
+  let element: Element | null = null;
+  try {
+    // 获取该坐标下所有元素，从顶层到底层
+    const elements = document.elementsFromPoint(x, y);
+
+    // 找到第一个在 boundary 内且不是 inspector 相关元素的
+    for (const el of elements) {
+      // 跳过 inspector 和挂件自身的元素
+      if (el.closest("#vue-inspector-container")) continue;
+      if (el.closest(".opencode-widget")) continue;
+      if (el.hasAttribute("data-v-inspector-ignore")) continue;
+
+      // 检查元素是否在 boundary 内或是 boundary 本身
+      if (boundary.contains(el) || el === boundary) {
+        element = el;
+        break;
+      }
+    }
+  } finally {
+    // 恢复高亮框显示
+    if (highlight) (highlight as HTMLElement).style.display = highlightDisplay;
+    if (tooltip) (tooltip as HTMLElement).style.display = tooltipDisplay;
+  }
+
+  return element;
+}
+
 export function useInspector(options: UseInspectorOptions) {
   const highlightVisible = ref(false);
   const highlightStyle = ref<Record<string, string>>({
@@ -94,7 +139,10 @@ export function useInspector(options: UseInspectorOptions) {
     const { targetNode, params } = inspector.getTargetNode(e);
 
     if (targetNode && params) {
-      const rect = targetNode.getBoundingClientRect();
+      // 获取鼠标下最精确的 DOM 元素（在组件边界内）
+      const preciseElement = getPreciseElementAtPoint(e.clientX, e.clientY, targetNode);
+      const elementToHighlight = preciseElement || targetNode;
+      const rect = elementToHighlight.getBoundingClientRect();
 
       const widget = document.querySelector(".opencode-widget");
       let primary = "#3b82f6";
@@ -115,7 +163,7 @@ export function useInspector(options: UseInspectorOptions) {
         background: primaryBg,
       };
 
-      const description = getElementDescription(targetNode);
+      const description = getElementDescription(elementToHighlight);
       const fileName = params.file ? params.file.split("/").pop() : "";
       let lineInfo = "";
       if (params.line) {
@@ -166,8 +214,11 @@ export function useInspector(options: UseInspectorOptions) {
       if (options.selectMode.value) {
         const { targetNode, params } = inspector.getTargetNode(e);
         if (targetNode && params) {
-          const innerText = getDirectText(targetNode);
-          const description = getElementDescription(targetNode);
+          // 获取鼠标下最精确的 DOM 元素（在组件边界内）
+          const preciseElement = getPreciseElementAtPoint(e.clientX, e.clientY, targetNode);
+          const elementToSelect = preciseElement || targetNode;
+          const innerText = getDirectText(elementToSelect);
+          const description = getElementDescription(elementToSelect);
 
           const elementInfo: OpenCodeSelectedElement = {
             filePath: params.file ?? null,

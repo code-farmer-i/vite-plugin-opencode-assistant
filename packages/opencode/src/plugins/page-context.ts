@@ -17,6 +17,7 @@ interface SelectedElement {
   line: number | null;
   column: number | null;
   innerText: string;
+  description?: string;
 }
 
 interface PageContextData {
@@ -94,20 +95,35 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
     parts.push(`### 选中节点 ${index + 1}`);
 
     if (element.filePath) {
-      let location = element.filePath;
-      if (element.line) {
-        location += `:${element.line}`;
-        if (element.column) {
-          location += `:${element.column}`;
+      const isNodeModule = element.filePath.includes("node_modules");
+
+      if (isNodeModule) {
+        // node_modules 中的元素：提供选择器信息，引导使用 Chrome MCP
+        parts.push(`- **元素描述**: \`${element.description}\``);
+        parts.push(`- **来源**: \`${element.filePath}\``);
+        if (element.innerText?.trim()) {
+          const text = element.innerText.trim().substring(0, 100);
+          parts.push(`- **文本内容**: \`${text}${element.innerText.length > 100 ? "..." : ""}\``);
+        }
+        parts.push(
+          `- **分析建议**: 请使用 Chrome DevTools MCP 获取当前页面快照，结合 CSS 选择器 \`${element.description}\` 来获取更多的页面上下文`,
+        );
+      } else {
+        // 项目内元素：显示源码位置
+        let location = element.filePath;
+        if (element.line) {
+          location += `:${element.line}`;
+          if (element.column) {
+            location += `:${element.column}`;
+          }
+        }
+        parts.push(`- **文件位置**: \`${location}\``);
+        if (element.innerText?.trim()) {
+          const text = element.innerText.trim().substring(0, MAX_TEXT_LENGTH);
+          const suffix = element.innerText.length > MAX_TEXT_LENGTH ? "\n... (已省略部分内容)" : "";
+          parts.push(`- **节点文本**:\n\`\`\`text\n${text}${suffix}\n\`\`\``);
         }
       }
-      parts.push(`- **文件位置**: \`${location}\``);
-    }
-
-    if (element.innerText?.trim()) {
-      const text = element.innerText.trim().substring(0, MAX_TEXT_LENGTH);
-      const suffix = element.innerText.length > MAX_TEXT_LENGTH ? "\n... (已省略部分内容)" : "";
-      parts.push(`- **节点文本**:\n\`\`\`text\n${text}${suffix}\n\`\`\``);
     }
 
     return parts.join("\n") + "\n";
@@ -150,7 +166,7 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 │  │                                                       │  │
 │  │   ┌─────────────────────────────┐                    │  │
 │  │   │ OpenCode iframe (你的界面)   │  ← 浮动聊天窗口     │  │
-│  │   │ 用户在这里与你对话           │    (Ctrl+K 打开)   │  │
+│  │   │ 用户在这里与你对话           │                     │  │
 │  │   └─────────────────────────────┘                    │  │
 │  └───────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────┘
@@ -183,11 +199,19 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 
 请遵循以下规则：
 
-1. **理解上下文**：将页面 URL、标题和选中节点信息作为用户请求的背景，帮助理解用户的真实意图。
-2. **利用文件路径**：\`文件位置\` 中的路径对应项目源码文件，格式为 \`文件路径:行号:列号\`。你可以直接读取、分析或修改这些文件。
-3. **精准定位**：结合 \`节点文本\` 和 \`文件位置\`，快速定位用户关注的具体代码位置，提供针对性的建议。
-4. **直接行动**：针对用户的实际请求，直接给出清晰、可执行的方案。如果需要修改代码，主动提出修改方案并询问是否需要你直接修改。
-5. **善用工具**：充分利用你的能力（读取文件、修改代码、运行命令、浏览器调试）来帮助用户解决问题。
+1. **前置要求：定位节点位置**（强制）
+   当用户选中了页面节点时，**在处理用户请求之前**，你必须先找到这些节点在当前项目上下文中的位置。
+   - 利用提供的文件路径、CSS 选择器、元素文本等信息
+   - 通过文件搜索、DOM 分析等方式定位到具体代码位置
+   - 明确知道节点在哪里被定义/使用后，再处理用户请求
+
+2. **理解上下文**：将页面 URL、标题和选中节点信息作为用户请求的背景，帮助理解用户的真实意图。
+
+3. **区分元素类型**：
+   - **项目内元素**：包含 \`文件位置\`，路径指向项目源码（如 \`src/...\`）。你可以直接读取、分析或修改这些文件。
+   - **外部元素（node_modules）**：包含 \`来源\` 和 \`分析建议\`，表示选中的是第三方库中的元素。**不要**尝试修改 node_modules 中的源码，必须先找到该元素在项目中的使用位置。
+
+4. **直接行动**：在明确节点位置后，针对用户的实际请求给出清晰、可执行的方案。
 `.trim();
 
       output.system.push(systemPrompt);
