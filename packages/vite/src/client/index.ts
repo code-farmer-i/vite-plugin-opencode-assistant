@@ -130,9 +130,14 @@ const App = {
       try {
         const response = await fetch("/__opencode_sessions__", { method: "POST" });
         const newSession = await response.json();
-        await loadSessions();
+        sessions.value.unshift({
+          id: newSession.id,
+          title: "新会话",
+          updatedAt: Date.now(),
+        });
         currentSessionId.value = newSession.id;
         iframeSrc.value = `${webUrl}/${utf8ToBase64(cwd)}/session/${newSession.id}`;
+        loadSessions();
       } catch {
         showNotification("创建会话失败");
       }
