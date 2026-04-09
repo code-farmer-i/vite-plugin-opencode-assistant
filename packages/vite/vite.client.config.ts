@@ -5,6 +5,8 @@ import { resolve } from "path";
 export default defineConfig({
   plugins: [vue()],
   build: {
+    target: "es2020",
+    minify: "esbuild",
     lib: {
       entry: resolve(__dirname, "src/client/index.ts"),
       name: "OpenCodeWidgetClient",
@@ -20,5 +22,8 @@ export default defineConfig({
   },
   define: {
     "process.env.NODE_ENV": JSON.stringify("production"),
+    __VUE_OPTIONS_API__: JSON.stringify(false),
+    __VUE_PROD_DEVTOOLS__: JSON.stringify(false),
+    __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: JSON.stringify(false),
   },
 });
