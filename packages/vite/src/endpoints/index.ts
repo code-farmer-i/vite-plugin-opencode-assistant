@@ -5,6 +5,7 @@ import { setupContextEndpoint } from "./context.js";
 import { setupStartEndpoint } from "./start.js";
 import { setupSseEndpoint } from "./sse.js";
 import { setupSessionsEndpoint } from "./sessions.js";
+import { setupWarmupEndpoint } from "./warmup.js";
 
 export * from "./types.js";
 
@@ -14,4 +15,5 @@ export function setupMiddlewares(server: ViteDevServer, ctx: EndpointContext) {
   setupStartEndpoint(server, ctx);
   setupSseEndpoint(server, ctx);
   setupSessionsEndpoint(server, ctx);
+  setupWarmupEndpoint(server, ctx);
 }

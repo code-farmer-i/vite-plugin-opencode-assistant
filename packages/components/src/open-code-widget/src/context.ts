@@ -16,8 +16,9 @@ export interface OpenCodeWidgetContext {
   selectEnabled: Ref<boolean>;
   sessionListCollapsed: Ref<boolean>;
   sessionKey: Ref<string>;
-  loading: Ref<boolean>;
+  frameLoading: Ref<boolean>;
   loadingSessionList: Ref<boolean | undefined>;
+  showSessionListSkeleton: Ref<boolean>;
   showEmptyState: Ref<boolean>;
   emptyStateText: Ref<string>;
   emptyStateActionText: Ref<string>;

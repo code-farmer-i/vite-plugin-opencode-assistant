@@ -28,8 +28,9 @@ export interface OpenCodeWidgetProps {
   selectMode?: boolean;
   sessionListCollapsed?: boolean;
   sessionKey?: string;
-  loading?: boolean;
+  frameLoading?: boolean;
   loadingSessionList?: boolean;
+  showSessionListSkeleton?: boolean;
   showEmptyState?: boolean;
   iframeSrc?: string;
   sessions?: OpenCodeWidgetSession[];

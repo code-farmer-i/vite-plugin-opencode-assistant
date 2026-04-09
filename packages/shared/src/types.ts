@@ -225,3 +225,40 @@ export interface PageContext {
   /** 选中的元素列表 */
   selectedElements?: SelectedElement[];
 }
+
+/**
+ * 服务启动任务状态
+ */
+export type ServiceStartupTask =
+  | "checking_opencode"
+  | "allocating_port"
+  | "preparing_runtime"
+  | "starting_web"
+  | "waiting_web_ready"
+  | "starting_proxy"
+  | "warming_up_chrome"
+  | "creating_session"
+  | "opencode_not_installed"
+  | "web_start_timeout"
+  | "session_creation_failed"
+  | "chrome_mcp_failed"
+  | "ready";
+
+/**
+ * 服务启动任务状态映射
+ */
+export const SERVICE_STARTUP_TASKS: Record<ServiceStartupTask, string> = {
+  checking_opencode: "检查 OpenCode 安装",
+  allocating_port: "分配服务端口",
+  preparing_runtime: "准备运行环境",
+  starting_web: "启动 OpenCode Web",
+  waiting_web_ready: "等待服务就绪",
+  starting_proxy: "启动代理服务",
+  warming_up_chrome: "预热 Chrome DevTools",
+  creating_session: "创建会话",
+  opencode_not_installed: "OpenCode 未安装",
+  web_start_timeout: "服务启动超时",
+  session_creation_failed: "会话创建失败",
+  chrome_mcp_failed: "Chrome DevTools 连接失败",
+  ready: "准备完成",
+};

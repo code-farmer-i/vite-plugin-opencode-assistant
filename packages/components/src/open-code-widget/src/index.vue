@@ -28,7 +28,8 @@ const props = withDefaults(defineProps<OpenCodeWidgetProps>(), {
   selectMode: false,
   sessionKey: "id",
   sessionListCollapsed: true,
-  loading: false,
+  frameLoading: false,
+  showSessionListSkeleton: false,
   showEmptyState: false,
   iframeSrc: "",
   currentSessionId: null,
@@ -199,8 +200,9 @@ provideOpenCodeWidgetContext({
   selectEnabled: toRef(props, "selectEnabled"),
   sessionListCollapsed: localSessionListCollapsed,
   sessionKey: toRef(props, "sessionKey"),
-  loading: toRef(props, "loading"),
+  frameLoading: toRef(props, "frameLoading"),
   loadingSessionList: toRef(props, "loadingSessionList"),
+  showSessionListSkeleton: toRef(props, "showSessionListSkeleton"),
   showEmptyState: toRef(props, "showEmptyState"),
   emptyStateText: toRef(props, "emptyStateText"),
   emptyStateActionText: toRef(props, "emptyStateActionText"),
@@ -275,6 +277,10 @@ provideOpenCodeWidgetContext({
 
           <template v-if="slots.loading" #loading>
             <slot name="loading" />
+          </template>
+
+            <template v-if="slots.error" #error>
+            <slot name="error" />
           </template>
 
           <template v-if="slots.content" #content>

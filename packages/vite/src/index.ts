@@ -69,6 +69,9 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
     async configureServer(server: ViteDevServer) {
       const timer = log.timer("configureServer");
 
+      let viteOrigin = "";
+      const getViteOrigin = () => viteOrigin;
+
       setupMiddlewares(server, {
         get sessionUrl() {
           return service.sessionUrl;
@@ -90,6 +93,7 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
         deleteSession: (id) => api.deleteSession(id),
         resolveWidgetPath,
         resolveWidgetStylePath,
+        retryWarmupChromeMcp: () => api.retryWarmupChromeMcp(getViteOrigin()),
       });
 
       server.httpServer?.on("listening", async () => {
@@ -116,7 +120,7 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
               : "localhost";
         }
 
-        const viteOrigin = `http://${viteHost}:${vitePort}`;
+        viteOrigin = `http://${viteHost}:${vitePort}`;
         const contextApiUrl = `http://${viteHost}:${vitePort}${CONTEXT_API_PATH}`;
 
         log.debug("Vite server ready", {

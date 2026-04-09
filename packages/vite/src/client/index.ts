@@ -1,7 +1,11 @@
 import { createApp, ref, watch, onMounted, h, computed } from "vue";
 import { OpenCodeWidget } from "@vite-plugin-opencode-assistant/components";
 import "@vite-plugin-opencode-assistant/components/style.css";
-import { CONFIG_DATA_ATTR } from "@vite-plugin-opencode-assistant/shared";
+import {
+  CONFIG_DATA_ATTR,
+  SERVICE_STARTUP_TASKS,
+  type ServiceStartupTask,
+} from "@vite-plugin-opencode-assistant/shared";
 import type { WidgetOptions } from "@vite-plugin-opencode-assistant/shared";
 
 interface HotkeyConfig {
@@ -92,6 +96,7 @@ const App = {
     const open = ref(false);
     const selectMode = ref(false);
     const sessionListCollapsed = ref(true);
+    const showSessionListSkeleton = ref(true);
     const loading = ref(false);
     const loadingSessionList = ref<boolean | undefined>(undefined);
     const iframeSrc = ref("");
@@ -99,6 +104,50 @@ const App = {
     const sessions = ref<OpenCodeWidgetSession[]>([]);
     const selectedElements = ref<OpenCodeSelectedElement[]>([]);
     const widgetRef = ref<InstanceType<typeof OpenCodeWidget> | null>(null);
+    const chromeMcpWarmupFailed = ref(false);
+    const currentTask = ref<ServiceStartupTask | "">("");
+
+    const loadingText = computed(() => {
+      if (!currentTask.value) return "加载中...";
+      return SERVICE_STARTUP_TASKS[currentTask.value] || "加载中...";
+    });
+
+    const retryingWarmup = ref(false);
+
+    const retryWarmup = async () => {
+      retryingWarmup.value = true;
+      try {
+        const res = await fetch("/__opencode_warmup__", { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+          chromeMcpWarmupFailed.value = false;
+          showNotification("Chrome DevTools MCP 连接成功");
+          
+          // 重试成功后，如果 iframe 还没有加载，尝试加载会话
+          if (!iframeSrc.value) {
+            try {
+              const sessionRes = await fetch("/__opencode_sessions__");
+              const sessions = await sessionRes.json();
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const currentDirSession = sessions.find((s: any) => s.directory === cwd);
+              if (currentDirSession) {
+                iframeSrc.value = `${proxyUrl}/${utf8ToBase64(cwd)}/session/${currentDirSession.id}`;
+                currentSessionId.value = currentDirSession.id;
+              }
+            } catch {
+              // ignore
+            }
+          }
+        } else {
+          showNotification(data.error || "重试失败，请确认 Chrome 远程调试已开启");
+        }
+      } catch (e) {
+        console.error("[OpenCode] Retry warmup failed:", e);
+        showNotification("重试失败，请稍后再试");
+      } finally {
+        retryingWarmup.value = false;
+      }
+    };
 
     const {
       position = "bottom-right" as OpenCodeWidgetPosition,
@@ -118,7 +167,9 @@ const App = {
     const theme = ref<OpenCodeWidgetTheme>(initialTheme as OpenCodeWidgetTheme);
 
     const isWaitingForSession = ref(!initialSessionUrl);
-    const computedLoading = computed(() => loading.value || isWaitingForSession.value);
+    const computedLoading = computed(() => {
+      return (loading.value || isWaitingForSession.value) && !chromeMcpWarmupFailed.value;
+    });
 
     let servicesStarted = !lazy;
 
@@ -223,27 +274,61 @@ const App = {
     };
 
     let sseConnection: EventSource | null = null;
+    let sseRetryCount = 0;
+    const MAX_SSE_RETRIES = 10;
+    const SSE_RETRY_DELAY = 1000;
+
     const setupSSE = () => {
       if (!servicesStarted || sseConnection) return;
-      sseConnection = new EventSource("/__opencode_events__");
-      sseConnection.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === "CONNECTED") {
-            updateContext(true);
-          } else if (data.type === "SESSION_READY") {
-            if (data.sessionUrl && !iframeSrc.value) {
-              iframeSrc.value = toProxyUrl(data.sessionUrl);
-              currentSessionId.value = extractSessionId(data.sessionUrl);
+
+      try {
+        sseConnection = new EventSource("/__opencode_events__");
+
+        sseConnection.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === "CONNECTED") {
+              updateContext(true);
+              sseRetryCount = 0;
+            } else if (data.type === "TASK_UPDATE") {
+              currentTask.value = data.task;
+              if (data.task === "ready") {
+                showSessionListSkeleton.value = false;
+              }
+            } else if (data.type === "SESSION_READY") {
+              if (data.sessionUrl && !iframeSrc.value) {
+                iframeSrc.value = toProxyUrl(data.sessionUrl);
+                currentSessionId.value = extractSessionId(data.sessionUrl);
+              }
+              isWaitingForSession.value = false;
+              sseRetryCount = 0;
+            } else if (data.type === "CLEAR_ELEMENTS") {
+              selectedElements.value = [];
+            } else if (data.type === "CHROME_MCP_WARMUP_FAILED") {
+              chromeMcpWarmupFailed.value = true;
+              isWaitingForSession.value = false;
             }
-            isWaitingForSession.value = false;
-          } else if (data.type === "CLEAR_ELEMENTS") {
-            selectedElements.value = [];
+          } catch {
+            // ignore
           }
-        } catch {
-          // ignore
+        };
+
+        sseConnection.onerror = () => {
+          sseConnection?.close();
+          sseConnection = null;
+
+          if (sseRetryCount < MAX_SSE_RETRIES) {
+            sseRetryCount++;
+            setTimeout(setupSSE, SSE_RETRY_DELAY);
+          }
+        };
+      } catch {
+        sseConnection = null;
+        if (sseRetryCount < MAX_SSE_RETRIES) {
+          sseRetryCount++;
+          setTimeout(setupSSE, SSE_RETRY_DELAY);
         }
-      };
+      }
     };
 
     let currentPageUrl = "";
@@ -385,34 +470,36 @@ const App = {
     };
 
     return () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return h(OpenCodeWidget as any, {
-        ref: widgetRef,
-        position: position as OpenCodeWidgetPosition,
-        theme: theme.value,
-        open: open.value,
-        selectMode: selectMode.value,
-        sessionListCollapsed: sessionListCollapsed.value,
-        loading: computedLoading.value,
-        loadingSessionList: loadingSessionList.value,
-        iframeSrc: iframeSrc.value,
-        currentSessionId: currentSessionId.value,
-        sessions: sessions.value,
-        sessionKey: "id",
-        selectedElements: selectedElements.value,
-        hotkeyLabel: hotkey,
-        "onUpdate:open": handleToggle,
-        "onUpdate:selectMode": (val: boolean) => {
-          selectMode.value = val;
-          // 退出选择模式时自动打开面板
-          if (!val && !open.value) {
-            open.value = true;
-          }
-        },
-        "onUpdate:sessionListCollapsed": (val: boolean) => {
-          sessionListCollapsed.value = val;
-        },
-        "onUpdate:theme": (val: OpenCodeWidgetTheme) => {
+      return h(
+        OpenCodeWidget,
+        {
+          ref: widgetRef,
+          position: position as OpenCodeWidgetPosition,
+          theme: theme.value,
+          open: open.value,
+          selectMode: selectMode.value,
+          sessionListCollapsed: sessionListCollapsed.value,
+          frameLoading: computedLoading.value,
+          loadingSessionList: loadingSessionList.value,
+          showSessionListSkeleton: showSessionListSkeleton.value,
+          iframeSrc: iframeSrc.value,
+          currentSessionId: currentSessionId.value,
+          sessions: sessions.value,
+          sessionKey: "id",
+          selectedElements: selectedElements.value,
+          hotkeyLabel: hotkey,
+          "onUpdate:open": handleToggle,
+          "onUpdate:selectMode": (val: boolean) => {
+            selectMode.value = val;
+            // 退出选择模式时自动打开面板
+            if (!val && !open.value) {
+              open.value = true;
+            }
+          },
+          "onUpdate:sessionListCollapsed": (val: boolean) => {
+            sessionListCollapsed.value = val;
+          },
+          "onUpdate:theme": (val: OpenCodeWidgetTheme) => {
           theme.value = val;
         },
         "onToggle-theme": (val: OpenCodeWidgetTheme) => {
@@ -428,8 +515,60 @@ const App = {
           updateContext(true);
         },
         "onEmpty-action": createSession,
-      });
-    };
+      },
+      {
+        loading: () =>
+          h("div", { class: "opencode-custom-loading" }, [
+            h("div", { class: "opencode-loading-spinner" }),
+            h("div", { class: "opencode-loading-text" }, loadingText.value),
+          ]),
+        error: () =>
+          chromeMcpWarmupFailed.value
+            ? h("div", { class: "opencode-chrome-warmup-failed" }, [
+                h("div", { class: "opencode-chrome-warmup-failed-icon" }, [
+                  h("svg", {
+                    viewBox: "0 0 24 24",
+                    width: "48",
+                    height: "48",
+                    fill: "none",
+                    stroke: "currentColor",
+                    strokeWidth: "1.5",
+                  }, [
+                    h("path", {
+                      strokeLinecap: "round",
+                      strokeLinejoin: "round",
+                      d: "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z",
+                    }),
+                  ]),
+                ]),
+                h("div", { class: "opencode-chrome-warmup-failed-title" }, "Chrome DevTools MCP 连接失败"),
+                h("div", { class: "opencode-chrome-warmup-failed-text" }, [
+                  h("p", {}, "请按以下步骤开启 Chrome 远程调试："),
+                  h("ol", { class: "opencode-chrome-warmup-steps" }, [
+                    h("li", {}, [
+                      "在 Chrome 地址栏输入 ",
+                      h("code", { class: "opencode-chrome-warmup-code" }, "chrome://inspect/#remote-debugging"),
+                    ]),
+                    h("li", {}, "勾选 'Allow remote debugging for this browser instance' 选项"),
+                    h("li", {}, "完成后点击下方按钮重试"),
+                  ]),
+                ]),
+                h("div", { class: "opencode-chrome-warmup-failed-actions" }, [
+                  h(
+                    "button",
+                    {
+                      class: "opencode-chrome-warmup-failed-btn primary",
+                      disabled: retryingWarmup.value,
+                      onClick: retryWarmup,
+                    },
+                    retryingWarmup.value ? "连接中..." : "重试连接",
+                  ),
+                ]),
+              ])
+            : null,
+      },
+    );
+  };
   },
 };
 
@@ -442,3 +581,141 @@ if (!(window as any)[INIT_MARKER]) {
   document.body.appendChild(container);
   createApp(App).mount(container);
 }
+
+const style = document.createElement("style");
+style.textContent = `
+.opencode-custom-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.opencode-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--oc-border);
+  border-top-color: var(--oc-primary);
+  border-radius: 50%;
+  animation: opencode-spin 0.8s linear infinite;
+}
+
+@keyframes opencode-spin {
+  to { transform: rotate(360deg); }
+}
+
+.opencode-loading-text {
+  margin-top: 12px;
+  color: var(--oc-text-secondary);
+  font-size: 14px;
+}
+
+.opencode-chrome-warmup-failed {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--oc-bg-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+}
+
+.opencode-chrome-warmup-failed-icon {
+  color: var(--oc-warning, #f59e0b);
+  margin-bottom: 16px;
+}
+
+.opencode-chrome-warmup-failed-title {
+  color: var(--oc-text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.opencode-chrome-warmup-failed-text {
+  color: var(--oc-text-secondary);
+  font-size: 14px;
+  margin-bottom: 24px;
+  text-align: left;
+  max-width: 400px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.opencode-chrome-warmup-failed-text p {
+  margin: 0 0 12px 0;
+  font-weight: 500;
+  color: var(--oc-text-primary);
+}
+
+.opencode-chrome-warmup-steps {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.opencode-chrome-warmup-steps li {
+  margin-bottom: 8px;
+  color: var(--oc-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.opencode-chrome-warmup-steps li:last-child {
+  margin-bottom: 0;
+}
+
+.opencode-chrome-warmup-code {
+  display: inline-block;
+  background: var(--oc-bg-tertiary);
+  color: var(--oc-primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  word-break: break-all;
+  margin: 0 2px;
+}
+
+.opencode-chrome-warmup-failed-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.opencode-chrome-warmup-failed-btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.opencode-chrome-warmup-failed-btn.primary {
+  background: var(--oc-primary);
+  color: white;
+  box-shadow: var(--oc-shadow-primary);
+}
+
+.opencode-chrome-warmup-failed-btn.primary:hover:not(:disabled) {
+  background: var(--oc-primary-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--oc-shadow-primary-hover);
+}
+
+.opencode-chrome-warmup-failed-btn.primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.opencode-chrome-warmup-failed-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+`;
+document.head.appendChild(style);

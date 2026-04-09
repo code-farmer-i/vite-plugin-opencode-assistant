@@ -191,6 +191,18 @@ function log(level: LogLevel, message: string, context?: LogContext, ...args: un
     parts.push(formattedArgs);
   }
 
+  if (context?.error) {
+    const err = context.error;
+    if (err instanceof Error) {
+      parts.push(`${COLORS.red}Error: ${err.message}${COLORS.reset}`);
+      if (level >= LogLevel.ERROR && globalConfig.showTrace && err.stack) {
+        console.error(`${COLORS.dim}${err.stack}${COLORS.reset}`);
+      }
+    } else {
+      parts.push(`${COLORS.red}Error: ${formatValue(err)}${COLORS.reset}`);
+    }
+  }
+
   const output = parts.join(" ");
 
   if (level >= LogLevel.ERROR) {
@@ -199,13 +211,6 @@ function log(level: LogLevel, message: string, context?: LogContext, ...args: un
     console.warn(output);
   } else {
     console.log(output);
-  }
-
-  if (context?.error && level >= LogLevel.ERROR && globalConfig.showTrace) {
-    const err = context.error;
-    if (err instanceof Error && err.stack) {
-      console.error(`${COLORS.dim}${err.stack}${COLORS.reset}`);
-    }
   }
 }
 

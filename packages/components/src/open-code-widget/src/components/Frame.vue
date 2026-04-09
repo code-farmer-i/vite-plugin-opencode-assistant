@@ -5,7 +5,7 @@ import { useOpenCodeWidgetContext } from "../context";
 const iframeRef = ref<HTMLIFrameElement | null>(null);
 
 const {
-  loading,
+  frameLoading,
   showEmptyState,
   iframeSource: iframeSrc,
   emptyStateText,
@@ -87,12 +87,16 @@ onUnmounted(() => {
 
     <div
       class="opencode-loading-overlay"
-      :class="{ visible: loading }"
+      :class="{ visible: frameLoading }"
     >
       <slot name="loading">
         <div class="opencode-loading-spinner" />
         <div class="opencode-loading-text">加载中...</div>
       </slot>
+    </div>
+
+    <div class="opencode-error-overlay">
+      <slot name="error" />
     </div>
 
     <slot name="content">
@@ -155,6 +159,16 @@ onUnmounted(() => {
   margin-top: 12px;
   font-size: 14px;
   color: var(--oc-text-placeholder);
+}
+
+.opencode-error-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  margin-top: 42px;
 }
 
 .opencode-empty-state-overlay {

@@ -6,6 +6,7 @@ const {
   sessionListCollapsed: collapsed,
   sessionItems: sessions,
   loadingSessionList,
+  showSessionListSkeleton,
   handleCreateSession,
   handleSelectSession,
   handleDeleteSession,
@@ -20,11 +21,12 @@ watch(collapsed, () => {
   if (animTimer) clearTimeout(animTimer);
   animTimer = setTimeout(() => {
     isAnimating.value = false;
-  }, 200); // 匹配 CSS width transition 时间
+  }, 200);
 });
 
 const showSkeleton = computed(() => {
   if (isAnimating.value) return true;
+  if (showSessionListSkeleton.value) return true;
   return false;
 });
 </script>

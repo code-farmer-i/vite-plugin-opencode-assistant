@@ -24,7 +24,11 @@ export class OpenCodeAPI {
     private warmupChromeMcpConfig: boolean = false,
   ) {}
 
-  private createHttpRequest<T>(options: http.RequestOptions, body?: string): Promise<T> {
+  private createHttpRequest<T>(
+    options: http.RequestOptions,
+    body?: string,
+    timeout?: number,
+  ): Promise<T> {
     const timer = new PerformanceTimer("HTTP Request", {
       operation: `${options.method || "GET"} ${options.path}`,
     });
@@ -48,6 +52,13 @@ export class OpenCodeAPI {
         timer.end("❌ Request failed");
         reject(e);
       });
+      if (timeout) {
+        req.setTimeout(timeout, () => {
+          timer.end("❌ Request timeout");
+          req.destroy();
+          reject(new Error(`Request timeout after ${timeout}ms`));
+        });
+      }
       if (body) req.write(body);
       req.end();
     });
@@ -215,8 +226,12 @@ export class OpenCodeAPI {
         log.debug("Resolved Chrome MCP tool ids", {
           chromeToolIds,
         });
+        
+        if (!chromeToolIds || chromeToolIds.length === 0) {
+          log.warn("No Chrome DevTools tools found, MCP may not be connected yet");
+        }
       } catch (e) {
-        log.debug("Failed to resolve Chrome MCP tool ids", { error: e });
+        log.warn("Failed to resolve Chrome MCP tool ids", { error: e });
       }
 
       const prompt = [
@@ -229,6 +244,7 @@ export class OpenCodeAPI {
         "After the tool call is complete, reply with exactly: ready",
       ].join(" ");
 
+      const WARMUP_TIMEOUT = 30000;
       await this.createHttpRequest<unknown>(
         {
           hostname: this.hostname,
@@ -243,12 +259,14 @@ export class OpenCodeAPI {
           tools: chromeToolIds?.length ? chromeToolIds : undefined,
           parts: [{ type: "text", text: prompt }],
         }),
+        WARMUP_TIMEOUT,
       );
 
       timer.end("Chrome MCP warmed up");
     } catch (e) {
       log.warn("Failed to warm up Chrome MCP", { error: e });
       timer.end("Chrome MCP warmup skipped");
+      throw e;
     } finally {
       if (warmupSessionId) {
         try {
@@ -287,5 +305,76 @@ export class OpenCodeAPI {
     const url = `http://${this.hostname}:${this.getPort()}/${base64Encode(projectDir)}/session/${newSession.id}`;
     timer.end(`Created new session: ${newSession.id}`);
     return url;
+  }
+
+  async retryWarmupChromeMcp(viteOrigin?: string): Promise<boolean> {
+    const timer = log.timer("retryWarmupChromeMcp", { viteOrigin });
+    let warmupSessionId: string | null = null;
+
+    try {
+      const warmupSession = await this.createSession(DEFAULT_RETRIES, "__chrome_mcp_warmup__");
+      warmupSessionId = warmupSession.id;
+      let chromeToolIds: string[] | undefined;
+
+      try {
+        const toolIds = await this.getToolIds();
+        chromeToolIds = toolIds.filter((toolId) => /chrome[-_]?devtools/i.test(toolId));
+        log.debug("Resolved Chrome MCP tool ids", {
+          chromeToolIds,
+        });
+        
+        if (!chromeToolIds || chromeToolIds.length === 0) {
+          log.warn("No Chrome DevTools tools found, MCP may not be connected");
+        }
+      } catch (e) {
+        log.warn("Failed to resolve Chrome MCP tool ids", { error: e });
+      }
+
+      const prompt = [
+        "Call the browser tool list_pages immediately to establish the Chrome DevTools MCP connection.",
+        viteOrigin
+          ? `If there are no pages, call new_page with ${viteOrigin}.`
+          : "If there are no pages, call new_page with about:blank.",
+        "Do not read or modify project files.",
+        "Do not use any non-browser tools.",
+        "After the tool call is complete, reply with exactly: ready",
+      ].join(" ");
+
+      const WARMUP_TIMEOUT = 60000; // 增加到 60 秒
+      await this.createHttpRequest<unknown>(
+        {
+          hostname: this.hostname,
+          port: this.getPort(),
+          path: `/session/${warmupSessionId}/message`,
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        },
+        JSON.stringify({
+          system:
+            "You are warming up Chrome DevTools MCP during startup. You must use the available browser tools immediately before replying.",
+          tools: chromeToolIds?.length ? chromeToolIds : undefined,
+          parts: [{ type: "text", text: prompt }],
+        }),
+        WARMUP_TIMEOUT,
+      );
+
+      timer.end("Chrome MCP warmed up successfully");
+      return true;
+    } catch (e) {
+      log.warn("Failed to retry warm up Chrome MCP", { error: e });
+      timer.end("Chrome MCP warmup retry failed");
+      return false;
+    } finally {
+      if (warmupSessionId) {
+        try {
+          await this.deleteSession(warmupSessionId, 5);
+        } catch (e) {
+          log.warn("Failed to delete warmup session after retries", {
+            error: e,
+            warmupSessionId,
+          });
+        }
+      }
+    }
   }
 }

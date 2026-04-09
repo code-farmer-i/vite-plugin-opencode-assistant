@@ -22,7 +22,7 @@
   },
   "scripts": {
     "build": "pagoda-cli build && vite build -c vite.plugin.config.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.declaration.json --noEmit"
   },
   "dependencies": {
     "@vite-plugin-opencode-assistant/shared": "workspace:*",

@@ -12,4 +12,5 @@ export interface EndpointContext {
   deleteSession: (id: string) => Promise<void>;
   resolveWidgetPath: () => string;
   resolveWidgetStylePath: () => string;
+  retryWarmupChromeMcp: () => Promise<boolean>;
 }

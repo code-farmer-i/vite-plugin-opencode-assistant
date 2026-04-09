@@ -1,7 +1,7 @@
 import type { ResultPromise } from "execa";
 import type http from "http";
 import { prepareOpenCodeRuntime, startOpenCodeWeb } from "@vite-plugin-opencode-assistant/opencode";
-import type { OpenCodeOptions } from "@vite-plugin-opencode-assistant/shared";
+import type { OpenCodeOptions, ServiceStartupTask } from "@vite-plugin-opencode-assistant/shared";
 import {
   DEFAULT_PROXY_PORT,
   SERVER_START_TIMEOUT,
@@ -26,6 +26,7 @@ export class OpenCodeService {
   private startPromise: Promise<void> | null = null;
   public sessionUrl: string | null = null;
   private proxyServer: http.Server | null = null;
+  public chromeMcpWarmupFailed = false;
 
   constructor(
     private config: Required<OpenCodeOptions>,
@@ -36,6 +37,16 @@ export class OpenCodeService {
   ) {
     this.actualWebPort = config.webPort;
     this.actualProxyPort = config.proxyPort ?? DEFAULT_PROXY_PORT;
+  }
+
+  private sendTaskUpdate(task: ServiceStartupTask) {
+    this.sseClients.forEach((client) => {
+      try {
+        client.write(`data: ${JSON.stringify({ type: "TASK_UPDATE", task })}\n\n`);
+      } catch (e) {
+        log.debug("Failed to send TASK_UPDATE event", { error: e });
+      }
+    });
   }
 
   async start(corsOrigins?: string[], contextApiUrl?: string, viteOrigin?: string): Promise<void> {
@@ -61,6 +72,7 @@ export class OpenCodeService {
         log.debug(`Killed ${orphanCount} orphan OpenCode process(es)`);
       }
 
+      this.sendTaskUpdate("checking_opencode");
       if (!(await checkOpenCodeInstalled())) {
         log.error(`OpenCode is not installed!
 
@@ -80,12 +92,14 @@ Please install OpenCode first:
   mise use -g opencode               # Any OS
   nix run nixpkgs#opencode           # or github:anomalyco/opencode for latest dev branch
         `);
+        this.sendTaskUpdate("opencode_not_installed");
         timer.end("❌ OpenCode not installed");
         return;
       }
 
       timer.checkpoint("OpenCode installation verified");
 
+      this.sendTaskUpdate("allocating_port");
       this.actualWebPort = await findAvailablePort(this.config.webPort, this.config.hostname);
       this.onPortAllocated(this.actualWebPort);
 
@@ -97,10 +111,12 @@ Please install OpenCode first:
 
       timer.checkpoint("Port allocated");
 
+      this.sendTaskUpdate("preparing_runtime");
       const configDir = prepareOpenCodeRuntime(process.cwd());
 
       timer.checkpoint("Plugin setup complete");
 
+      this.sendTaskUpdate("starting_web");
       log.debug("Starting OpenCode Web process...", {
         port: this.actualWebPort,
         hostname: this.config.hostname,
@@ -121,9 +137,18 @@ Please install OpenCode first:
       const webUrl = `http://${this.config.hostname}:${this.actualWebPort}`;
       log.info(`Waiting for OpenCode Web to become ready at ${webUrl}...`);
 
-      await waitForServer(webUrl, SERVER_START_TIMEOUT);
-      log.info(`OpenCode Web started at ${webUrl}`);
+      this.sendTaskUpdate("waiting_web_ready");
+      try {
+        await waitForServer(webUrl, SERVER_START_TIMEOUT);
+        log.info(`OpenCode Web started at ${webUrl}`);
+      } catch (e) {
+        log.error("OpenCode Web failed to start", { error: e });
+        this.sendTaskUpdate("web_start_timeout");
+        timer.end("❌ Web start timeout");
+        return;
+      }
 
+      this.sendTaskUpdate("starting_proxy");
       this.actualProxyPort = await findAvailablePort(
         this.config.proxyPort ?? DEFAULT_PROXY_PORT,
         this.config.hostname,
@@ -145,9 +170,28 @@ Please install OpenCode first:
       });
       timer.checkpoint("Proxy server started");
 
-      await this.api.warmupChromeMcp(viteOrigin);
-      timer.checkpoint("Chrome MCP warmup complete");
+      this.sendTaskUpdate("warming_up_chrome");
+      let warmupFailed = false;
+      try {
+        await this.api.warmupChromeMcp(viteOrigin);
+        timer.checkpoint("Chrome MCP warmup complete");
+      } catch (e) {
+        log.warn("Chrome MCP warmup failed", { error: e });
+        this.chromeMcpWarmupFailed = true;
+        warmupFailed = true;
+        this.sseClients.forEach((client) => {
+          try {
+            client.write(
+              `data: ${JSON.stringify({ type: "CHROME_MCP_WARMUP_FAILED" })}\n\n`,
+            );
+          } catch (err) {
+            log.debug("Failed to send CHROME_MCP_WARMUP_FAILED event", { error: err });
+          }
+        });
+      }
 
+      this.sendTaskUpdate("creating_session");
+      let sessionFailed = false;
       try {
         this.sessionUrl = await this.api.getOrCreateSession();
         timer.checkpoint("Session created");
@@ -164,8 +208,16 @@ Please install OpenCode first:
         });
       } catch (e) {
         log.warn("Failed to get/create session", { error: e });
+        sessionFailed = true;
       }
 
+      if (sessionFailed) {
+        this.sendTaskUpdate("session_creation_failed");
+      } else if (warmupFailed) {
+        this.sendTaskUpdate("chrome_mcp_failed");
+      } else {
+        this.sendTaskUpdate("ready");
+      }
       this.isStarted = true;
       log.debug(`OpenCode services started successfully: ${this.sessionUrl || webUrl}`);
       timer.end("✓ Services started successfully");
