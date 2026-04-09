@@ -34,15 +34,22 @@ async function checkNpmLogin() {
   try {
     const user = execSync("npm whoami --registry=https://registry.npmjs.org/ --silent", {
       encoding: "utf-8",
-      stdio: ["pipe", "pipe", "ignore"], // 忽略标准错误输出
+      stdio: ["pipe", "pipe", "ignore"],
     }).trim();
     console.log(`✅ Logged in to npm as: ${user}`);
     return true;
   } catch {
-    console.error(
-      "❌ Not logged in to npm. Please run `npm login --registry=https://registry.npmjs.org/` first.",
-    );
-    return false;
+    console.log("⚠️  Not logged in to npm. Starting login process...\n");
+    try {
+      execSync("npm login --registry=https://registry.npmjs.org/", {
+        stdio: "inherit",
+      });
+      console.log("\n✅ Login successful!\n");
+      return true;
+    } catch (loginErr) {
+      console.error("❌ Login failed:", loginErr.message);
+      return false;
+    }
   }
 }
 
