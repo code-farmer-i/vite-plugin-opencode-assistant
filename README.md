@@ -1,33 +1,26 @@
 # vite-plugin-opencode-assistant
 
-一个面向 Vite 开发环境的插件：在页面内注入 OpenCode 对话挂件，自动启动 OpenCode Web，并把当前页面 URL、标题以及选中的页面节点同步给 AI，便于一边聊天一边改代码、立即通过 HMR 看到结果。
+在 Vite 开发环境中嵌入 OpenCode AI 助手，实现边聊天边改代码、即时预览的开发体验。
 
 ## 它能做什么
 
-- 在 `vite serve` 时自动注入一个悬浮 AI 按钮和对话面板
-- 自动启动本地 OpenCode Web 服务，并为当前项目复用或创建会话
-- 把当前页面 URL、标题同步到 OpenCode 会话上下文
-- 支持把页面上选中的节点信息同步给 AI，帮助它直接定位组件文件与行号
-- 内置会话列表，可在挂件中切换、新建、删除当前项目的 OpenCode 会话
-- 支持快捷键、主题、初始展开状态、悬浮位置等配置
-- 支持启动后预热 Chrome DevTools MCP，减少首次使用浏览器工具时的等待
+- **悬浮 AI 面板** - 在页面右下角注入悬浮按钮，点击展开 OpenCode 对话界面
+- **自动启动服务** - 自动启动本地 OpenCode Web 服务，无需手动操作
+- **智能会话管理** - 自动复用当前项目的会话，或创建新会话
+- **页面上下文同步** - 自动同步当前页面 URL、标题给 AI，SPA 路由切换时实时更新
+- **元素选择器** - 通过快捷键在页面上点选元素，将组件源码位置信息传给 AI
+- **主题同步** - 挂件主题与 OpenCode Web 主题实时同步
+- **代理服务** - 内置代理服务器解决 iframe 跨域限制，确保 OpenCode Web 功能完整
+- **Chrome DevTools 预热** - 启动时自动预热浏览器工具链，减少首次使用等待
 
-## 工作方式
+## 效果演示
 
-启动 Vite 开发服务器后，插件会做这几件事：
+启动 Vite 开发服务器后：
 
-1. 在 HTML 中注入浏览器端挂件脚本
-2. 检查本机是否已安装 `opencode`
-3. 启动 OpenCode Web 服务，默认使用 `127.0.0.1:4097`
-4. 在当前项目目录下查找已有会话；如果没有，则创建新会话
-5. 把页面上下文通过本地接口同步给 OpenCode
-6. 页面代码被 OpenCode 修改后，由 Vite HMR 立即刷新效果
-
-当前实现只在开发模式生效：
-
-- 仅在 `vite serve` 时启用
-- `build` 阶段不会注入挂件
-- `enabled` 默认值是 `false`，需要显式开启
+1. 页面右下角出现悬浮按钮
+2. 点击按钮展开 OpenCode 对话面板
+3. 直接在面板中与 AI 对话，修改代码
+4. Vite HMR 即时刷新，立即看到修改效果
 
 ## 安装
 
@@ -37,26 +30,28 @@ npm install -D vite-plugin-opencode-assistant
 
 ## 前置条件
 
-本插件依赖本机已安装 [OpenCode](https://opencode.ai) CLI。
-
-推荐安装方式：
+需要本机已安装 [OpenCode](https://opencode.ai) CLI：
 
 ```bash
 curl -fsSL https://opencode.ai/install | bash
 ```
 
-也可以使用包管理器：
+或使用包管理器：
 
 ```bash
 npm i -g opencode-ai@latest
 brew install anomalyco/tap/opencode
 ```
 
-如果你保留默认的 `warmupChromeMcp: true`，首次启动时还会通过 `npx` 拉起 `chrome-devtools-mcp` 来预热浏览器工具链。
+验证安装：
+
+```bash
+opencode --version
+```
 
 ## 快速开始
 
-由于当前实现默认 `enabled: false`，最小可用配置如下：
+### 最小配置
 
 ```ts
 import { defineConfig } from "vite";
@@ -64,8 +59,47 @@ import opencodeAssistant from "vite-plugin-opencode-assistant";
 
 export default defineConfig({
   plugins: [
+    opencodeAssistant(),
+  ],
+});
+```
+
+### 完整配置示例
+
+```ts
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+import opencodeAssistant from "vite-plugin-opencode-assistant";
+
+export default defineConfig({
+  plugins: [
+    vue(),
     opencodeAssistant({
-      enabled: true,
+      enabled: true,           // 是否启用插件
+      webPort: 4097,           // OpenCode Web 服务端口
+      proxyPort: 4098,         // 代理服务端口
+      hostname: "127.0.0.1",   // 服务绑定地址
+      position: "bottom-right", // 悬浮按钮位置
+      theme: "auto",           // 主题: light | dark | auto
+      open: false,             // 是否自动展开面板
+      autoReload: true,        // 是否启用自动重载提示
+      verbose: false,          // 是否输出详细日志
+      hotkey: "ctrl+k",        // 切换面板的快捷键
+      warmupChromeMcp: true,   // 是否预热 Chrome DevTools MCP
+
+      // OpenCode 界面语言（可选）
+      language: "zh",
+
+      // OpenCode 内部设置（可选）
+      settings: {
+        general: {
+          showReasoningSummaries: true,
+          followup: "suggest",
+        },
+        appearance: {
+          fontSize: 14,
+        },
+      },
     }),
   ],
 });
@@ -77,194 +111,172 @@ export default defineConfig({
 npm run dev
 ```
 
-启动后页面右下角会出现悬浮按钮，点击即可打开 OpenCode 面板。
-
-## 推荐配置示例
-
-```ts
-import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
-import opencodeAssistant from "vite-plugin-opencode-assistant";
-
-export default defineConfig({
-  plugins: [
-    vue(),
-    opencodeAssistant({
-      enabled: true,
-      webPort: 4097,
-      hostname: "127.0.0.1",
-      position: "bottom-right",
-      theme: "auto",
-      open: false,
-      autoReload: true,
-      verbose: false,
-      hotkey: "ctrl+k",
-      warmupChromeMcp: true,
-    }),
-  ],
-});
-```
-
 ## 配置项
 
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `enabled` | `boolean` | `true` | 是否启用插件 |
+| `webPort` | `number` | `4097` | OpenCode Web 服务端口，被占用时自动向后寻找可用端口 |
+| `proxyPort` | `number` | `4098` | 代理服务端口，用于解决 iframe 跨域限制 |
+| `hostname` | `string` | `"127.0.0.1"` | 服务绑定地址 |
+| `position` | `string` | `"bottom-right"` | 悬浮按钮位置：`bottom-right` \| `bottom-left` \| `top-right` \| `top-left` |
+| `theme` | `string` | `"auto"` | 挂件主题：`light` \| `dark` \| `auto`（跟随系统） |
+| `open` | `boolean` | `false` | 页面加载后是否自动展开面板 |
+| `autoReload` | `boolean` | `true` | 是否显示自动重载提示 |
+| `verbose` | `boolean` | `false` | 是否输出详细调试日志 |
+| `hotkey` | `string` | `"ctrl+k"` | 切换面板的快捷键，macOS 支持 `cmd+k` |
+| `warmupChromeMcp` | `boolean` | `true` | 启动后是否预热 Chrome DevTools MCP |
+| `language` | `string` | - | OpenCode 界面语言，如 `zh`、`en`、`ja` 等 |
+| `settings` | `object` | - | OpenCode 内部设置，详见下方说明 |
+
+### OpenCode 设置
+
+`settings` 配置项用于自定义 OpenCode Web 的内部行为：
+
 ```ts
-interface OpenCodeOptions {
-  enabled?: boolean;
-  webPort?: number;
-  hostname?: string;
-  position?: "bottom-right" | "bottom-left" | "top-right" | "top-left";
-  theme?: "light" | "dark" | "auto";
-  open?: boolean;
-  autoReload?: boolean;
-  verbose?: boolean;
-  hotkey?: string;
-  warmupChromeMcp?: boolean;
+{
+  general: {
+    autoSave?: boolean;              // 自动保存
+    releaseNotes?: boolean;          // 显示更新说明
+    followup?: "steer" | "suggest" | "none";  // 后续动作模式
+    showReasoningSummaries?: boolean; // 显示推理摘要
+    shellToolPartsExpanded?: boolean; // 默认展开 shell 工具
+    editToolPartsExpanded?: boolean;  // 默认展开编辑工具
+  },
+  appearance: {
+    fontSize?: number;   // 界面字体大小
+    mono?: string;       // 代码字体
+    sans?: string;       // 界面字体
+  },
+  permissions: {
+    autoApprove?: boolean;  // 自动批准权限请求
+  },
+  notifications: {
+    agent?: boolean;      // 智能体完成时通知
+    permissions?: boolean; // 权限请求时通知
+    errors?: boolean;     // 错误时通知
+  },
+  sounds: {
+    agentEnabled?: boolean;       // 启用智能体音效
+    agent?: string;               // 智能体音效
+    permissionsEnabled?: boolean; // 启用权限音效
+    permissions?: string;         // 权限音效
+    errorsEnabled?: boolean;      // 启用错误音效
+    errors?: string;              // 错误音效
+  },
 }
 ```
 
-配置说明：
+## 使用指南
 
-| 配置项            | 默认值           | 说明                                                                |
-| ----------------- | ---------------- | ------------------------------------------------------------------- |
-| `enabled`         | `false`          | 是否启用插件。当前版本必须手动设为 `true` 才会生效                  |
-| `webPort`         | `4097`           | OpenCode Web 端口。如果端口被占用，会从当前端口开始向后寻找可用端口 |
-| `hostname`        | `127.0.0.1`      | OpenCode Web 绑定地址                                               |
-| `position`        | `"bottom-right"` | 悬浮挂件位置                                                        |
-| `theme`           | `"auto"`         | 挂件主题，`auto` 会跟随系统明暗色                                   |
-| `open`            | `false`          | 页面初始化后是否自动展开挂件                                        |
-| `autoReload`      | `true`           | 控制挂件侧的自动重载提示行为                                        |
-| `verbose`         | `false`          | 是否输出更详细的插件日志                                            |
-| `hotkey`          | `"ctrl+k"`       | 切换挂件的快捷键，macOS 下同样支持 `cmd+k`                          |
-| `warmupChromeMcp` | `true`           | 启动后是否预热 Chrome DevTools MCP                                  |
-
-## 使用说明
-
-### 1. 打开对话挂件
+### 打开对话面板
 
 - 点击页面右下角悬浮按钮
-- 或使用默认快捷键 `Ctrl/Cmd + K`
+- 或使用快捷键 `Ctrl/Cmd + K`
 
-### 2. 切换会话
+### 会话管理
 
-挂件左侧带有当前项目的会话列表，支持：
+面板左侧显示当前项目的会话列表，支持：
 
-- 查看当前项目下已有会话
+- 查看已有会话
 - 新建会话
 - 切换会话
 - 删除会话
 
-### 3. 同步页面上下文
+### 页面上下文同步
 
-挂件会自动同步以下信息：
+挂件自动同步以下信息：
 
 - 当前页面 URL
 - 当前页面标题
-- 当前选中的页面节点
+- 选中的页面元素
 
-它会监听：
+监听的事件包括：
 
-- `history.pushState`
-- `history.replaceState`
-- `popstate`
-- `hashchange`
+- `history.pushState` / `history.replaceState`
+- `popstate` / `hashchange`
 - `document.title` 变化
 
-这意味着在 SPA 场景下切页后，上下文也会自动更新。
+### 元素选择模式
 
-### 4. 选择页面节点
+通过快捷键（默认 `Ctrl/Cmd + P`）进入选择模式：
 
-当前实现支持把页面节点作为上下文传给 AI，节点信息包括：
+1. 按下快捷键，鼠标变为选择状态
+2. 点击页面上的元素
+3. 元素信息（文件路径、行号、文本内容）自动传给 AI
 
-- 源文件路径
-- 行号和列号
-- 节点文本
-- 节点描述
+**注意**：元素选择依赖 Vue Inspector，如果页面中没有可用的 Inspector，会提示无法使用该功能。
 
-默认通过 `Ctrl/Cmd + P` 进入选择模式。
+## 浏览器端 API
 
-需要注意：
-
-- 这项能力依赖页面中可用的 Vue Inspector 钩子
-- 如果页面中没有可用的 Inspector，挂件会提示“Vue Inspector 未加载，无法使用元素选择功能”
-- 选中的节点会暂存在 `sessionStorage` 中
-
-## 浏览器端全局 API
-
-挂件会暴露一个全局对象：
+挂件在全局暴露 `window.OpenCodeWidget` 对象：
 
 ```js
+// 打开面板
 window.OpenCodeWidget.open();
+
+// 关闭面板
 window.OpenCodeWidget.close();
+
+// 切换面板
 window.OpenCodeWidget.toggle();
-window.OpenCodeWidget.showNotification("Code updated!");
+
+// 显示通知
+window.OpenCodeWidget.showNotification("代码已更新！");
+
+// 手动同步上下文
 window.OpenCodeWidget.updateContext();
 ```
 
-适用场景：
+## 内部接口
 
-- 从你自己的调试面板中主动打开挂件
-- 在页面状态发生重要变化后手动触发一次上下文同步
-- 在自定义流程中复用现有的通知能力
+插件在 Vite 开发服务器上注册以下内部接口：
 
-## 本地接口
-
-插件会在 Vite 开发服务器上挂出几个内部接口，供挂件与 OpenCode 协作使用：
-
-| 路径                      | 说明                                       |
-| ------------------------- | ------------------------------------------ |
-| `/__opencode_widget__.js` | 浏览器端挂件脚本                           |
-| `/__opencode_start__`     | 返回当前服务启动状态与会话地址             |
-| `/__opencode_context__`   | 读写页面上下文、清空已选节点               |
-| `/__opencode_sessions__`  | 查询、创建、删除 OpenCode 会话             |
-| `/__opencode_events__`    | SSE 事件流，用于同步会话就绪和节点清空事件 |
-
-这些接口是插件内部实现细节，通常不需要业务代码直接调用。
+| 路径 | 说明 |
+|------|------|
+| `/__opencode_widget__.js` | 浏览器端挂件脚本 |
+| `/__opencode_start__` | 服务启动状态与会话地址 |
+| `/__opencode_context__` | 页面上下文读写 |
+| `/__opencode_sessions__` | 会话查询、创建、删除 |
+| `/__opencode_events__` | SSE 事件流（会话就绪、节点清空等） |
 
 ## 常见问题
 
 ### OpenCode not installed
 
-如果控制台提示未安装 OpenCode，先确认命令行里可以正常执行：
+确认命令行可以正常执行：
 
 ```bash
 opencode --version
 ```
 
-若无法执行，请先完成 OpenCode CLI 安装。
-
 ### 端口冲突
 
-当前实现只开放了 `webPort` 配置项，没有单独暴露 server 端口配置。
-
-如果默认端口被占用，可以改成：
+如果默认端口被占用，插件会自动向后寻找可用端口。也可以手动指定：
 
 ```ts
 opencodeAssistant({
-  enabled: true,
   webPort: 5001,
+  proxyPort: 5002,
 });
 ```
 
-如果你不改配置，插件也会从 `webPort` 开始继续向后寻找可用端口。
+### 元素选择不可用
 
-### 页面里没有节点选择能力
+需要页面中有 Vue Inspector 钩子。插件已内置 `unplugin-vue-inspector`，无需额外配置。
 
-这通常意味着当前页面里没有可用的 Vue Inspector 钩子。挂件仍然可以正常聊天和同步 URL/标题，只是无法通过页面点选节点来辅助定位代码。
+### 生产构建不包含挂件
 
-### 构建产物里为什么没有挂件
-
-这是当前实现的预期行为。插件只在开发服务器模式下工作，不会影响生产构建结果。
+这是预期行为。插件仅在开发模式（`vite serve`）下工作，不会影响生产构建。
 
 ## 示例项目
 
-仓库自带了一个 `example` 工作区用于本地联调。
-
-由于示例直接引用 `../dist/vite/index`，请先在仓库根目录构建插件：
+仓库包含 `packages/playground` 示例项目：
 
 ```bash
 npm install
 npm run build
-cd example
+cd packages/playground
 npm install
 npm run dev
 ```
@@ -272,8 +284,17 @@ npm run dev
 ## 开发
 
 ```bash
+# 安装依赖
+npm install
+
+# 构建所有包
 npm run build
+
+# 运行测试
 npm test
+
+# 启动文档站点
+npm run dev:playground
 ```
 
 ## License
