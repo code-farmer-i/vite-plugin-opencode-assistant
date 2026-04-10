@@ -20,8 +20,6 @@ const {
     :title="`AI 助手 (${hotkeyLabel})`"
     @click="handleToggle"
   >
-    <div v-if="thinking" class="opencode-thinking-indicator" />
-
     <slot>
       <svg
         t="1775402599580"
@@ -94,41 +92,34 @@ const {
   background: var(--oc-trigger-bg-hover);
 }
 
-/* Thinking 状态 - 增强渐变光晕效果 */
+/* Thinking 状态 - 蓝紫渐变背景 + 水波纹效果 */
 .opencode-button.thinking {
-  background: linear-gradient(
-    135deg,
-    var(--oc-thinking-gradient-1) 0%,
-    var(--oc-thinking-gradient-2) 50%,
-    var(--oc-thinking-gradient-1) 100%
-  );
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #667eea 100%);
   background-size: 200% 200%;
-  animation: thinking-gradient 1.5s ease infinite;
-  box-shadow:
-    0 0 20px var(--oc-thinking-glow-strong),
-    0 0 40px var(--oc-thinking-glow);
-  transform: scale(1.05);
+  animation: thinking-gradient 2s ease infinite, thinking-pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 20px rgba(102, 126, 234, 0.5), 0 0 40px rgba(118, 75, 162, 0.3);
 }
 
 .opencode-button.thinking svg {
-  animation: thinking-icon-pulse 1.5s ease-in-out infinite;
+  animation: none;
 }
 
-/* 外层光环 */
+/* 第一层水波纹 */
 .opencode-button.thinking::before {
   content: "";
   position: absolute;
-  top: -6px;
-  left: -6px;
-  right: -6px;
-  bottom: -6px;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  border: 2px solid var(--oc-thinking-gradient-1);
-  animation: thinking-ring 1.5s ease-in-out infinite;
+  background: radial-gradient(circle, rgba(102, 126, 234, 0.7) 0%, rgba(118, 75, 162, 0.5) 50%, transparent 70%);
+  transform: translate(-50%, -50%);
+  animation: ripple-wave 2s ease-out infinite;
   pointer-events: none;
 }
 
-/* 光晕扩散效果 */
+/* 第二层水波纹 */
 .opencode-button.thinking::after {
   content: "";
   position: absolute;
@@ -137,9 +128,10 @@ const {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: var(--oc-thinking-glow);
+  background: radial-gradient(circle, rgba(118, 75, 162, 0.6) 0%, rgba(102, 126, 234, 0.4) 50%, transparent 70%);
   transform: translate(-50%, -50%);
-  animation: thinking-ripple 1.5s ease-out infinite;
+  animation: ripple-wave 2s ease-out infinite;
+  animation-delay: 1s;
   pointer-events: none;
 }
 
@@ -155,69 +147,24 @@ const {
   }
 }
 
-@keyframes thinking-ripple {
+@keyframes ripple-wave {
   0% {
     transform: translate(-50%, -50%) scale(1);
     opacity: 0.8;
   }
   100% {
-    transform: translate(-50%, -50%) scale(1.8);
+    transform: translate(-50%, -50%) scale(2.5);
     opacity: 0;
   }
 }
 
-@keyframes thinking-ring {
-  0%,
-  100% {
-    opacity: 0.8;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.4;
-    transform: scale(1.1);
-  }
-}
-
-@keyframes thinking-icon-pulse {
-  0%,
-  100% {
-    transform: rotate(180deg) scale(1);
-  }
-  50% {
-    transform: rotate(180deg) scale(0.9);
-  }
-}
-
-/* 指示器 - 呼吸效果 */
-.opencode-thinking-indicator {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  width: 14px;
-  height: 14px;
-  background: linear-gradient(135deg, var(--oc-thinking-gradient-1), var(--oc-thinking-gradient-2));
-  border-radius: 50%;
-  border: 2px solid white;
-  animation: thinking-dot 1s ease-in-out infinite;
-  box-shadow:
-    0 0 10px var(--oc-thinking-glow-strong),
-    0 0 20px var(--oc-thinking-glow);
-  z-index: 1;
-}
-
-@keyframes thinking-dot {
+@keyframes thinking-pulse {
   0%,
   100% {
     transform: scale(1);
-    box-shadow:
-      0 0 10px var(--oc-thinking-glow-strong),
-      0 0 20px var(--oc-thinking-glow);
   }
   50% {
-    transform: scale(1.3);
-    box-shadow:
-      0 0 15px var(--oc-thinking-glow-strong),
-      0 0 30px var(--oc-thinking-glow);
+    transform: scale(0.9);
   }
 }
 
