@@ -95,6 +95,9 @@ const App = {
     const serviceStatus = ref<ServiceStatus>("idle");
 
     const loadingText = computed(() => {
+      // 如果是 iframe 加载中，显示通用的加载文案
+      if (iframeLoading.value) return "加载中...";
+      // 如果是服务启动中，显示具体的启动任务文案
       if (!currentTask.value) return "加载中...";
       return SERVICE_STARTUP_TASKS[currentTask.value] || "加载中...";
     });
@@ -531,6 +534,9 @@ const App = {
             updateContext(true);
           },
           "onEmpty-action": createSession,
+          "onFrame-loaded": () => {
+            iframeLoading.value = false;
+          },
         },
         {
           loading: () =>

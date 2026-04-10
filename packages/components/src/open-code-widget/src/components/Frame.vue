@@ -12,6 +12,7 @@ const {
   emptyStateText,
   emptyStateActionText,
   handleEmptyAction,
+  handleFrameLoaded,
   theme,
   resolvedTheme,
 } = useOpenCodeWidgetContext();
@@ -41,6 +42,7 @@ onMounted(() => {
   if (iframeRef.value) {
     iframeRef.value.addEventListener("load", () => {
       iframeReady.value = true;
+      handleFrameLoaded();
     });
   }
   window.addEventListener("message", handleIframeMessage);

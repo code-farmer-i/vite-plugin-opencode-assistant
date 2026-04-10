@@ -386,4 +386,5 @@ export type OpenCodeWidgetEmits = {
   (e: "remove-selected-node", payload: OpenCodeRemoveSelectedPayload): void;
   (e: "clear-selected-nodes"): void;
   (e: "empty-action"): void;
+  (e: "frame-loaded"): void;
 };

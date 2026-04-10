@@ -52,6 +52,7 @@ export interface OpenCodeWidgetContext {
     source: OpenCodeRemoveSelectedPayload["source"];
   }) => void;
   handleClearSelectedNodes: () => void;
+  handleFrameLoaded: () => void;
 }
 
 const CONTEXT_KEY = Symbol("OpenCodeWidgetContext");
