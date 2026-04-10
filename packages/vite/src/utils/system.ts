@@ -1,16 +1,17 @@
 import { spawn } from "child_process";
 import http from "http";
 import net from "net";
-import {
-  DEFAULT_HOSTNAME,
-  MAX_PORT_TRIES,
-  SERVER_CHECK_INTERVAL,
-} from "@vite-plugin-opencode-assistant/shared";
+import type { ResultPromise } from "execa";
+import { MAX_PORT_TRIES, SERVER_CHECK_INTERVAL } from "@vite-plugin-opencode-assistant/shared";
 import { PerformanceTimer, createLogger } from "@vite-plugin-opencode-assistant/shared";
 
 const log = createLogger("Utils");
 
-export function waitForServer(url: string, timeout = 10000): Promise<void> {
+export function waitForServer(
+  url: string,
+  timeout = 10000,
+  process?: ResultPromise,
+): Promise<void> {
   const timer = new PerformanceTimer("waitForServer", { url, timeout });
 
   return new Promise((resolve, reject) => {
@@ -20,6 +21,12 @@ export function waitForServer(url: string, timeout = 10000): Promise<void> {
     const check = (): void => {
       attempts++;
       log.debug(`Checking server availability (attempt ${attempts})`, { url });
+
+      if (process?.exitCode !== null && process?.exitCode !== undefined) {
+        timer.end(`❌ Process exited with code ${process.exitCode}`);
+        reject(new Error(`Process exited with code ${process.exitCode}`));
+        return;
+      }
 
       const req = http.get(url, (res) => {
         if (res.statusCode && res.statusCode < 500) {
@@ -73,7 +80,7 @@ export async function checkOpenCodeInstalled(): Promise<boolean> {
   });
 }
 
-export async function isPortAvailable(port: number, hostname = DEFAULT_HOSTNAME): Promise<boolean> {
+export async function isPortAvailable(port: number, hostname?: string): Promise<boolean> {
   return new Promise((resolve) => {
     const server = net.createServer();
 
@@ -94,7 +101,7 @@ export async function isPortAvailable(port: number, hostname = DEFAULT_HOSTNAME)
 
 export async function findAvailablePort(
   startPort: number,
-  hostname = DEFAULT_HOSTNAME,
+  hostname?: string,
   maxTries = MAX_PORT_TRIES,
 ): Promise<number> {
   const timer = log.timer("findAvailablePort", { startPort, hostname, maxTries });

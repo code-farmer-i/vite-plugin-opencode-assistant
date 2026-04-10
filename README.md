@@ -58,9 +58,7 @@ import { defineConfig } from "vite";
 import opencodeAssistant from "vite-plugin-opencode-assistant";
 
 export default defineConfig({
-  plugins: [
-    opencodeAssistant(),
-  ],
+  plugins: [opencodeAssistant()],
 });
 ```
 
@@ -75,17 +73,17 @@ export default defineConfig({
   plugins: [
     vue(),
     opencodeAssistant({
-      enabled: true,           // 是否启用插件
-      webPort: 4097,           // OpenCode Web 服务端口
-      proxyPort: 4098,         // 代理服务端口
-      hostname: "127.0.0.1",   // 服务绑定地址
+      enabled: true, // 是否启用插件
+      webPort: 5097, // OpenCode Web 服务端口
+      proxyPort: 6097, // 代理服务端口
+      hostname: "127.0.0.1", // 服务绑定地址
       position: "bottom-right", // 悬浮按钮位置
-      theme: "auto",           // 主题: light | dark | auto
-      open: false,             // 是否自动展开面板
-      autoReload: true,        // 是否启用自动重载提示
-      verbose: false,          // 是否输出详细日志
-      hotkey: "ctrl+k",        // 切换面板的快捷键
-      warmupChromeMcp: true,   // 是否预热 Chrome DevTools MCP
+      theme: "auto", // 主题: light | dark | auto
+      open: false, // 是否自动展开面板
+      autoReload: true, // 是否启用自动重载提示
+      verbose: false, // 是否输出详细日志
+      hotkey: "ctrl+k", // 切换面板的快捷键
+      warmupChromeMcp: true, // 是否预热 Chrome DevTools MCP
 
       // OpenCode 界面语言（可选）
       language: "zh",
@@ -113,21 +111,21 @@ npm run dev
 
 ## 配置项
 
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `enabled` | `boolean` | `true` | 是否启用插件 |
-| `webPort` | `number` | `4097` | OpenCode Web 服务端口，被占用时自动向后寻找可用端口 |
-| `proxyPort` | `number` | `4098` | 代理服务端口，用于解决 iframe 跨域限制 |
-| `hostname` | `string` | `"127.0.0.1"` | 服务绑定地址 |
-| `position` | `string` | `"bottom-right"` | 悬浮按钮位置：`bottom-right` \| `bottom-left` \| `top-right` \| `top-left` |
-| `theme` | `string` | `"auto"` | 挂件主题：`light` \| `dark` \| `auto`（跟随系统） |
-| `open` | `boolean` | `false` | 页面加载后是否自动展开面板 |
-| `autoReload` | `boolean` | `true` | 是否显示自动重载提示 |
-| `verbose` | `boolean` | `false` | 是否输出详细调试日志 |
-| `hotkey` | `string` | `"ctrl+k"` | 切换面板的快捷键，macOS 支持 `cmd+k` |
-| `warmupChromeMcp` | `boolean` | `true` | 启动后是否预热 Chrome DevTools MCP |
-| `language` | `string` | - | OpenCode 界面语言，如 `zh`、`en`、`ja` 等 |
-| `settings` | `object` | - | OpenCode 内部设置，详见下方说明 |
+| 配置项            | 类型      | 默认值           | 说明                                                                       |
+| ----------------- | --------- | ---------------- | -------------------------------------------------------------------------- |
+| `enabled`         | `boolean` | `true`           | 是否启用插件                                                               |
+| `webPort`         | `number`  | `5097`           | OpenCode Web 服务端口，被占用时自动向后寻找可用端口                        |
+| `proxyPort`       | `number`  | `6097`           | 代理服务端口，用于解决 iframe 跨域限制                                     |
+| `hostname`        | `string`  | `"127.0.0.1"`    | 服务绑定地址                                                               |
+| `position`        | `string`  | `"bottom-right"` | 悬浮按钮位置：`bottom-right` \| `bottom-left` \| `top-right` \| `top-left` |
+| `theme`           | `string`  | `"auto"`         | 挂件主题：`light` \| `dark` \| `auto`（跟随系统）                          |
+| `open`            | `boolean` | `false`          | 页面加载后是否自动展开面板                                                 |
+| `autoReload`      | `boolean` | `true`           | 是否显示自动重载提示                                                       |
+| `verbose`         | `boolean` | `false`          | 是否输出详细调试日志                                                       |
+| `hotkey`          | `string`  | `"ctrl+k"`       | 切换面板的快捷键，macOS 支持 `cmd+k`                                       |
+| `warmupChromeMcp` | `boolean` | `true`           | 启动后是否预热 Chrome DevTools MCP                                         |
+| `language`        | `string`  | -                | OpenCode 界面语言，如 `zh`、`en`、`ja` 等                                  |
+| `settings`        | `object`  | -                | OpenCode 内部设置，详见下方说明                                            |
 
 ### OpenCode 设置
 
@@ -232,13 +230,13 @@ window.OpenCodeWidget.updateContext();
 
 插件在 Vite 开发服务器上注册以下内部接口：
 
-| 路径 | 说明 |
-|------|------|
-| `/__opencode_widget__.js` | 浏览器端挂件脚本 |
-| `/__opencode_start__` | 服务启动状态与会话地址 |
-| `/__opencode_context__` | 页面上下文读写 |
-| `/__opencode_sessions__` | 会话查询、创建、删除 |
-| `/__opencode_events__` | SSE 事件流（会话就绪、节点清空等） |
+| 路径                      | 说明                               |
+| ------------------------- | ---------------------------------- |
+| `/__opencode_widget__.js` | 浏览器端挂件脚本                   |
+| `/__opencode_start__`     | 服务启动状态与会话地址             |
+| `/__opencode_context__`   | 页面上下文读写                     |
+| `/__opencode_sessions__`  | 会话查询、创建、删除               |
+| `/__opencode_events__`    | SSE 事件流（会话就绪、节点清空等） |
 
 ## 常见问题
 

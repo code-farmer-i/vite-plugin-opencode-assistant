@@ -124,105 +124,114 @@ function generateBridgeScript(options: ProxyServerOptions): string {
 `;
 }
 
+export interface ProxyServerResult {
+  server: http.Server;
+  actualPort: number;
+}
+
 export function startProxyServer(
   targetUrl: string,
   port: number,
   options: ProxyServerOptions = {},
-): http.Server {
-  const target = new URL(targetUrl);
-  const bridgeScript = generateBridgeScript(options);
+): Promise<ProxyServerResult> {
+  return new Promise((resolve, reject) => {
+    const target = new URL(targetUrl);
+    const bridgeScript = generateBridgeScript(options);
 
-  const server = http.createServer((req, res) => {
-    if (req.url === "/__opencode_bridge__.js") {
-      const body = bridgeScript;
-      res.writeHead(200, {
-        "content-type": "application/javascript; charset=utf-8",
-        "cache-control": "no-store",
-        "content-length": Buffer.byteLength(body),
-      });
-      res.end(body);
-      return;
-    }
-
-    const options: http.RequestOptions = {
-      hostname: target.hostname,
-      port: target.port,
-      path: req.url,
-      method: req.method,
-      headers: {
-        ...req.headers,
-        host: target.host,
-        // Don't accept compressed responses so we can modify HTML
-        "accept-encoding": "identity",
-      },
-    };
-
-    const proxyReq = http.request(options, (proxyRes) => {
-      const rawContentType = proxyRes.headers["content-type"];
-      const contentType = Array.isArray(rawContentType)
-        ? (rawContentType[0] ?? "")
-        : (rawContentType ?? "");
-
-      // For HTML responses, inject PostMessage bridge script
-      if (contentType.includes("text/html")) {
-        const chunks: Buffer[] = [];
-
-        proxyRes.on("data", (chunk: Buffer) => {
-          chunks.push(chunk);
+    const server = http.createServer((req, res) => {
+      if (req.url === "/__opencode_bridge__.js") {
+        const body = bridgeScript;
+        res.writeHead(200, {
+          "content-type": "application/javascript; charset=utf-8",
+          "cache-control": "no-store",
+          "content-length": Buffer.byteLength(body),
         });
-
-        proxyRes.on("end", () => {
-          let body = Buffer.concat(chunks).toString("utf-8");
-
-          if (body.match(/<\/head>/i)) {
-            body = body.replace(
-              /<\/head>/i,
-              '<script src="/__opencode_bridge__.js"></script></head>',
-            );
-          } else if (body.match(/<\/body>/i)) {
-            body = body.replace(
-              /<\/body>/i,
-              '<script src="/__opencode_bridge__.js"></script></body>',
-            );
-          } else {
-            body += '<script src="/__opencode_bridge__.js"></script>';
-          }
-
-          // Remove content-encoding since we're sending uncompressed modified content
-          const headers: http.OutgoingHttpHeaders = {};
-          for (const [key, value] of Object.entries(proxyRes.headers)) {
-            if (
-              value !== undefined &&
-              key !== "content-encoding" &&
-              key !== "transfer-encoding" &&
-              key !== "content-length"
-            ) {
-              headers[key] = value;
-            }
-          }
-          headers["content-length"] = Buffer.byteLength(body);
-
-          res.writeHead(proxyRes.statusCode || 200, headers);
-          res.end(body);
-        });
-      } else {
-        res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
-        proxyRes.pipe(res);
+        res.end(body);
+        return;
       }
+
+      const requestOptions: http.RequestOptions = {
+        hostname: target.hostname,
+        port: target.port,
+        path: req.url,
+        method: req.method,
+        headers: {
+          ...req.headers,
+          host: target.host,
+          "accept-encoding": "identity",
+        },
+      };
+
+      const proxyReq = http.request(requestOptions, (proxyRes) => {
+        const rawContentType = proxyRes.headers["content-type"];
+        const contentType = Array.isArray(rawContentType)
+          ? (rawContentType[0] ?? "")
+          : (rawContentType ?? "");
+
+        if (contentType.includes("text/html")) {
+          const chunks: Buffer[] = [];
+
+          proxyRes.on("data", (chunk: Buffer) => {
+            chunks.push(chunk);
+          });
+
+          proxyRes.on("end", () => {
+            let body = Buffer.concat(chunks).toString("utf-8");
+
+            if (body.match(/<\/head>/i)) {
+              body = body.replace(
+                /<\/head>/i,
+                '<script src="/__opencode_bridge__.js"></script></head>',
+              );
+            } else if (body.match(/<\/body>/i)) {
+              body = body.replace(
+                /<\/body>/i,
+                '<script src="/__opencode_bridge__.js"></script></body>',
+              );
+            } else {
+              body += '<script src="/__opencode_bridge__.js"></script>';
+            }
+
+            const headers: http.OutgoingHttpHeaders = {};
+            for (const [key, value] of Object.entries(proxyRes.headers)) {
+              if (
+                value !== undefined &&
+                key !== "content-encoding" &&
+                key !== "transfer-encoding" &&
+                key !== "content-length"
+              ) {
+                headers[key] = value;
+              }
+            }
+            headers["content-length"] = Buffer.byteLength(body);
+
+            res.writeHead(proxyRes.statusCode || 200, headers);
+            res.end(body);
+          });
+        } else {
+          res.writeHead(proxyRes.statusCode || 200, proxyRes.headers);
+          proxyRes.pipe(res);
+        }
+      });
+
+      proxyReq.on("error", (err) => {
+        log.error("Proxy error", { error: err.message, url: req.url });
+        res.writeHead(502);
+        res.end("Proxy error");
+      });
+
+      req.pipe(proxyReq);
     });
 
-    proxyReq.on("error", (err) => {
-      log.error("Proxy error", { error: err.message, url: req.url });
-      res.writeHead(502);
-      res.end("Proxy error");
+    server.on("error", (err: NodeJS.ErrnoException) => {
+      reject(err);
     });
 
-    req.pipe(proxyReq);
+    server.listen(port, () => {
+      const address = server.address();
+      const actualPort = typeof address === "object" && address ? address.port : port;
+      log.info(`Proxy server started on port ${actualPort} -> ${targetUrl}`);
+      resolve({ server, actualPort });
+    });
   });
-
-  server.listen(port, () => {
-    log.info(`Proxy server started on port ${port} -> ${targetUrl}`);
-  });
-
-  return server;
 }

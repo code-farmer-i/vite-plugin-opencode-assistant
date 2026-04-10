@@ -27,7 +27,7 @@ export default defineConfig({
           config.plugins = config.plugins || [];
           config.plugins.push(
             ...opencode({
-              verbose: true,
+              // verbose: true,
             }),
           );
           return config;

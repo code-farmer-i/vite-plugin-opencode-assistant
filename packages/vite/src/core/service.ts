@@ -142,7 +142,12 @@ Please install OpenCode first:
 
       this.sendTaskUpdate("waiting_web_ready");
       try {
-        await waitForServer(webUrl, SERVER_START_TIMEOUT);
+        await waitForServer(webUrl, SERVER_START_TIMEOUT, this.webProcess);
+
+        if (this.webProcess?.exitCode !== null && this.webProcess?.exitCode !== undefined) {
+          throw new Error(`OpenCode process exited with code ${this.webProcess.exitCode}`);
+        }
+
         log.info(`OpenCode Web started at ${webUrl}`);
       } catch (e) {
         log.error("OpenCode Web failed to start", { error: e });
@@ -153,10 +158,12 @@ Please install OpenCode first:
       }
 
       this.sendTaskUpdate("starting_proxy");
-      this.actualProxyPort = await findAvailablePort(
-        this.config.proxyPort ?? DEFAULT_PROXY_PORT,
-        this.config.hostname,
-      );
+      let proxyStartPort = this.config.proxyPort ?? DEFAULT_PROXY_PORT;
+      if (proxyStartPort === this.actualWebPort) {
+        proxyStartPort = this.actualWebPort + 1;
+        log.debug(`Proxy start port conflicts with web port, using ${proxyStartPort} instead`);
+      }
+      this.actualProxyPort = await findAvailablePort(proxyStartPort, this.config.hostname);
       this.onProxyPortAllocated(this.actualProxyPort);
 
       if (this.actualProxyPort !== (this.config.proxyPort ?? DEFAULT_PROXY_PORT)) {
@@ -167,11 +174,38 @@ Please install OpenCode first:
         log.debug(`Using proxy port ${this.actualProxyPort}`);
       }
 
-      this.proxyServer = startProxyServer(webUrl, this.actualProxyPort, {
-        theme: this.config.theme,
-        language: this.config.language,
-        settings: this.config.settings,
-      });
+      try {
+        const result = await startProxyServer(webUrl, this.actualProxyPort, {
+          theme: this.config.theme,
+          language: this.config.language,
+          settings: this.config.settings,
+        });
+        this.proxyServer = result.server;
+        if (result.actualPort !== this.actualProxyPort) {
+          log.info(
+            `Proxy port ${this.actualProxyPort} was taken, using ${result.actualPort} instead`,
+          );
+          this.actualProxyPort = result.actualPort;
+          this.onProxyPortAllocated(this.actualProxyPort);
+        }
+      } catch (err) {
+        const nodeErr = err as NodeJS.ErrnoException;
+        if (nodeErr.code === "EADDRINUSE") {
+          log.warn(`Proxy port ${this.actualProxyPort} became unavailable, trying next port...`);
+          const nextPort = await findAvailablePort(this.actualProxyPort + 1, this.config.hostname);
+          const result = await startProxyServer(webUrl, nextPort, {
+            theme: this.config.theme,
+            language: this.config.language,
+            settings: this.config.settings,
+          });
+          this.proxyServer = result.server;
+          this.actualProxyPort = result.actualPort;
+          this.onProxyPortAllocated(this.actualProxyPort);
+          log.info(`Proxy server started on fallback port ${this.actualProxyPort}`);
+        } else {
+          throw err;
+        }
+      }
       timer.checkpoint("Proxy server started");
 
       this.sendTaskUpdate("warming_up_chrome");

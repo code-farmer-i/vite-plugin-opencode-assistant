@@ -10,10 +10,10 @@ import type { OpenCodeLanguage, OpenCodeSettings } from "./types.js";
 export const DEFAULT_HOSTNAME = "127.0.0.1";
 
 /** 默认 Web 服务端口 */
-export const DEFAULT_WEB_PORT = 4097;
+export const DEFAULT_WEB_PORT = 5097;
 
 /** 默认代理服务端口 */
-export const DEFAULT_PROXY_PORT = 4098;
+export const DEFAULT_PROXY_PORT = 6097;
 
 /** 服务器启动超时时间（毫秒） */
 export const SERVER_START_TIMEOUT = 300000;
