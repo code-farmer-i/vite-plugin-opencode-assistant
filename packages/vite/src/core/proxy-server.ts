@@ -114,12 +114,122 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     }
   });
 
+  // === 思考状态监听 (完全复刻 OpenCode Web 实现) ===
+  // OpenCode Web 核心逻辑:
+  // working = !!pending() || sessionStatus().type !== "idle"
+  // pending = 最后一条未完成的 assistant 消息 (time.completed 不是数字)
+  // sessionStatus = sync.data.session_status[sessionID]
+  
+  let eventSource = null;
+  const sessionStatus = {};
+  const pendingMessages = {};
+
+  function getCurrentSessionID() {
+    const match = window.location.pathname.match(/\\/session\\/([^\\/]+)/);
+    return match ? match[1] : null;
+  }
+
+  function isPending(message) {
+    return message.role === 'assistant' && typeof message.time?.completed !== 'number';
+  }
+
+  function updateThinkingState(sessionID) {
+    const status = sessionStatus[sessionID];
+    const pending = pendingMessages[sessionID];
+    
+    const isThinking = !!pending || (status && status.type !== 'idle');
+    
+    if (window.parent !== window) {
+      window.parent.postMessage({
+        type: 'OPENCODE_THINKING_STATE',
+        thinking: isThinking,
+        sessionID: sessionID,
+        statusType: status?.type || 'idle',
+        hasPending: !!pending
+      }, '*');
+    }
+  }
+
+  function handleEvent(payload) {
+    const type = payload.type;
+    const props = payload.properties;
+
+    switch (type) {
+      case 'session.status': {
+        const sessionID = props.sessionID;
+        sessionStatus[sessionID] = props.status;
+        updateThinkingState(sessionID);
+        break;
+      }
+      
+      case 'message.updated': {
+        const info = props.info;
+        if (!info || !info.sessionID) break;
+        const sessionID = info.sessionID;
+        
+        if (info.role === 'assistant') {
+          if (isPending(info)) {
+            pendingMessages[sessionID] = info;
+          } else {
+            delete pendingMessages[sessionID];
+          }
+          updateThinkingState(sessionID);
+        }
+        break;
+      }
+      
+      case 'message.part.delta': {
+        const sessionID = props.sessionID;
+        if (sessionID && !pendingMessages[sessionID]) {
+          pendingMessages[sessionID] = { role: 'assistant', time: {} };
+          updateThinkingState(sessionID);
+        }
+        break;
+      }
+    }
+  }
+
+  function setupThinkingListener() {
+    if (eventSource) {
+      eventSource.close();
+    }
+
+    eventSource = new EventSource('/global/event');
+
+    eventSource.onmessage = function(event) {
+      try {
+        const data = JSON.parse(event.data);
+        const payload = data.payload;
+        if (!payload) return;
+        handleEvent(payload);
+      } catch (e) {
+        // ignore parse errors
+      }
+    };
+
+    eventSource.onerror = function(err) {
+      console.warn('[OpenCode Bridge] SSE connection error, retrying in 3s...');
+      eventSource.close();
+      setTimeout(setupThinkingListener, 3000);
+    };
+
+    console.log('[OpenCode Bridge] SSE listener setup complete');
+  }
+
   // === 就绪通知 ===
   window.addEventListener("load", function() {
     if (window.parent !== window) {
       window.parent.postMessage({ type: "OPENCODE_READY" }, "*");
     }
+    setupThinkingListener();
   });
+
+  // DOMContentLoaded 后也尝试设置（防止 load 事件已经触发）
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setupThinkingListener();
+  } else {
+    document.addEventListener('DOMContentLoaded', setupThinkingListener);
+  }
 })();
 `;
 }

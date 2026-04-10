@@ -362,6 +362,7 @@ export interface OpenCodeWidgetProps {
   selectedElements?: OpenCodeSelectedElement[];
   showClearAll?: boolean;
   selectEnabled?: boolean;
+  thinking?: boolean;
 }
 
 /**
@@ -374,6 +375,7 @@ export type OpenCodeWidgetEmits = {
   (e: "update:currentSessionId", value: string | null): void;
   (e: "update:selectedElements", value: OpenCodeSelectedElement[]): void;
   (e: "update:theme", value: OpenCodeWidgetTheme): void;
+  (e: "update:thinking", value: boolean): void;
   (e: "toggle", value: boolean): void;
   (e: "close"): void;
   (e: "toggle-session-list", value: boolean): void;
@@ -387,4 +389,5 @@ export type OpenCodeWidgetEmits = {
   (e: "clear-selected-nodes"): void;
   (e: "empty-action"): void;
   (e: "frame-loaded"): void;
+  (e: "thinking-change", value: boolean): void;
 };

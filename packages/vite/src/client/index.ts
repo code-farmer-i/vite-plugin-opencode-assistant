@@ -93,6 +93,7 @@ const App = {
     const chromeMcpFailed = ref(false);
     const currentTask = ref<ServiceStartupTask | "">("");
     const serviceStatus = ref<ServiceStatus>("idle");
+    const thinking = ref(false);
 
     const loadingText = computed(() => {
       // 如果是 iframe 加载中，显示通用的加载文案
@@ -139,6 +140,19 @@ const App = {
     }
 
     const theme = ref<OpenCodeWidgetTheme>(initialTheme as OpenCodeWidgetTheme);
+
+    const resolvedTheme = computed(() => {
+      if (theme.value === "auto") {
+        return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      return theme.value;
+    });
+
+    const sendThemeToIframe = () => {
+      widgetRef.value?.sendMessageToIframe("OPENCODE_SET_THEME", {
+        theme: resolvedTheme.value,
+      });
+    };
 
     const showSessionListSkeleton = computed(() => serviceStatus.value === "starting");
     // 分离服务启动状态和 iframe 加载状态
@@ -399,6 +413,31 @@ const App = {
         }, 1000);
       }
 
+      // 监听来自 iframe 的 postMessage
+      const handleIframeMessage = (event: MessageEvent) => {
+        if (event.data?.type === "OPENCODE_THINKING_STATE") {
+          thinking.value = event.data.thinking;
+        }
+        if (event.data?.type === "OPENCODE_READY") {
+          sendThemeToIframe();
+        }
+      };
+      window.addEventListener("message", handleIframeMessage);
+
+      // 监听 theme 变化，同步给 iframe
+      watch(resolvedTheme, () => {
+        sendThemeToIframe();
+      });
+
+      // 监听系统主题变化（当 theme 为 auto 时）
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      const handleSystemThemeChange = () => {
+        if (theme.value === "auto") {
+          sendThemeToIframe();
+        }
+      };
+      mediaQuery.addEventListener("change", handleSystemThemeChange);
+
       // 监听路由变化 - 使用 requestAnimationFrame 确保在框架导航完成后执行
       const originalPushState = history.pushState;
       const originalReplaceState = history.replaceState;
@@ -446,6 +485,8 @@ const App = {
       // 返回清理函数
       return () => {
         document.removeEventListener("keydown", handleKeydown);
+        window.removeEventListener("message", handleIframeMessage);
+        mediaQuery.removeEventListener("change", handleSystemThemeChange);
       };
     });
 
@@ -507,6 +548,7 @@ const App = {
           sessionKey: "id",
           selectedElements: selectedElements.value,
           hotkeyLabel: hotkey,
+          thinking: thinking.value,
           "onUpdate:open": handleToggle,
           "onUpdate:selectMode": (val: boolean) => {
             selectMode.value = val;

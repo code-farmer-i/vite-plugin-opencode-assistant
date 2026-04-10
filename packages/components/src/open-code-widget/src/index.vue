@@ -40,6 +40,7 @@ const props = withDefaults(defineProps<OpenCodeWidgetProps>(), {
   selectEnabled: true,
   emptyStateText: "当前项目暂无会话",
   emptyStateActionText: "立即创建",
+  thinking: false,
 });
 
 const emit = defineEmits<OpenCodeWidgetEmits>();
@@ -86,9 +87,16 @@ const handleFrameLoaded = () => {
   emit("frame-loaded");
 };
 
+const frameRef = ref<InstanceType<typeof Frame> | null>(null);
+
+const sendMessageToIframe = (type: string, data?: Record<string, unknown>) => {
+  frameRef.value?.sendMessageToIframe(type, data);
+};
+
 defineExpose({
   showNotification,
   showConfirmDialog,
+  sendMessageToIframe,
 });
 
 const localSessionListCollapsed = ref(props.sessionListCollapsed);
@@ -214,6 +222,7 @@ provideOpenCodeWidgetContext({
   emptyStateActionText: toRef(props, "emptyStateActionText"),
   showClearAll: toRef(props, "showClearAll"),
   open: toRef(props, "open"),
+  thinking: toRef(props, "thinking"),
   iframeSource,
   buttonActive,
   sessionListTitle,
@@ -241,50 +250,30 @@ provideOpenCodeWidgetContext({
 <template>
   <div :class="containerClasses">
     <Trigger>
-      <template
-        v-if="slots['button-icon']"
-        #default
-      >
+      <template v-if="slots['button-icon']" #default>
         <slot name="button-icon" />
       </template>
     </Trigger>
 
     <SelectedBubbles v-if="bubbleVisible" />
 
-    <div
-      v-show="!selectMode"
-      class="opencode-chat"
-      :class="{ open }"
-    >
+    <div v-show="!selectMode" class="opencode-chat" :class="{ open }">
       <Header>
-        <template
-          v-if="slots['session-toggle-icon']"
-          #session-toggle-icon
-        >
+        <template v-if="slots['session-toggle-icon']" #session-toggle-icon>
           <slot name="session-toggle-icon" />
         </template>
 
-        <template
-          v-if="slots['select-icon']"
-          #select-icon
-        >
+        <template v-if="slots['select-icon']" #select-icon>
           <slot name="select-icon" />
         </template>
 
-        <template
-          v-if="slots['close-icon']"
-          #close-icon
-        >
+        <template v-if="slots['close-icon']" #close-icon>
           <slot name="close-icon" />
         </template>
       </Header>
 
       <!-- Notification -->
-      <div
-        v-if="notificationVisible"
-        class="opencode-notification"
-        role="alert"
-      >
+      <div v-if="notificationVisible" class="opencode-notification" role="alert">
         {{ notificationMessage }}
       </div>
 
@@ -297,32 +286,20 @@ provideOpenCodeWidgetContext({
           </template>
         </SessionList>
 
-        <Frame>
-          <template
-            v-if="slots['empty-state']"
-            #empty-state
-          >
+        <Frame ref="frameRef">
+          <template v-if="slots['empty-state']" #empty-state>
             <slot name="empty-state" />
           </template>
 
-          <template
-            v-if="slots.loading"
-            #loading
-          >
+          <template v-if="slots.loading" #loading>
             <slot name="loading" />
           </template>
 
-          <template
-            v-if="slots.error"
-            #error
-          >
+          <template v-if="slots.error" #error>
             <slot name="error" />
           </template>
 
-          <template
-            v-if="slots.content"
-            #content
-          >
+          <template v-if="slots.content" #content>
             <slot name="content" />
           </template>
         </Frame>
@@ -361,27 +338,14 @@ provideOpenCodeWidgetContext({
     </div>
 
     <!-- Dialog -->
-    <div
-      v-if="dialogVisible"
-      class="opencode-dialog-overlay"
-    >
-      <div
-        class="opencode-dialog"
-        role="alertdialog"
-        aria-modal="true"
-      >
+    <div v-if="dialogVisible" class="opencode-dialog-overlay">
+      <div class="opencode-dialog" role="alertdialog" aria-modal="true">
         <div class="opencode-dialog-content">
           <div class="opencode-dialog-message">{{ dialogMessage }}</div>
         </div>
         <div class="opencode-dialog-actions">
-          <button
-            class="opencode-dialog-btn cancel"
-            @click="handleDialogCancel"
-          >取消</button>
-          <button
-            class="opencode-dialog-btn confirm"
-            @click="handleDialogConfirm"
-          >确认</button>
+          <button class="opencode-dialog-btn cancel" @click="handleDialogCancel">取消</button>
+          <button class="opencode-dialog-btn confirm" @click="handleDialogConfirm">确认</button>
         </div>
       </div>
     </div>
@@ -420,6 +384,12 @@ provideOpenCodeWidgetContext({
   --oc-tooltip-bg: #1e1e1e;
   --oc-dialog-overlay: rgba(0, 0, 0, 0.5);
 
+  /* Thinking State */
+  --oc-thinking-gradient-1: #10b981;
+  --oc-thinking-gradient-2: #059669;
+  --oc-thinking-glow: rgba(16, 185, 129, 0.3);
+  --oc-thinking-glow-strong: rgba(16, 185, 129, 0.6);
+
   /* Skeleton */
   --oc-skeleton-bg: #e5e7eb;
   --oc-skeleton-gradient: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
@@ -434,12 +404,12 @@ provideOpenCodeWidgetContext({
   --oc-shadow-danger: 0 4px 12px rgba(239, 68, 68, 0.3);
 
   /* Trigger */
-  --oc-trigger-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --oc-trigger-bg-hover: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-  --oc-trigger-bg-active: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  --oc-trigger-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
-  --oc-trigger-shadow-hover: 0 6px 20px rgba(102, 126, 234, 0.6);
-  --oc-trigger-shadow-active: 0 6px 20px rgba(240, 147, 251, 0.4);
+  --oc-trigger-bg: #3b82f6;
+  --oc-trigger-bg-hover: #2563eb;
+  --oc-trigger-bg-active: #1d4ed8;
+  --oc-trigger-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  --oc-trigger-shadow-hover: 0 4px 12px rgba(59, 130, 246, 0.4);
+  --oc-trigger-shadow-active: 0 4px 12px rgba(59, 130, 246, 0.5);
 
   position: fixed;
   z-index: 999999;
@@ -477,6 +447,12 @@ provideOpenCodeWidgetContext({
   --oc-tooltip-bg: #282828;
   --oc-dialog-overlay: rgba(0, 0, 0, 0.7);
 
+  /* Thinking State - Dark Mode */
+  --oc-thinking-gradient-1: #34d399;
+  --oc-thinking-gradient-2: #10b981;
+  --oc-thinking-glow: rgba(52, 211, 153, 0.3);
+  --oc-thinking-glow-strong: rgba(52, 211, 153, 0.6);
+
   /* Skeleton */
   --oc-skeleton-bg: #151515;
   --oc-skeleton-gradient: linear-gradient(90deg, #282828 25%, #4b5563 50%, #282828 75%);
@@ -491,12 +467,12 @@ provideOpenCodeWidgetContext({
   --oc-shadow-danger: 0 4px 12px rgba(239, 68, 68, 0.4);
 
   /* Trigger */
-  --oc-trigger-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --oc-trigger-bg-hover: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-  --oc-trigger-bg-active: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  --oc-trigger-shadow: 0 4px 15px rgba(102, 126, 234, 0.5);
-  --oc-trigger-shadow-hover: 0 6px 20px rgba(102, 126, 234, 0.7);
-  --oc-trigger-shadow-active: 0 6px 20px rgba(240, 147, 251, 0.5);
+  --oc-trigger-bg: #60a5fa;
+  --oc-trigger-bg-hover: #3b82f6;
+  --oc-trigger-bg-active: #2563eb;
+  --oc-trigger-shadow: 0 2px 8px rgba(96, 165, 250, 0.4);
+  --oc-trigger-shadow-hover: 0 4px 12px rgba(96, 165, 250, 0.5);
+  --oc-trigger-shadow-active: 0 4px 12px rgba(96, 165, 250, 0.6);
 }
 
 .opencode-widget.bottom-right {

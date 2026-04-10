@@ -6,7 +6,6 @@ import type {
 } from "./types";
 
 export interface OpenCodeWidgetContext {
-  // Config & State
   theme: Ref<string>;
   resolvedTheme: Ref<"light" | "dark">;
   title: Ref<string>;
@@ -25,6 +24,7 @@ export interface OpenCodeWidgetContext {
   emptyStateActionText: Ref<string>;
   showClearAll: Ref<boolean>;
   open: Ref<boolean>;
+  thinking: Ref<boolean>;
 
   // Computed
   iframeSource: Ref<string>;
