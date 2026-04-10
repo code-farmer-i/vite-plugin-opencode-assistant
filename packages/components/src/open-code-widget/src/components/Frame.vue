@@ -7,6 +7,7 @@ const iframeRef = ref<HTMLIFrameElement | null>(null);
 const {
   frameLoading,
   showEmptyState,
+  showError,
   iframeSource: iframeSrc,
   emptyStateText,
   emptyStateActionText,
@@ -95,7 +96,10 @@ onUnmounted(() => {
       </slot>
     </div>
 
-    <div class="opencode-error-overlay">
+    <div
+      class="opencode-error-overlay"
+      :class="{ visible: showError }"
+    >
       <slot name="error" />
     </div>
 
@@ -169,6 +173,11 @@ onUnmounted(() => {
   bottom: 0;
   z-index: 15;
   margin-top: 42px;
+  display: none;
+}
+
+.opencode-error-overlay.visible {
+  display: flex;
 }
 
 .opencode-empty-state-overlay {

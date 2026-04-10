@@ -117,6 +117,12 @@ export const MAX_TEXT_LENGTH = 100;
 /** 元素上下文标记 */
 export const CONTEXT_MARKER = "[元素上下文]";
 
+/** 页面上下文内部标记（用于插件） */
+export const PAGE_CONTEXT_MARKER = "__OPENCODE_CONTEXT__";
+
+/** 页面上下文文本最大长度 */
+export const PAGE_CONTEXT_MAX_TEXT_LENGTH = 10000;
+
 /** ==================== 默认配置 ==================== */
 
 /** 默认插件配置 */

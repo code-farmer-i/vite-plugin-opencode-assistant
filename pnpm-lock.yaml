@@ -58,6 +58,10 @@ importers:
         version: 10.4.0(eslint@10.2.0)
 
   packages/components:
+    dependencies:
+      '@vite-plugin-opencode-assistant/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@vitejs/plugin-vue':
         specifier: ^6.0.5

@@ -17,6 +17,45 @@ function base64Encode(str: string): string {
   return Buffer.from(str).toString("base64");
 }
 
+function extractTextFromResponse(data: unknown): string | null {
+  if (!data || typeof data !== "object") return null;
+
+  // 处理 { parts: [{ type: "text", text: "..." }] } 格式
+  const obj = data as Record<string, unknown>;
+  if (obj.parts && Array.isArray(obj.parts)) {
+    const textParts = obj.parts
+      .filter(
+        (p: unknown) =>
+          p && typeof p === "object" && (p as Record<string, unknown>).type === "text",
+      )
+      .map((p: unknown) => (p as Record<string, unknown>).text as string)
+      .filter(Boolean);
+    if (textParts.length > 0) return textParts.join("");
+  }
+
+  // 处理 { text: "..." } 格式
+  if (obj.text && typeof obj.text === "string") {
+    return obj.text;
+  }
+
+  // 处理 { content: "..." } 格式
+  if (obj.content && typeof obj.content === "string") {
+    return obj.content;
+  }
+
+  // 处理 { message: "..." } 格式
+  if (obj.message && typeof obj.message === "string") {
+    return obj.message;
+  }
+
+  // 直接字符串
+  if (typeof data === "string") {
+    return data;
+  }
+
+  return null;
+}
+
 export class OpenCodeAPI {
   constructor(
     private hostname: string,
@@ -218,21 +257,6 @@ export class OpenCodeAPI {
     try {
       const warmupSession = await this.createSession(DEFAULT_RETRIES, "__chrome_mcp_warmup__");
       warmupSessionId = warmupSession.id;
-      let chromeToolIds: string[] | undefined;
-
-      try {
-        const toolIds = await this.getToolIds();
-        chromeToolIds = toolIds.filter((toolId) => /chrome[-_]?devtools/i.test(toolId));
-        log.debug("Resolved Chrome MCP tool ids", {
-          chromeToolIds,
-        });
-        
-        if (!chromeToolIds || chromeToolIds.length === 0) {
-          log.warn("No Chrome DevTools tools found, MCP may not be connected yet");
-        }
-      } catch (e) {
-        log.warn("Failed to resolve Chrome MCP tool ids", { error: e });
-      }
 
       const prompt = [
         "Call the browser tool list_pages immediately to establish the Chrome DevTools MCP connection.",
@@ -242,10 +266,11 @@ export class OpenCodeAPI {
         "Do not read or modify project files.",
         "Do not use any non-browser tools.",
         "After the tool call is complete, reply with exactly: ready",
+        "If the tool call fails, reply with exactly: fail",
       ].join(" ");
 
       const WARMUP_TIMEOUT = 30000;
-      await this.createHttpRequest<unknown>(
+      const data = await this.createHttpRequest<unknown>(
         {
           hostname: this.hostname,
           port: this.getPort(),
@@ -256,11 +281,16 @@ export class OpenCodeAPI {
         JSON.stringify({
           system:
             "You are warming up Chrome DevTools MCP during startup. You must use the available browser tools immediately before replying.",
-          tools: chromeToolIds?.length ? chromeToolIds : undefined,
           parts: [{ type: "text", text: prompt }],
         }),
         WARMUP_TIMEOUT,
       );
+
+      // 检查响应内容，确认是否真的返回了 "ready"
+      const responseText = extractTextFromResponse(data);
+      if (!responseText?.toLowerCase().includes("ready")) {
+        throw new Error(`Chrome MCP warmup failed: ${responseText || "No response"}`);
+      }
 
       timer.end("Chrome MCP warmed up");
     } catch (e) {
@@ -314,21 +344,6 @@ export class OpenCodeAPI {
     try {
       const warmupSession = await this.createSession(DEFAULT_RETRIES, "__chrome_mcp_warmup__");
       warmupSessionId = warmupSession.id;
-      let chromeToolIds: string[] | undefined;
-
-      try {
-        const toolIds = await this.getToolIds();
-        chromeToolIds = toolIds.filter((toolId) => /chrome[-_]?devtools/i.test(toolId));
-        log.debug("Resolved Chrome MCP tool ids", {
-          chromeToolIds,
-        });
-        
-        if (!chromeToolIds || chromeToolIds.length === 0) {
-          log.warn("No Chrome DevTools tools found, MCP may not be connected");
-        }
-      } catch (e) {
-        log.warn("Failed to resolve Chrome MCP tool ids", { error: e });
-      }
 
       const prompt = [
         "Call the browser tool list_pages immediately to establish the Chrome DevTools MCP connection.",
@@ -338,10 +353,11 @@ export class OpenCodeAPI {
         "Do not read or modify project files.",
         "Do not use any non-browser tools.",
         "After the tool call is complete, reply with exactly: ready",
+        "If the tool call fails, reply with exactly: fail",
       ].join(" ");
 
       const WARMUP_TIMEOUT = 60000; // 增加到 60 秒
-      await this.createHttpRequest<unknown>(
+      const data = await this.createHttpRequest<unknown>(
         {
           hostname: this.hostname,
           port: this.getPort(),
@@ -352,11 +368,17 @@ export class OpenCodeAPI {
         JSON.stringify({
           system:
             "You are warming up Chrome DevTools MCP during startup. You must use the available browser tools immediately before replying.",
-          tools: chromeToolIds?.length ? chromeToolIds : undefined,
           parts: [{ type: "text", text: prompt }],
         }),
         WARMUP_TIMEOUT,
       );
+      log.debug("Chrome MCP warmup response:", { data });
+
+      // 检查响应内容，确认是否真的返回了 "ready"
+      const responseText = extractTextFromResponse(data);
+      if (!responseText?.toLowerCase().includes("ready")) {
+        throw new Error(`Chrome MCP warmup failed: ${responseText || "No response"}`);
+      }
 
       timer.end("Chrome MCP warmed up successfully");
       return true;

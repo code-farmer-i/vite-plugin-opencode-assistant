@@ -27,6 +27,7 @@ export class OpenCodeService {
   public sessionUrl: string | null = null;
   private proxyServer: http.Server | null = null;
   public chromeMcpWarmupFailed = false;
+  public currentTask: { task: ServiceStartupTask; data?: Record<string, unknown> } | null = null;
 
   constructor(
     private config: Required<OpenCodeOptions>,
@@ -39,10 +40,11 @@ export class OpenCodeService {
     this.actualProxyPort = config.proxyPort ?? DEFAULT_PROXY_PORT;
   }
 
-  private sendTaskUpdate(task: ServiceStartupTask) {
+  private sendTaskUpdate(task: ServiceStartupTask, data?: Record<string, unknown>) {
+    this.currentTask = { task, ...data };
     this.sseClients.forEach((client) => {
       try {
-        client.write(`data: ${JSON.stringify({ type: "TASK_UPDATE", task })}\n\n`);
+        client.write(`data: ${JSON.stringify({ type: "TASK_UPDATE", task, ...data })}\n\n`);
       } catch (e) {
         log.debug("Failed to send TASK_UPDATE event", { error: e });
       }
@@ -93,6 +95,7 @@ Please install OpenCode first:
   nix run nixpkgs#opencode           # or github:anomalyco/opencode for latest dev branch
         `);
         this.sendTaskUpdate("opencode_not_installed");
+        this.startPromise = null;
         timer.end("❌ OpenCode not installed");
         return;
       }
@@ -144,6 +147,7 @@ Please install OpenCode first:
       } catch (e) {
         log.error("OpenCode Web failed to start", { error: e });
         this.sendTaskUpdate("web_start_timeout");
+        this.startPromise = null;
         timer.end("❌ Web start timeout");
         return;
       }
@@ -179,15 +183,6 @@ Please install OpenCode first:
         log.warn("Chrome MCP warmup failed", { error: e });
         this.chromeMcpWarmupFailed = true;
         warmupFailed = true;
-        this.sseClients.forEach((client) => {
-          try {
-            client.write(
-              `data: ${JSON.stringify({ type: "CHROME_MCP_WARMUP_FAILED" })}\n\n`,
-            );
-          } catch (err) {
-            log.debug("Failed to send CHROME_MCP_WARMUP_FAILED event", { error: err });
-          }
-        });
       }
 
       this.sendTaskUpdate("creating_session");
@@ -196,16 +191,6 @@ Please install OpenCode first:
         this.sessionUrl = await this.api.getOrCreateSession();
         timer.checkpoint("Session created");
         log.debug(`Session URL: ${this.sessionUrl}`);
-
-        this.sseClients.forEach((client) => {
-          try {
-            client.write(
-              `data: ${JSON.stringify({ type: "SESSION_READY", sessionUrl: this.sessionUrl })}\n\n`,
-            );
-          } catch (e) {
-            log.debug("Failed to send SESSION_READY event", { error: e });
-          }
-        });
       } catch (e) {
         log.warn("Failed to get/create session", { error: e });
         sessionFailed = true;
@@ -213,17 +198,33 @@ Please install OpenCode first:
 
       if (sessionFailed) {
         this.sendTaskUpdate("session_creation_failed");
+        this.isStarted = false;
+        this.startPromise = null; // 清理启动 Promise，允许重试
       } else if (warmupFailed) {
-        this.sendTaskUpdate("chrome_mcp_failed");
+        this.sendTaskUpdate("chrome_mcp_failed", { sessionUrl: this.sessionUrl }); // 传递 sessionUrl 让客户端可用
+        this.isStarted = true;
       } else {
-        this.sendTaskUpdate("ready");
+        this.sendTaskUpdate("ready", { sessionUrl: this.sessionUrl });
       }
-      this.isStarted = true;
+      if (!sessionFailed) {
+        this.isStarted = true;
+      } else {
+        this.sessionUrl = null; // 失败时清理 sessionUrl
+      }
       log.debug(`OpenCode services started successfully: ${this.sessionUrl || webUrl}`);
       timer.end("✓ Services started successfully");
     })();
 
     return this.startPromise;
+  }
+
+  async retryWarmupChromeMcp(viteOrigin?: string): Promise<boolean> {
+    const success = await this.api.retryWarmupChromeMcp(viteOrigin);
+    if (success) {
+      this.chromeMcpWarmupFailed = false;
+      this.sendTaskUpdate("ready", { sessionUrl: this.sessionUrl });
+    }
+    return success;
   }
 
   async stop(): Promise<void> {

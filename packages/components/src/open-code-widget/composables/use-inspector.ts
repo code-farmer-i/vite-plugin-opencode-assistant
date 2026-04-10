@@ -1,6 +1,7 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 import { ref, watch, onMounted, onUnmounted, type Ref } from "vue";
+import { truncate } from "@vite-plugin-opencode-assistant/shared";
 import type { OpenCodeSelectedElement } from "../src/types";
 
 interface VueInspector {
@@ -24,11 +25,6 @@ interface UseInspectorOptions {
   selectMode: Ref<boolean>;
   onAddSelectedNode: (element: OpenCodeSelectedElement) => void;
   onExitSelectMode: () => void;
-}
-
-function truncate(str: string, maxLength: number): string {
-  if (!str) return "";
-  return str.length > maxLength ? str.substring(0, maxLength) + "..." : str;
 }
 
 function getDirectText(element: Element): string {

@@ -1,17 +1,10 @@
 import { computed, type Ref } from "vue";
+import { truncate } from "@vite-plugin-opencode-assistant/shared";
 import type {
   OpenCodeRemoveSelectedPayload,
   OpenCodeSelectedElement,
   OpenCodeSelectedElementItem,
 } from "../src/types";
-
-function truncate(value: string, maxLength: number): string {
-  if (value.length <= maxLength) {
-    return value;
-  }
-
-  return `${value.slice(0, maxLength)}...`;
-}
 
 function getElementKey(element: OpenCodeSelectedElement, index: number): string {
   if (element.filePath && element.line) {

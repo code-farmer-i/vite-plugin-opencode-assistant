@@ -35,6 +35,9 @@
   "peerDependencies": {
     "vue": "^3.5.0"
   },
+  "dependencies": {
+    "@vite-plugin-opencode-assistant/shared": "workspace:*"
+  },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.5",
     "@vue/test-utils": "^2.4.6",

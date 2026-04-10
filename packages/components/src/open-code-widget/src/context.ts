@@ -20,6 +20,7 @@ export interface OpenCodeWidgetContext {
   loadingSessionList: Ref<boolean | undefined>;
   showSessionListSkeleton: Ref<boolean>;
   showEmptyState: Ref<boolean>;
+  showError: Ref<boolean>;
   emptyStateText: Ref<string>;
   emptyStateActionText: Ref<string>;
   showClearAll: Ref<boolean>;

@@ -21,11 +21,22 @@ export function setupSseEndpoint(server: ViteDevServer, ctx: EndpointContext) {
 
     res.write(`data: ${JSON.stringify({ type: "CONNECTED" })}\n\n`);
 
-    if (ctx.sessionUrl) {
-      res.write(
-        `data: ${JSON.stringify({ type: "SESSION_READY", sessionUrl: ctx.sessionUrl })}\n\n`,
-      );
+    // 推送当前完整状态（包括服务状态和任务）
+    const statusPayload: Record<string, unknown> = { type: "STATUS_SYNC" };
+    if (ctx.isServiceStarted !== undefined) {
+      statusPayload.isStarted = ctx.isServiceStarted;
     }
+    if (ctx.currentTask) {
+      statusPayload.task = ctx.currentTask.task;
+      if (ctx.currentTask.data) {
+        Object.assign(statusPayload, ctx.currentTask.data);
+      }
+    }
+    // 如果有 sessionUrl，也一并同步
+    if (ctx.sessionUrl) {
+      statusPayload.sessionUrl = ctx.sessionUrl;
+    }
+    res.write(`data: ${JSON.stringify(statusPayload)}\n\n`);
 
     req.on("close", () => {
       ctx.sseClients.delete(res);

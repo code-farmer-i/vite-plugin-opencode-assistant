@@ -88,12 +88,18 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
         set pageContext(ctx) {
           pageContext = ctx;
         },
+        get isServiceStarted() {
+          return service.isStarted;
+        },
+        get currentTask() {
+          return service.currentTask;
+        },
         getSessions: () => api.getSessions(),
         createSession: () => api.createSession(),
         deleteSession: (id) => api.deleteSession(id),
         resolveWidgetPath,
         resolveWidgetStylePath,
-        retryWarmupChromeMcp: () => api.retryWarmupChromeMcp(getViteOrigin()),
+        retryWarmupChromeMcp: () => service.retryWarmupChromeMcp(getViteOrigin()),
       });
 
       server.httpServer?.on("listening", async () => {
@@ -166,7 +172,7 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
         open: config.open,
         autoReload: config.autoReload,
         cwd: process.cwd(),
-        sessionUrl: service.sessionUrl || undefined,
+        // 不再注入 sessionUrl，客户端完全依赖 SSE 状态同步
         hotkey: config.hotkey,
       });
 

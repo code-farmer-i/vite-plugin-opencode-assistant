@@ -4,21 +4,14 @@
  */
 
 import type { Plugin, Hooks } from "@opencode-ai/plugin";
-import { createLogger } from "@vite-plugin-opencode-assistant/shared";
-
-const MAX_TEXT_LENGTH = 10000;
-
-const CONTEXT_MARKER = "__OPENCODE_CONTEXT__";
+import {
+  createLogger,
+  MAX_TEXT_LENGTH,
+  CONTEXT_MARKER,
+  type SelectedElement,
+} from "@vite-plugin-opencode-assistant/shared";
 
 const log = createLogger("OpenCodePluginPageContext");
-
-interface SelectedElement {
-  filePath: string | null;
-  line: number | null;
-  column: number | null;
-  innerText: string;
-  description?: string;
-}
 
 interface PageContextData {
   url: string;
