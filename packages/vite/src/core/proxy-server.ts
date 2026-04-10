@@ -160,6 +160,7 @@ export function startProxyServer(
           host: target.host,
           "accept-encoding": "identity",
         },
+        timeout: 0,
       };
 
       const proxyReq = http.request(requestOptions, (proxyRes) => {
@@ -220,12 +221,23 @@ export function startProxyServer(
         res.end("Proxy error");
       });
 
+      proxyReq.on("socket", (socket) => {
+        socket.setTimeout(0);
+      });
+
+      req.on("socket", (socket) => {
+        socket.setTimeout(0);
+      });
+
       req.pipe(proxyReq);
     });
 
     server.on("error", (err: NodeJS.ErrnoException) => {
       reject(err);
     });
+
+    server.timeout = 0;
+    server.keepAliveTimeout = 0;
 
     server.listen(port, () => {
       const address = server.address();
