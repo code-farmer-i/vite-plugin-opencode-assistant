@@ -6,6 +6,8 @@ export function useServiceStatus() {
   const currentTask = ref<ServiceStartupTask | "">("");
   const serviceStatus = ref<ServiceStatus>("idle");
   const chromeMcpFailed = ref(false);
+  const chromeMcpErrorType = ref<string | undefined>(undefined);
+  const chromeMcpErrorMessage = ref<string | undefined>(undefined);
   const thinking = ref(false);
 
   const loadingText = computed(() => {
@@ -13,15 +15,24 @@ export function useServiceStatus() {
     return SERVICE_STARTUP_TASKS[currentTask.value] || "加载中...";
   });
 
-  const updateStatusFromTask = (task: ServiceStartupTask | "", sessionUrl?: string) => {
+  const updateStatusFromTask = (
+    task: ServiceStartupTask | "", 
+    sessionUrl?: string,
+    errorType?: string,
+    errorMessage?: string,
+  ) => {
     currentTask.value = task;
 
     if (task === "ready") {
       serviceStatus.value = "ready";
       chromeMcpFailed.value = false;
+      chromeMcpErrorType.value = undefined;
+      chromeMcpErrorMessage.value = undefined;
     } else if (task === "chrome_mcp_failed") {
       serviceStatus.value = "partial";
       chromeMcpFailed.value = true;
+      chromeMcpErrorType.value = errorType;
+      chromeMcpErrorMessage.value = errorMessage;
     } else if (
       task === "session_creation_failed" ||
       task === "opencode_not_installed" ||
@@ -45,6 +56,8 @@ export function useServiceStatus() {
     currentTask,
     serviceStatus,
     chromeMcpFailed,
+    chromeMcpErrorType,
+    chromeMcpErrorMessage,
     thinking,
     loadingText,
     updateStatusFromTask,

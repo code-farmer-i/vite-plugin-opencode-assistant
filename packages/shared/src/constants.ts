@@ -88,6 +88,14 @@ export const INIT_MARKER = "__OPENCODE_INITIALIZED__";
 /** 选中元素存储键 */
 export const SELECTED_ELEMENTS_KEY = "__opencode_selected_elements__";
 
+/** ==================== Chrome DevTools ==================== */
+
+/** Chrome DevTools Protocol 默认端口 */
+export const CHROME_DEVTOOLS_PORT = 9222;
+
+/** Chrome DevTools 检查超时时间（毫秒） */
+export const CHROME_DEVTOOLS_CHECK_TIMEOUT = 2000;
+
 /** ==================== OpenCode localStorage 键 ==================== */
 
 /** OpenCode localStorage 配置键 */

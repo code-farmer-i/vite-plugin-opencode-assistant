@@ -391,3 +391,30 @@ export type OpenCodeWidgetEmits = {
   (e: "frame-loaded"): void;
   (e: "thinking-change", value: boolean): void;
 };
+
+// ==================== Chrome MCP 错误类型 ====================
+
+/**
+ * Chrome MCP 预热错误类型
+ */
+export enum ChromeMcpWarmupErrorType {
+  CHROME_NOT_CONNECTED = "CHROME_NOT_CONNECTED",
+  AI_TIMEOUT = "AI_TIMEOUT",
+  AI_RESPONSE_ERROR = "AI_RESPONSE_ERROR",
+  SESSION_ERROR = "SESSION_ERROR",
+  UNKNOWN = "UNKNOWN",
+}
+
+/**
+ * Chrome MCP 预热错误
+ */
+export class ChromeMcpWarmupError extends Error {
+  constructor(
+    public type: ChromeMcpWarmupErrorType,
+    message: string,
+    public details?: string,
+  ) {
+    super(message);
+    this.name = "ChromeMcpWarmupError";
+  }
+}

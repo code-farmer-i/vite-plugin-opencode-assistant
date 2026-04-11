@@ -2,6 +2,9 @@
  * @fileoverview 通用工具函数
  */
 
+import net from "net";
+import { CHROME_DEVTOOLS_PORT, CHROME_DEVTOOLS_CHECK_TIMEOUT } from "./constants.js";
+
 /**
  * 截断字符串到指定长度
  * @param value - 要截断的字符串
@@ -92,4 +95,34 @@ export function extractTextFromResponse(data: unknown): string | null {
   }
 
   return null;
+}
+
+/**
+ * 检查 Chrome DevTools 是否可用
+ * @param timeout - 超时时间（毫秒），默认 2000ms
+ * @returns Chrome DevTools 是否可用
+ */
+export async function checkChromeDevToolsAvailable(
+  timeout = CHROME_DEVTOOLS_CHECK_TIMEOUT
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    
+    const timer = setTimeout(() => {
+      socket.destroy();
+      resolve(false);
+    }, timeout);
+
+    socket.connect(CHROME_DEVTOOLS_PORT, "localhost", () => {
+      clearTimeout(timer);
+      socket.removeAllListeners();
+      socket.destroy();
+      resolve(true);
+    });
+
+    socket.on("error", () => {
+      clearTimeout(timer);
+      resolve(false);
+    });
+  });
 }

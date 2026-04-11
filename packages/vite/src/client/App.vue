@@ -49,6 +49,8 @@ const {
   currentTask,
   serviceStatus,
   chromeMcpFailed,
+  chromeMcpErrorType,
+  chromeMcpErrorMessage,
   thinking,
   loadingText,
   updateStatusFromTask,
@@ -91,6 +93,7 @@ const computedLoading = computed(() => {
 
 const retryWarmup = async () => {
   retryingWarmup.value = true;
+  
   try {
     const res = await fetch("/__opencode_warmup__", { method: "POST" });
     const data = await res.json();
@@ -99,7 +102,16 @@ const retryWarmup = async () => {
       serviceStatus.value = "ready";
       showNotification("Chrome DevTools MCP 连接成功");
     } else {
-      showNotification(data.error || "重试失败，请确认 Chrome 远程调试已开启");
+      // 根据错误类型显示不同的通知
+      if (data.errorType === 'AI_TIMEOUT') {
+        showNotification("AI 响应超时，请检查 OpenCode AI 模型配置");
+      } else if (data.errorType === 'AI_RESPONSE_ERROR') {
+        showNotification("AI 响应错误，请检查 OpenCode AI 模型配置");
+      } else if (data.errorType === 'CHROME_NOT_CONNECTED') {
+        showNotification("Chrome 远程调试未开启，请按照提示操作");
+      } else {
+        showNotification(data.error || "重试失败，请确认 Chrome 远程调试已开启");
+      }
     }
   } catch (e) {
     console.error("[OpenCode] Retry warmup failed:", e);
@@ -115,7 +127,7 @@ const { setupSSE } = useSSE(
       setStarting();
     }
     if (data.task) {
-      updateStatusFromTask(data.task, data.sessionUrl);
+      updateStatusFromTask(data.task, data.sessionUrl, data.errorType, data.errorMessage);
       if (data.sessionUrl) {
         try {
           const urlObj = new URL(data.sessionUrl, window.location.origin);
@@ -130,7 +142,7 @@ const { setupSSE } = useSSE(
     }
   },
   (data) => {
-    updateStatusFromTask(data.task, data.sessionUrl);
+    updateStatusFromTask(data.task, data.sessionUrl, data.errorType, data.errorMessage);
     if (data.sessionUrl) {
       try {
         const urlObj = new URL(data.sessionUrl, window.location.origin);
@@ -296,6 +308,8 @@ const handleFrameLoaded = () => {
       <ChromeWarmupError
         v-if="chromeMcpFailed"
         :retrying="retryingWarmup"
+        :errorType="chromeMcpErrorType"
+        :errorMessage="chromeMcpErrorMessage"
         @retry="retryWarmup"
       />
     </template>

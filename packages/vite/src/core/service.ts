@@ -6,6 +6,8 @@ import {
   DEFAULT_PROXY_PORT,
   SERVER_START_TIMEOUT,
   createLogger,
+  ChromeMcpWarmupError,
+  ChromeMcpWarmupErrorType,
 } from "@vite-plugin-opencode-assistant/shared";
 import {
   checkOpenCodeInstalled,
@@ -27,6 +29,8 @@ export class OpenCodeService {
   public sessionUrl: string | null = null;
   private proxyServer: http.Server | null = null;
   public chromeMcpWarmupFailed = false;
+  public chromeMcpWarmupErrorType: ChromeMcpWarmupErrorType | null = null;
+  public chromeMcpWarmupErrorMessage: string | null = null;
   public currentTask: { task: ServiceStartupTask; data?: Record<string, unknown> } | null = null;
 
   constructor(
@@ -217,6 +221,15 @@ Please install OpenCode first:
         log.warn("Chrome MCP warmup failed", { error: e });
         this.chromeMcpWarmupFailed = true;
         warmupFailed = true;
+        
+        // 保存错误类型和错误信息
+        if (e instanceof ChromeMcpWarmupError) {
+          this.chromeMcpWarmupErrorType = e.type;
+          this.chromeMcpWarmupErrorMessage = e.message;
+        } else {
+          this.chromeMcpWarmupErrorType = ChromeMcpWarmupErrorType.UNKNOWN;
+          this.chromeMcpWarmupErrorMessage = e instanceof Error ? e.message : String(e);
+        }
       }
 
       this.sendTaskUpdate("creating_session");
@@ -235,7 +248,11 @@ Please install OpenCode first:
         this.isStarted = false;
         this.startPromise = null; // 清理启动 Promise，允许重试
       } else if (warmupFailed) {
-        this.sendTaskUpdate("chrome_mcp_failed", { sessionUrl: this.sessionUrl }); // 传递 sessionUrl 让客户端可用
+        this.sendTaskUpdate("chrome_mcp_failed", { 
+          sessionUrl: this.sessionUrl,
+          errorType: this.chromeMcpWarmupErrorType,
+          errorMessage: this.chromeMcpWarmupErrorMessage,
+        }); // 传递 sessionUrl 让客户端可用
         this.isStarted = true;
       } else {
         this.sendTaskUpdate("ready", { sessionUrl: this.sessionUrl });
@@ -252,13 +269,20 @@ Please install OpenCode first:
     return this.startPromise;
   }
 
-  async retryWarmupChromeMcp(viteOrigin?: string): Promise<boolean> {
-    const success = await this.api.retryWarmupChromeMcp(viteOrigin);
-    if (success) {
+  async retryWarmupChromeMcp(viteOrigin?: string): Promise<{ success: boolean; errorType?: string; errorMessage?: string }> {
+    const result = await this.api.retryWarmupChromeMcp(viteOrigin);
+    if (result.success) {
       this.chromeMcpWarmupFailed = false;
       this.sendTaskUpdate("ready", { sessionUrl: this.sessionUrl });
+      return { success: true };
     }
-    return success;
+    
+    const error = result.error;
+    return {
+      success: false,
+      errorType: error?.type,
+      errorMessage: error?.message || "Unknown error",
+    };
   }
 
   async stop(): Promise<void> {

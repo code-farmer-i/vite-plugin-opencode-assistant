@@ -5,56 +5,16 @@ import {
   createLogger,
   DEFAULT_RETRIES,
   RETRY_DELAY,
+  ChromeMcpWarmupErrorType,
+  ChromeMcpWarmupError,
+  CHROME_DEVTOOLS_PORT,
+  checkChromeDevToolsAvailable,
+  sleep,
+  base64Encode,
+  extractTextFromResponse,
 } from "@vite-plugin-opencode-assistant/shared";
 
 const log = createLogger("API");
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function base64Encode(str: string): string {
-  return Buffer.from(str).toString("base64");
-}
-
-function extractTextFromResponse(data: unknown): string | null {
-  if (!data || typeof data !== "object") return null;
-
-  // 处理 { parts: [{ type: "text", text: "..." }] } 格式
-  const obj = data as Record<string, unknown>;
-  if (obj.parts && Array.isArray(obj.parts)) {
-    const textParts = obj.parts
-      .filter(
-        (p: unknown) =>
-          p && typeof p === "object" && (p as Record<string, unknown>).type === "text",
-      )
-      .map((p: unknown) => (p as Record<string, unknown>).text as string)
-      .filter(Boolean);
-    if (textParts.length > 0) return textParts.join("");
-  }
-
-  // 处理 { text: "..." } 格式
-  if (obj.text && typeof obj.text === "string") {
-    return obj.text;
-  }
-
-  // 处理 { content: "..." } 格式
-  if (obj.content && typeof obj.content === "string") {
-    return obj.content;
-  }
-
-  // 处理 { message: "..." } 格式
-  if (obj.message && typeof obj.message === "string") {
-    return obj.message;
-  }
-
-  // 直接字符串
-  if (typeof data === "string") {
-    return data;
-  }
-
-  return null;
-}
 
 export class OpenCodeAPI {
   constructor(
@@ -254,10 +214,38 @@ export class OpenCodeAPI {
     const timer = log.timer("warmupChromeMcp", { viteOrigin });
     let warmupSessionId: string | null = null;
 
+    // 先检查 Chrome DevTools 是否可用
+    const chromeAvailable = await checkChromeDevToolsAvailable();
+    if (!chromeAvailable) {
+      const error = new ChromeMcpWarmupError(
+        ChromeMcpWarmupErrorType.CHROME_NOT_CONNECTED,
+        "Chrome DevTools Protocol is not available",
+        "Chrome remote debugging is not enabled or not running on port 9222. Please enable Chrome remote debugging first.",
+      );
+      log.warn("Chrome DevTools not available", { 
+        port: CHROME_DEVTOOLS_PORT,
+        hint: "Enable Chrome remote debugging at chrome://inspect/#remote-debugging"
+      });
+      timer.end("Chrome DevTools not available");
+      throw error;
+    }
+
+    log.debug("Chrome DevTools is available, proceeding with warmup");
+
     try {
       const warmupSession = await this.createSession(DEFAULT_RETRIES, "__chrome_mcp_warmup__");
       warmupSessionId = warmupSession.id;
+    } catch (e) {
+      const error = new ChromeMcpWarmupError(
+        ChromeMcpWarmupErrorType.SESSION_ERROR,
+        "Failed to create warmup session",
+        e instanceof Error ? e.message : String(e),
+      );
+      timer.end("Session creation failed");
+      throw error;
+    }
 
+    try {
       const prompt = [
         "Call the browser tool list_pages immediately to establish the Chrome DevTools MCP connection.",
         viteOrigin
@@ -286,21 +274,69 @@ export class OpenCodeAPI {
         WARMUP_TIMEOUT,
       );
 
-      // 检查响应内容，确认是否真的返回了 "ready"
       const responseText = extractTextFromResponse(data);
-      if (!responseText?.toLowerCase().includes("ready")) {
-        throw new Error(`Chrome MCP warmup failed: ${responseText || "No response"}`);
+      
+      if (!responseText) {
+        throw new ChromeMcpWarmupError(
+          ChromeMcpWarmupErrorType.AI_RESPONSE_ERROR,
+          "AI did not respond to the warmup request",
+          "Empty response from AI",
+        );
+      }
+
+      const lowerResponse = responseText.toLowerCase();
+      
+      if (lowerResponse.includes("fail")) {
+        throw new ChromeMcpWarmupError(
+          ChromeMcpWarmupErrorType.CHROME_NOT_CONNECTED,
+          "Chrome DevTools MCP is not connected",
+          "AI reported that browser tools are not available. This should not happen if Chrome DevTools check passed.",
+        );
+      }
+
+      if (!lowerResponse.includes("ready")) {
+        throw new ChromeMcpWarmupError(
+          ChromeMcpWarmupErrorType.AI_RESPONSE_ERROR,
+          "AI response does not indicate success",
+          `AI responded with: ${responseText.substring(0, 200)}`,
+        );
       }
 
       timer.end("Chrome MCP warmed up");
     } catch (e) {
-      log.warn("Failed to warm up Chrome MCP", { error: e });
-      timer.end("Chrome MCP warmup skipped");
-      throw e;
+      if (e instanceof ChromeMcpWarmupError) {
+        log.warn(`Chrome MCP warmup failed: ${e.type}`, { 
+          message: e.message, 
+          details: e.details 
+        });
+        timer.end(`Chrome MCP warmup failed: ${e.type}`);
+        throw e;
+      }
+
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      
+      if (errorMessage.includes("timeout") || errorMessage.includes("Timeout")) {
+        const error = new ChromeMcpWarmupError(
+          ChromeMcpWarmupErrorType.AI_TIMEOUT,
+          "AI response timeout",
+          "AI did not respond within 30 seconds. Please check if the OpenCode AI model is properly configured and available.",
+        );
+        log.warn("Chrome MCP warmup timeout", { error: errorMessage });
+        timer.end("Chrome MCP warmup timeout");
+        throw error;
+      }
+
+      const error = new ChromeMcpWarmupError(
+        ChromeMcpWarmupErrorType.UNKNOWN,
+        "Unknown error during Chrome MCP warmup",
+        errorMessage,
+      );
+      log.warn("Chrome MCP warmup failed with unknown error", { error: errorMessage });
+      timer.end("Chrome MCP warmup failed");
+      throw error;
     } finally {
       if (warmupSessionId) {
         try {
-          // Increase retries for deleting the warmup session to ensure it's deleted
           await this.deleteSession(warmupSessionId, 5);
         } catch (e) {
           log.warn("Failed to delete warmup session after retries", {
@@ -337,14 +373,42 @@ export class OpenCodeAPI {
     return url;
   }
 
-  async retryWarmupChromeMcp(viteOrigin?: string): Promise<boolean> {
+  async retryWarmupChromeMcp(viteOrigin?: string): Promise<{ success: boolean; error?: ChromeMcpWarmupError }> {
     const timer = log.timer("retryWarmupChromeMcp", { viteOrigin });
     let warmupSessionId: string | null = null;
+
+    // 先检查 Chrome DevTools 是否可用
+    const chromeAvailable = await checkChromeDevToolsAvailable();
+    if (!chromeAvailable) {
+      const error = new ChromeMcpWarmupError(
+        ChromeMcpWarmupErrorType.CHROME_NOT_CONNECTED,
+        "Chrome DevTools Protocol is not available",
+        "Chrome remote debugging is not enabled or not running on port 9222. Please enable Chrome remote debugging first.",
+      );
+      log.warn("Chrome DevTools not available for retry", { 
+        port: CHROME_DEVTOOLS_PORT,
+        hint: "Enable Chrome remote debugging at chrome://inspect/#remote-debugging"
+      });
+      timer.end("Chrome DevTools not available for retry");
+      return { success: false, error };
+    }
+
+    log.debug("Chrome DevTools is available, proceeding with retry warmup");
 
     try {
       const warmupSession = await this.createSession(DEFAULT_RETRIES, "__chrome_mcp_warmup__");
       warmupSessionId = warmupSession.id;
+    } catch (e) {
+      const error = new ChromeMcpWarmupError(
+        ChromeMcpWarmupErrorType.SESSION_ERROR,
+        "Failed to create warmup session",
+        e instanceof Error ? e.message : String(e),
+      );
+      timer.end("Session creation failed");
+      return { success: false, error };
+    }
 
+    try {
       const prompt = [
         "Call the browser tool list_pages immediately to establish the Chrome DevTools MCP connection.",
         viteOrigin
@@ -356,7 +420,7 @@ export class OpenCodeAPI {
         "If the tool call fails, reply with exactly: fail",
       ].join(" ");
 
-      const WARMUP_TIMEOUT = 60000; // 增加到 60 秒
+      const WARMUP_TIMEOUT = 60000;
       const data = await this.createHttpRequest<unknown>(
         {
           hostname: this.hostname,
@@ -374,18 +438,67 @@ export class OpenCodeAPI {
       );
       log.debug("Chrome MCP warmup response:", { data });
 
-      // 检查响应内容，确认是否真的返回了 "ready"
       const responseText = extractTextFromResponse(data);
-      if (!responseText?.toLowerCase().includes("ready")) {
-        throw new Error(`Chrome MCP warmup failed: ${responseText || "No response"}`);
+      
+      if (!responseText) {
+        throw new ChromeMcpWarmupError(
+          ChromeMcpWarmupErrorType.AI_RESPONSE_ERROR,
+          "AI did not respond to the warmup request",
+          "Empty response from AI",
+        );
+      }
+
+      const lowerResponse = responseText.toLowerCase();
+      
+      if (lowerResponse.includes("fail")) {
+        throw new ChromeMcpWarmupError(
+          ChromeMcpWarmupErrorType.CHROME_NOT_CONNECTED,
+          "Chrome DevTools MCP is not connected",
+          "AI reported that browser tools are not available. This should not happen if Chrome DevTools check passed.",
+        );
+      }
+
+      if (!lowerResponse.includes("ready")) {
+        throw new ChromeMcpWarmupError(
+          ChromeMcpWarmupErrorType.AI_RESPONSE_ERROR,
+          "AI response does not indicate success",
+          `AI responded with: ${responseText.substring(0, 200)}`,
+        );
       }
 
       timer.end("Chrome MCP warmed up successfully");
-      return true;
+      return { success: true };
     } catch (e) {
-      log.warn("Failed to retry warm up Chrome MCP", { error: e });
+      if (e instanceof ChromeMcpWarmupError) {
+        log.warn(`Chrome MCP warmup retry failed: ${e.type}`, { 
+          message: e.message, 
+          details: e.details 
+        });
+        timer.end(`Chrome MCP warmup retry failed: ${e.type}`);
+        return { success: false, error: e };
+      }
+
+      const errorMessage = e instanceof Error ? e.message : String(e);
+      
+      if (errorMessage.includes("timeout") || errorMessage.includes("Timeout")) {
+        const error = new ChromeMcpWarmupError(
+          ChromeMcpWarmupErrorType.AI_TIMEOUT,
+          "AI response timeout",
+          "AI did not respond within 60 seconds. Please check if the OpenCode AI model is properly configured and available.",
+        );
+        log.warn("Chrome MCP warmup retry timeout", { error: errorMessage });
+        timer.end("Chrome MCP warmup retry timeout");
+        return { success: false, error };
+      }
+
+      const error = new ChromeMcpWarmupError(
+        ChromeMcpWarmupErrorType.UNKNOWN,
+        "Unknown error during Chrome MCP warmup retry",
+        errorMessage,
+      );
+      log.warn("Chrome MCP warmup retry failed with unknown error", { error: errorMessage });
       timer.end("Chrome MCP warmup retry failed");
-      return false;
+      return { success: false, error };
     } finally {
       if (warmupSessionId) {
         try {
