@@ -17,11 +17,29 @@ import {
 const log = createLogger("API");
 
 export class OpenCodeAPI {
+  private failedFreeModels: Set<string> = new Set();
+
   constructor(
     private hostname: string,
     private getPort: () => number,
     private warmupChromeMcpConfig: boolean = false,
   ) {}
+
+  markModelAsFailed(providerID: string, modelID: string): void {
+    const key = `${providerID}:${modelID}`;
+    this.failedFreeModels.add(key);
+    log.debug("Marked model as failed", { 
+      providerID,
+      modelID,
+      key,
+      failedCount: this.failedFreeModels.size 
+    });
+  }
+
+  clearFailedModels(): void {
+    this.failedFreeModels.clear();
+    log.debug("Cleared failed models cache");
+  }
 
   private createHttpRequest<T>(
     options: http.RequestOptions,
@@ -136,6 +154,86 @@ export class OpenCodeAPI {
     throw lastError;
   }
 
+  async getCheapestModel(): Promise<{ providerID: string; modelID: string } | null> {
+    try {
+      const response = await this.createHttpRequest<{
+        all: Array<{
+          id: string;
+          models: Record<string, { 
+            name?: string;
+            cost?: { input: number; output: number };
+          }>;
+        }>;
+        connected: string[];
+      }>({
+        hostname: this.hostname,
+        port: this.getPort(),
+        path: "/provider",
+        method: "GET",
+      });
+
+      const connectedProviders = new Set(response.connected);
+
+      interface ModelInfo {
+        providerID: string;
+        modelID: string;
+        name?: string;
+        inputCost: number;
+      }
+
+      const allModels: ModelInfo[] = [];
+
+      for (const provider of response.all) {
+        if (!connectedProviders.has(provider.id)) {
+          log.debug("Skipping not connected provider", { providerID: provider.id });
+          continue;
+        }
+
+        for (const [modelID, model] of Object.entries(provider.models)) {
+          allModels.push({
+            providerID: provider.id,
+            modelID,
+            name: model.name,
+            inputCost: model.cost?.input ?? 0,
+          });
+        }
+      }
+
+      allModels.sort((a, b) => a.inputCost - b.inputCost);
+
+      const availableModel = allModels.find(
+        (model) => !this.failedFreeModels.has(`${model.providerID}:${model.modelID}`),
+      );
+
+      if (!availableModel) {
+        log.debug("All models have failed", {
+          totalModels: allModels.length,
+          failedModels: this.failedFreeModels.size,
+          connectedProviders: response.connected,
+        });
+        return null;
+      }
+
+      log.debug("Found cheapest available model for warmup", {
+        providerID: availableModel.providerID,
+        modelID: availableModel.modelID,
+        name: availableModel.name,
+        inputCost: availableModel.inputCost,
+        totalModels: allModels.length,
+        failedModels: this.failedFreeModels.size,
+        connectedProviders: response.connected,
+      });
+
+      return {
+        providerID: availableModel.providerID,
+        modelID: availableModel.modelID,
+      };
+    } catch (error) {
+      log.warn("Failed to get cheapest model", { error });
+      return null;
+    }
+  }
+
   async deleteSession(sessionId: string, retries = DEFAULT_RETRIES): Promise<void> {
     const timer = log.timer("deleteSession", { sessionId, retries });
     let lastError: Error | null = null;
@@ -213,6 +311,7 @@ export class OpenCodeAPI {
 
     const timer = log.timer("warmupChromeMcp", { viteOrigin });
     let warmupSessionId: string | null = null;
+    let freeModel: { providerID: string; modelID: string } | null = null;
 
     // 先检查 Chrome DevTools 是否可用
     const chromeAvailable = await checkChromeDevToolsAvailable();
@@ -257,7 +356,18 @@ export class OpenCodeAPI {
         "If the tool call fails, reply with exactly: fail",
       ].join(" ");
 
-      const WARMUP_TIMEOUT = 30000;
+      const WARMUP_TIMEOUT = 60000;
+      
+      freeModel = await this.getCheapestModel();
+      if (freeModel) {
+        log.debug("Using cheapest model for warmup", { 
+          providerID: freeModel.providerID, 
+          modelID: freeModel.modelID 
+        });
+      } else {
+        log.debug("No model available, using default model");
+      }
+
       const data = await this.createHttpRequest<unknown>(
         {
           hostname: this.hostname,
@@ -270,6 +380,12 @@ export class OpenCodeAPI {
           system:
             "You are warming up Chrome DevTools MCP during startup. You must use the available browser tools immediately before replying.",
           parts: [{ type: "text", text: prompt }],
+          ...(freeModel && {
+            model: {
+              providerID: freeModel.providerID,
+              modelID: freeModel.modelID,
+            },
+          }),
         }),
         WARMUP_TIMEOUT,
       );
@@ -304,6 +420,15 @@ export class OpenCodeAPI {
 
       timer.end("Chrome MCP warmed up");
     } catch (e) {
+      if (freeModel) {
+        this.markModelAsFailed(freeModel.providerID, freeModel.modelID);
+        log.debug("Marked model as failed due to warmup error", {
+          providerID: freeModel.providerID,
+          modelID: freeModel.modelID,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+
       if (e instanceof ChromeMcpWarmupError) {
         log.warn(`Chrome MCP warmup failed: ${e.type}`, { 
           message: e.message, 
@@ -376,6 +501,7 @@ export class OpenCodeAPI {
   async retryWarmupChromeMcp(viteOrigin?: string): Promise<{ success: boolean; error?: ChromeMcpWarmupError }> {
     const timer = log.timer("retryWarmupChromeMcp", { viteOrigin });
     let warmupSessionId: string | null = null;
+    let freeModel: { providerID: string; modelID: string } | null = null;
 
     // 先检查 Chrome DevTools 是否可用
     const chromeAvailable = await checkChromeDevToolsAvailable();
@@ -421,6 +547,17 @@ export class OpenCodeAPI {
       ].join(" ");
 
       const WARMUP_TIMEOUT = 60000;
+      
+      freeModel = await this.getCheapestModel();
+      if (freeModel) {
+        log.debug("Using cheapest model for retry warmup", { 
+          providerID: freeModel.providerID, 
+          modelID: freeModel.modelID 
+        });
+      } else {
+        log.debug("No model available for retry, using default model");
+      }
+
       const data = await this.createHttpRequest<unknown>(
         {
           hostname: this.hostname,
@@ -433,6 +570,12 @@ export class OpenCodeAPI {
           system:
             "You are warming up Chrome DevTools MCP during startup. You must use the available browser tools immediately before replying.",
           parts: [{ type: "text", text: prompt }],
+          ...(freeModel && {
+            model: {
+              providerID: freeModel.providerID,
+              modelID: freeModel.modelID,
+            },
+          }),
         }),
         WARMUP_TIMEOUT,
       );
@@ -469,6 +612,15 @@ export class OpenCodeAPI {
       timer.end("Chrome MCP warmed up successfully");
       return { success: true };
     } catch (e) {
+      if (freeModel) {
+        this.markModelAsFailed(freeModel.providerID, freeModel.modelID);
+        log.debug("Marked model as failed due to retry warmup error", {
+          providerID: freeModel.providerID,
+          modelID: freeModel.modelID,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+
       if (e instanceof ChromeMcpWarmupError) {
         log.warn(`Chrome MCP warmup retry failed: ${e.type}`, { 
           message: e.message, 
