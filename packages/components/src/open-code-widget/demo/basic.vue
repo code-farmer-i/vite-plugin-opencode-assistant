@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 
 import type { OpenCodeSelectedElement } from "../src/types";
 
 const open = ref(false);
 const loading = ref(true);
 const selectMode = ref(false);
-const theme = ref<"light" | "dark">("light");
+const theme = ref<"light" | "dark" | "auto">("auto");
+const position = ref<"bottom-right" | "bottom-left" | "top-right" | "top-left">("bottom-right");
 const currentSessionId = ref<string | null>(null);
+const sessionListCollapsed = ref(true);
 const sessions = ref<{ id: string; title: string; updatedAt: number }[]>([]);
 const selectedElements = ref<OpenCodeSelectedElement[]>([]);
+const thinking = ref(false);
 
 onMounted(() => {
   // 模拟异步加载数据
@@ -17,6 +20,7 @@ onMounted(() => {
     sessions.value = [
       { id: "1", title: "如何使用 Vue 3 的 Composition API？", updatedAt: Date.now() },
       { id: "2", title: "解释一下这段代码的含义", updatedAt: Date.now() - 86400000 },
+      { id: "3", title: "优化这段代码的性能", updatedAt: Date.now() - 172800000 },
     ];
     currentSessionId.value = "1";
 
@@ -107,44 +111,109 @@ const handleRemoveSelectedNode = (payload: {
 const handleClearSelectedNodes = () => {
   selectedElements.value = [];
 };
+
+const handleEmptyAction = () => {
+  handleCreateSession();
+};
+
+const handleToggleThinking = () => {
+  thinking.value = !thinking.value;
+};
+
+const handleToggleSessionList = () => {
+  sessionListCollapsed.value = !sessionListCollapsed.value;
+};
+
+// 监听主题变化
+watch(theme, (newVal) => {
+  console.log("主题切换为:", newVal);
+});
 </script>
 
 <template>
   <div class="demo-container" :class="[theme === 'dark' ? 'demo-dark' : '']">
     <div class="controls">
-      <button @click="open = !open">切换挂件 (当前: {{ open ? "打开" : "关闭" }})</button>
-      <button @click="selectMode = !selectMode">
-        切换选择模式 (当前: {{ selectMode ? "开启" : "关闭" }})
-      </button>
-      <button @click="theme = theme === 'light' ? 'dark' : 'light'">
-        切换主题 (当前: {{ theme === "light" ? "亮色" : "暗色" }})
-      </button>
-      <button @click="loading = !loading">
-        切换加载状态 (当前: {{ loading ? "加载中" : "空闲" }})
-      </button>
+      <div class="control-group">
+        <h4>基本操作</h4>
+        <button @click="open = !open">
+          切换挂件 (当前: {{ open ? "打开" : "关闭" }})
+        </button>
+        <button @click="selectMode = !selectMode">
+          切换选择模式 (当前: {{ selectMode ? "开启" : "关闭" }})
+        </button>
+        <button @click="theme = theme === 'light' ? 'dark' : theme === 'dark' ? 'auto' : 'light'">
+          切换主题 (当前: {{ theme }})
+        </button>
+        <button @click="loading = !loading">
+          切换加载状态 (当前: {{ loading ? "加载中" : "空闲" }})
+        </button>
+        <button @click="handleToggleThinking">
+          切换思考状态 (当前: {{ thinking ? "思考中" : "空闲" }})
+        </button>
+      </div>
+
+      <div class="control-group">
+        <h4>位置配置</h4>
+        <button @click="position = 'bottom-right'">底部右侧</button>
+        <button @click="position = 'bottom-left'">底部左侧</button>
+        <button @click="position = 'top-right'">顶部右侧</button>
+        <button @click="position = 'top-left'">顶部左侧</button>
+      </div>
+
+      <div class="control-group">
+        <h4>会话管理</h4>
+        <button @click="sessionListCollapsed = !sessionListCollapsed">
+          切换会话列表 (当前: {{ sessionListCollapsed ? "折叠" : "展开" }})
+        </button>
+        <button @click="handleCreateSession">创建新会话</button>
+        <button @click="handleClearSelectedNodes">清空已选节点</button>
+      </div>
+
+      <div class="control-group">
+        <h4>状态演示</h4>
+        <button @click="sessions = []">显示空状态</button>
+        <button @click="sessions = [{ id: '1', title: '测试会话', updatedAt: Date.now() }]">
+          恢复会话
+        </button>
+      </div>
     </div>
 
-    <opencode-widget
-      :open="open"
-      :loading="loading"
-      :theme="theme"
-      :select-mode="selectMode"
-      :sessions="sessions"
-      :current-session-id="currentSessionId"
-      :selected-elements="selectedElements"
-      :show-empty-state="sessions.length === 0"
-      title="Trae AI"
-      iframe-src="about:blank"
-      @update:open="handleUpdateOpen"
-      @toggle-select-mode="handleToggleSelectMode"
-      @select-session="handleSelectSession"
-      @delete-session="handleDeleteSession"
-      @create-session="handleCreateSession"
-      @click-selected-node="handleClickSelectedNode"
-      @remove-selected-node="handleRemoveSelectedNode"
-      @clear-selected-nodes="handleClearSelectedNodes"
-      @empty-action="handleCreateSession"
-    />
+    <div class="widget-wrapper" :class="`position-${position}`">
+      <opencode-widget
+        :open="open"
+        :loading="loading"
+        :theme="theme"
+        :position="position"
+        :select-mode="selectMode"
+        :session-list-collapsed="sessionListCollapsed"
+        :sessions="sessions"
+        :current-session-id="currentSessionId"
+        :selected-elements="selectedElements"
+        :show-empty-state="sessions.length === 0"
+        :thinking="thinking"
+        title="Trae AI"
+        iframe-src="about:blank"
+        @update:open="handleUpdateOpen"
+        @toggle-select-mode="handleToggleSelectMode"
+        @select-session="handleSelectSession"
+        @delete-session="handleDeleteSession"
+        @create-session="handleCreateSession"
+        @click-selected-node="handleClickSelectedNode"
+        @remove-selected-node="handleRemoveSelectedNode"
+        @clear-selected-nodes="handleClearSelectedNodes"
+        @empty-action="handleEmptyAction"
+      />
+    </div>
+
+    <div class="demo-info">
+      <h3>场景演示说明</h3>
+      <ul>
+        <li><strong>基本操作:</strong> 测试挂件的打开/关闭、选择模式、主题切换、加载状态</li>
+        <li><strong>位置配置:</strong> 测试挂件在页面四个角的显示效果</li>
+        <li><strong>会话管理:</strong> 测试会话列表的折叠/展开、创建新会话、清空已选节点</li>
+        <li><strong>状态演示:</strong> 测试空状态和正常状态的切换</li>
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -176,19 +245,41 @@ const handleClearSelectedNodes = () => {
   color: #1890ff;
 }
 
+.demo-dark .control-group h4 {
+  color: #e0e0e0;
+}
+
 .controls {
   padding: 16px;
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+.control-group {
+  flex: 1;
+  min-width: 200px;
+}
+
+.control-group h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.control-group button {
+  margin-right: 8px;
+  margin-bottom: 8px;
 }
 
 button {
-  padding: 8px 16px;
+  padding: 8px 12px;
   cursor: pointer;
   background: #fff;
   border: 1px solid #d9d9d9;
   border-radius: 4px;
-  font-size: 14px;
+  font-size: 13px;
   transition: all 0.2s;
 }
 
@@ -196,5 +287,50 @@ button:hover {
   background: #f0f0f0;
   border-color: #1890ff;
   color: #1890ff;
+}
+
+.demo-info {
+  padding: 16px;
+  border-top: 1px solid #e0e0e0;
+  margin-top: 16px;
+}
+
+.demo-info h3 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.demo-info ul {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  color: #666;
+}
+
+.demo-info li {
+  margin-bottom: 6px;
+}
+
+.widget-wrapper {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.position-bottom-right {
+  position: relative;
+}
+
+.position-bottom-left {
+  position: relative;
+}
+
+.position-top-right {
+  position: relative;
+}
+
+.position-top-left {
+  position: relative;
 }
 </style>
