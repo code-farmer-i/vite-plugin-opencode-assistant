@@ -208,11 +208,6 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 
       const prefix = buildContextPrefix(context);
       textPart.text = prefix + textPart.text;
-
-      if (context.selectedElements?.length) {
-        log.debug("Selected elements found, clearing...");
-        await clearSelectedElements();
-      }
     },
   };
 };

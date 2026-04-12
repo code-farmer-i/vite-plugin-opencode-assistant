@@ -24,7 +24,6 @@ const sessionListCollapsed = ref(true);
 const loading = ref(false);
 const widgetRef = ref<InstanceType<typeof OpenCodeWidget> | null>(null);
 const retryingWarmup = ref(false);
-const iframeReady = ref(false);
 
 const {
   position = "bottom-right",
@@ -169,10 +168,6 @@ useHotkey("ctrl+p", (e) => {
   e.preventDefault();
   const win = window as typeof window & { __VUE_INSPECTOR__?: unknown };
   if (win.__VUE_INSPECTOR__) {
-    if (!iframeReady.value) {
-      showNotification("请等待 iframe 加载完成");
-      return;
-    }
     selectMode.value = !selectMode.value;
   } else {
     showNotification("Vue Inspector 未加载，无法使用元素选择功能");
@@ -192,14 +187,11 @@ onMounted(() => {
   }
 
   const handleIframeMessage = (event: MessageEvent) => {
-    console.log('[App] Received message:', event.data?.type);
     if (event.data?.type === "OPENCODE_THINKING_STATE") {
       setThinking(event.data.thinking);
     }
     if (event.data?.type === "OPENCODE_READY") {
-      console.log('[App] OPENCODE_READY received, setting iframeReady to true');
       sendThemeToIframe();
-      iframeReady.value = true;
     }
   };
   window.addEventListener("message", handleIframeMessage);
@@ -223,26 +215,13 @@ const handleToggle = async (val: boolean) => {
 };
 
 const handleSelectNode = (element: any) => {
-  console.log('[App] handleSelectNode, iframeReady:', iframeReady.value);
-  if (!iframeReady.value) {
-    showNotification("请等待 iframe 加载完成");
-    return;
+  const added = addElement(element);
+  if (added) {
+    showNotification(`已选中元素 (${selectedElements.value.length}个)`);
+    updateContext(true);
+  } else {
+    showNotification("该元素已选中");
   }
-  
-  const contextData = {
-    id: `${element.filePath}:${element.line}:${element.column ?? 0}`,
-    title: element.description || 'context',
-    content: element.innerText || element.description || "",
-    source: {
-      file: element.filePath,
-      lineStart: element.line,
-      lineEnd: element.line,
-      column: element.column,
-    },
-  };
-  
-  sendMessageToIframe("ADD_CONTEXT_TAG", { data: contextData });
-  showNotification(`已添加到输入框`);
 };
 
 const handleClearSelected = () => {
