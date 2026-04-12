@@ -83,14 +83,14 @@ const handleDialogCancel = () => {
   if (dialogResolve) dialogResolve(false);
 };
 
-const handleFrameLoaded = () => {
-  emit("frame-loaded");
-};
-
 const frameRef = ref<InstanceType<typeof Frame> | null>(null);
 
 const sendMessageToIframe = (type: string, data?: Record<string, unknown>) => {
   frameRef.value?.sendMessageToIframe(type, data);
+};
+
+const handleFrameLoaded = () => {
+  emit("frame-loaded");
 };
 
 defineExpose({

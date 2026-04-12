@@ -1,6 +1,8 @@
 import { spawn } from "child_process";
+import fs from "fs";
 import http from "http";
 import net from "net";
+import path from "path";
 import type { ResultPromise } from "execa";
 import { MAX_PORT_TRIES, SERVER_CHECK_INTERVAL } from "@vite-plugin-opencode-assistant/shared";
 import { PerformanceTimer, createLogger } from "@vite-plugin-opencode-assistant/shared";
@@ -200,6 +202,39 @@ function killOrphanProcessesOnWindows(
     timer.end("❌ Failed to find orphan processes");
     resolve(0);
   });
+}
+
+export function findGitRoot(startDir: string, maxDepth = 10): string {
+  const timer = log.timer("findGitRoot", { startDir, maxDepth });
+
+  let currentDir = startDir;
+  let depth = 0;
+
+  while (depth < maxDepth) {
+    const gitDir = path.join(currentDir, ".git");
+
+    try {
+      if (fs.existsSync(gitDir)) {
+        timer.end(`✓ Found git root at depth ${depth}: ${currentDir}`);
+        return currentDir;
+      }
+    } catch (err) {
+      log.debug(`Error checking .git directory at ${currentDir}`, { error: (err as Error).message });
+    }
+
+    const parentDir = path.dirname(currentDir);
+
+    if (parentDir === currentDir) {
+      log.debug("Reached filesystem root");
+      break;
+    }
+
+    currentDir = parentDir;
+    depth++;
+  }
+
+  timer.end(`❌ No git root found after ${depth} levels, using start directory`);
+  return startDir;
 }
 
 function killOrphanProcessesOnUnix(

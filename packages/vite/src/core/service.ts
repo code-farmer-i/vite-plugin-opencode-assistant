@@ -12,6 +12,7 @@ import {
 import {
   checkOpenCodeInstalled,
   findAvailablePort,
+  findGitRoot,
   killOrphanOpenCodeProcesses,
   waitForServer,
 } from "../utils/system.js";
@@ -32,6 +33,7 @@ export class OpenCodeService {
   public chromeMcpWarmupErrorType: ChromeMcpWarmupErrorType | null = null;
   public chromeMcpWarmupErrorMessage: string | null = null;
   public currentTask: { task: ServiceStartupTask; data?: Record<string, unknown> } | null = null;
+  public workspaceRoot: string | null = null;
 
   constructor(
     private config: Required<OpenCodeOptions>,
@@ -118,8 +120,11 @@ Please install OpenCode first:
 
       timer.checkpoint("Port allocated");
 
+      this.workspaceRoot = findGitRoot(process.cwd());
+      log.info(`Using workspace root: ${this.workspaceRoot}`);
+
       this.sendTaskUpdate("preparing_runtime");
-      const configDir = prepareOpenCodeRuntime(process.cwd());
+      const configDir = prepareOpenCodeRuntime(this.workspaceRoot);
 
       timer.checkpoint("Plugin setup complete");
 
@@ -134,7 +139,7 @@ Please install OpenCode first:
         port: this.actualWebPort,
         hostname: this.config.hostname,
         serverUrl: "",
-        cwd: process.cwd(),
+        cwd: this.workspaceRoot,
         configDir,
         corsOrigins,
         contextApiUrl,
@@ -215,7 +220,7 @@ Please install OpenCode first:
       this.sendTaskUpdate("warming_up_chrome");
       let warmupFailed = false;
       try {
-        await this.api.warmupChromeMcp(viteOrigin);
+        await this.api.warmupChromeMcp(this.workspaceRoot!, viteOrigin);
         timer.checkpoint("Chrome MCP warmup complete");
       } catch (e) {
         log.warn("Chrome MCP warmup failed", { error: e });
@@ -235,7 +240,7 @@ Please install OpenCode first:
       this.sendTaskUpdate("creating_session");
       let sessionFailed = false;
       try {
-        this.sessionUrl = await this.api.getOrCreateSession();
+        this.sessionUrl = await this.api.getOrCreateSession(this.workspaceRoot!);
         timer.checkpoint("Session created");
         log.debug(`Session URL: ${this.sessionUrl}`);
       } catch (e) {
@@ -270,7 +275,7 @@ Please install OpenCode first:
   }
 
   async retryWarmupChromeMcp(viteOrigin?: string): Promise<{ success: boolean; errorType?: string; errorMessage?: string }> {
-    const result = await this.api.retryWarmupChromeMcp(viteOrigin);
+    const result = await this.api.retryWarmupChromeMcp(this.workspaceRoot!, viteOrigin);
     if (result.success) {
       this.chromeMcpWarmupFailed = false;
       this.sendTaskUpdate("ready", { sessionUrl: this.sessionUrl });

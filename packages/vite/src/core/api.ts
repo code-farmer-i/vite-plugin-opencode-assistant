@@ -22,6 +22,7 @@ export class OpenCodeAPI {
   constructor(
     private hostname: string,
     private getPort: () => number,
+    private getProxyPort: () => number,
     private warmupChromeMcpConfig: boolean = false,
   ) {}
 
@@ -81,20 +82,27 @@ export class OpenCodeAPI {
     });
   }
 
-  async getSessions(retries = DEFAULT_RETRIES): Promise<SessionInfo[]> {
-    const timer = log.timer("getSessions", { retries });
+  async getSessions(projectDir: string, retries = DEFAULT_RETRIES): Promise<SessionInfo[]> {
+    const timer = log.timer("getSessions", { retries, projectDir });
     let lastError: Error | null = null;
 
     for (let i = 0; i < retries; i++) {
       try {
-        log.debug(`Attempt ${i + 1}/${retries}`, { operation: "getSessions" });
+        log.debug(`Attempt ${i + 1}/${retries}`, { operation: "getSessions", projectDir });
         const sessions = await this.createHttpRequest<SessionInfo[]>({
           hostname: this.hostname,
           port: this.getPort(),
           path: "/session",
+          headers: {
+            "x-opencode-directory": encodeURIComponent(projectDir),
+          },
         });
+        const sessionsWithUrl = sessions.map((s) => ({
+          ...s,
+          url: `http://${this.hostname}:${this.getProxyPort()}/${base64Encode(s.directory)}/session/${s.id}`,
+        }));
         timer.end(`Found ${sessions.length} sessions`);
-        return sessions;
+        return sessionsWithUrl;
       } catch (e) {
         lastError = e instanceof Error ? e : new Error(String(e));
         log.debug(`Attempt ${i + 1} failed: ${lastError.message}`, {
@@ -113,8 +121,8 @@ export class OpenCodeAPI {
     throw lastError;
   }
 
-  async createSession(retries = DEFAULT_RETRIES, title?: string): Promise<SessionInfo> {
-    const timer = log.timer("createSession", { retries, title });
+  async createSession(projectDir: string, retries = DEFAULT_RETRIES, title?: string): Promise<SessionInfo> {
+    const timer = log.timer("createSession", { retries, title, projectDir });
     let lastError: Error | null = null;
 
     for (let i = 0; i < retries; i++) {
@@ -122,6 +130,7 @@ export class OpenCodeAPI {
         log.debug(`Attempt ${i + 1}/${retries}`, {
           operation: "createSession",
           title,
+          projectDir,
         });
         const requestBody = title ? JSON.stringify({ title }) : undefined;
         const session = await this.createHttpRequest<SessionInfo>(
@@ -130,12 +139,19 @@ export class OpenCodeAPI {
             port: this.getPort(),
             path: "/session",
             method: "POST",
-            headers: requestBody ? { "Content-Type": "application/json" } : undefined,
+            headers: {
+              ...(requestBody ? { "Content-Type": "application/json" } : {}),
+              "x-opencode-directory": encodeURIComponent(projectDir),
+            },
           },
           requestBody,
         );
+        const sessionWithUrl = {
+          ...session,
+          url: `http://${this.hostname}:${this.getProxyPort()}/${base64Encode(projectDir)}/session/${session.id}`,
+        };
         timer.end(`Created session: ${session.id}`);
-        return session;
+        return sessionWithUrl;
       } catch (e) {
         lastError = e instanceof Error ? e : new Error(String(e));
         log.debug(`Attempt ${i + 1} failed: ${lastError.message}`, {
@@ -306,7 +322,7 @@ export class OpenCodeAPI {
     throw lastError;
   }
 
-  async warmupChromeMcp(viteOrigin?: string): Promise<void> {
+  async warmupChromeMcp(projectDir: string, viteOrigin?: string): Promise<void> {
     if (!this.warmupChromeMcpConfig) return;
 
     const timer = log.timer("warmupChromeMcp", { viteOrigin });
@@ -332,7 +348,7 @@ export class OpenCodeAPI {
     log.debug("Chrome DevTools is available, proceeding with warmup");
 
     try {
-      const warmupSession = await this.createSession(DEFAULT_RETRIES, "__chrome_mcp_warmup__");
+      const warmupSession = await this.createSession(projectDir, DEFAULT_RETRIES, "__chrome_mcp_warmup__");
       warmupSessionId = warmupSession.id;
     } catch (e) {
       const error = new ChromeMcpWarmupError(
@@ -473,12 +489,11 @@ export class OpenCodeAPI {
     }
   }
 
-  async getOrCreateSession(): Promise<string> {
-    const timer = log.timer("getOrCreateSession");
-    const projectDir = process.cwd();
+  async getOrCreateSession(projectDir: string): Promise<string> {
+    const timer = log.timer("getOrCreateSession", { projectDir });
 
     log.debug("Getting sessions...", { projectDir });
-    const sessions = await this.getSessions();
+    const sessions = await this.getSessions(projectDir);
     log.debug(`Found ${sessions.length} sessions`, {
       sessions: sessions.map((s) => ({ id: s.id, directory: s.directory })),
     });
@@ -486,19 +501,19 @@ export class OpenCodeAPI {
     const matchingSession = sessions.find((s) => s.directory === projectDir);
 
     if (matchingSession) {
-      const url = `http://${this.hostname}:${this.getPort()}/${base64Encode(projectDir)}/session/${matchingSession.id}`;
+      const url = `http://${this.hostname}:${this.getProxyPort()}/${base64Encode(projectDir)}/session/${matchingSession.id}`;
       timer.end(`Using existing session: ${matchingSession.id}`);
       return url;
     }
 
     log.debug("Creating new session...", { projectDir });
-    const newSession = await this.createSession();
-    const url = `http://${this.hostname}:${this.getPort()}/${base64Encode(projectDir)}/session/${newSession.id}`;
+    const newSession = await this.createSession(projectDir);
+    const url = `http://${this.hostname}:${this.getProxyPort()}/${base64Encode(projectDir)}/session/${newSession.id}`;
     timer.end(`Created new session: ${newSession.id}`);
     return url;
   }
 
-  async retryWarmupChromeMcp(viteOrigin?: string): Promise<{ success: boolean; error?: ChromeMcpWarmupError }> {
+  async retryWarmupChromeMcp(projectDir: string, viteOrigin?: string): Promise<{ success: boolean; error?: ChromeMcpWarmupError }> {
     const timer = log.timer("retryWarmupChromeMcp", { viteOrigin });
     let warmupSessionId: string | null = null;
     let freeModel: { providerID: string; modelID: string } | null = null;
@@ -522,7 +537,7 @@ export class OpenCodeAPI {
     log.debug("Chrome DevTools is available, proceeding with retry warmup");
 
     try {
-      const warmupSession = await this.createSession(DEFAULT_RETRIES, "__chrome_mcp_warmup__");
+      const warmupSession = await this.createSession(projectDir, DEFAULT_RETRIES, "__chrome_mcp_warmup__");
       warmupSessionId = warmupSession.id;
     } catch (e) {
       const error = new ChromeMcpWarmupError(

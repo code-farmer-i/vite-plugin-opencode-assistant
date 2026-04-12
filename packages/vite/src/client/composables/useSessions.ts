@@ -1,23 +1,13 @@
 import { ref } from "vue";
 import type { OpenCodeWidgetSession } from "@vite-plugin-opencode-assistant/shared";
 
-export function utf8ToBase64(str: string): string {
-  const bytes = new TextEncoder().encode(str);
-  const binString = Array.from(bytes, (byte) => String.fromCodePoint(byte)).join("");
-  return btoa(binString);
-}
-
 export function extractSessionId(url: string) {
   if (!url) return null;
   const match = url.match(/\/session\/([^/?]+)/);
   return match ? match[1] : null;
 }
 
-export function useSessions(
-  cwd: string,
-  proxyUrl: string,
-  showNotification: (msg: string) => void,
-) {
+export function useSessions(showNotification: (msg: string) => void) {
   const sessions = ref<OpenCodeWidgetSession[]>([]);
   const loadingSessionList = ref<boolean | undefined>(undefined);
   const currentSessionId = ref<string | null>(null);
@@ -30,7 +20,7 @@ export function useSessions(
       const response = await fetch("/__opencode_sessions__");
       const data = await response.json();
       sessions.value = data
-        .filter((s: any) => s.directory === cwd && s.title !== "__chrome_mcp_warmup__")
+        .filter((s: any) => s.title !== "__chrome_mcp_warmup__")
         .map((s: any) => ({
           ...s,
           updatedAt: s.time?.updated || Date.now(),
@@ -50,10 +40,11 @@ export function useSessions(
         id: newSession.id,
         title: "新会话",
         updatedAt: Date.now(),
+        url: newSession.url,
       });
       currentSessionId.value = newSession.id;
       iframeLoading.value = true;
-      iframeSrc.value = `${proxyUrl}/${utf8ToBase64(cwd)}/session/${newSession.id}`;
+      iframeSrc.value = newSession.url;
       loadSessions();
     } catch {
       showNotification("创建会话失败");
@@ -70,7 +61,7 @@ export function useSessions(
           const nextSession = sessions.value[0];
           currentSessionId.value = nextSession.id;
           iframeLoading.value = true;
-          iframeSrc.value = `${proxyUrl}/${utf8ToBase64(cwd)}/session/${nextSession.id}`;
+          iframeSrc.value = nextSession.url || "";
         } else {
           currentSessionId.value = null;
           iframeSrc.value = "";
@@ -85,7 +76,7 @@ export function useSessions(
     if (currentSessionId.value === session.id) return;
     currentSessionId.value = session.id;
     iframeLoading.value = true;
-    iframeSrc.value = `${proxyUrl}/${utf8ToBase64(cwd)}/session/${session.id}`;
+    iframeSrc.value = session.url || "";
   };
 
   const setSessionUrl = (url: string) => {

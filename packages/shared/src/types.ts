@@ -142,22 +142,12 @@ export interface WebOptions {
  * 挂件注入配置选项
  */
 export interface WidgetOptions {
-  /** Web 服务 URL */
-  webUrl: string;
-  /** 代理服务 URL */
-  proxyUrl: string;
-  /** 服务器 URL */
-  serverUrl: string;
   /** 挂件位置 */
   position: string;
   /** 主题模式 */
   theme: string;
   /** 是否自动打开 */
   open: boolean;
-  /** 是否自动重载 */
-  autoReload: boolean;
-  /** 工作目录 */
-  cwd: string;
   /** 会话 URL */
   sessionUrl?: string;
   /** 快捷键配置 */
@@ -180,6 +170,8 @@ export interface SessionInfo {
   title: string;
   /** 版本号 */
   version: string;
+  /** 会话 URL */
+  url?: string;
   /** 代码变更统计 */
   summary: {
     /** 新增行数 */
@@ -289,6 +281,7 @@ export interface OpenCodeWidgetSession {
   updatedAt?: string | number | Date;
   meta?: string;
   directory?: string;
+  url?: string;
 }
 
 /**

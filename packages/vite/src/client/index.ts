@@ -4,8 +4,6 @@ import type { WidgetOptions } from "@vite-plugin-opencode-assistant/shared";
 import App from "./App.vue";
 import "./styles.css";
 
-let proxyUrl = "";
-
 let config: Partial<WidgetOptions> = {};
 const scriptTag = document.querySelector(`script[${CONFIG_DATA_ATTR}]`);
 if (scriptTag) {
@@ -22,10 +20,6 @@ if (scriptTag) {
   }
 }
 
-if (config.proxyUrl) {
-  proxyUrl = config.proxyUrl;
-}
-
 const INIT_MARKER = "__OPENCODE_INITIALIZED__";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 if (!(window as any)[INIT_MARKER]) {
@@ -33,7 +27,7 @@ if (!(window as any)[INIT_MARKER]) {
   (window as any)[INIT_MARKER] = true;
   const container = document.createElement("div");
   document.body.appendChild(container);
-  const app = createApp(App, { config, proxyUrl });
+  const app = createApp(App, { config });
   app.mount(container);
 
   // 添加清理函数到 window，便于热更新或测试时清理

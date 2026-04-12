@@ -14,13 +14,8 @@ import { useContext } from "./composables/useContext";
 import LoadingContent from "./components/LoadingContent.vue";
 import ChromeWarmupError from "./components/ChromeWarmupError.vue";
 
-interface AppConfig extends Partial<WidgetOptions> {
-  proxyUrl?: string;
-}
-
 const props = defineProps<{
-  config: AppConfig;
-  proxyUrl: string;
+  config: Partial<WidgetOptions>;
 }>();
 
 const open = ref(false);
@@ -29,13 +24,13 @@ const sessionListCollapsed = ref(true);
 const loading = ref(false);
 const widgetRef = ref<InstanceType<typeof OpenCodeWidget> | null>(null);
 const retryingWarmup = ref(false);
+const iframeReady = ref(false);
 
 const {
   position = "bottom-right",
   theme: initialTheme = "auto",
   open: autoOpen = false,
   hotkey = "ctrl+k",
-  cwd = "",
 } = props.config;
 
 const widgetPosition = position as OpenCodeWidgetPosition;
@@ -43,6 +38,10 @@ const widgetTheme = initialTheme as OpenCodeWidgetTheme;
 
 const showNotification = (msg: string) => {
   widgetRef.value?.showNotification?.(msg);
+};
+
+const sendMessageToIframe = (type: string, data?: Record<string, unknown>) => {
+  widgetRef.value?.sendMessageToIframe?.(type, data);
 };
 
 const {
@@ -82,7 +81,7 @@ const {
   deleteSession,
   selectSession,
   setSessionUrl,
-} = useSessions(cwd, props.proxyUrl, showNotification);
+} = useSessions(showNotification);
 
 const { updateContext } = useContext(serviceStatus, selectedElements);
 
@@ -102,7 +101,6 @@ const retryWarmup = async () => {
       serviceStatus.value = "ready";
       showNotification("Chrome DevTools MCP 连接成功");
     } else {
-      // 根据错误类型显示不同的通知
       if (data.errorType === 'AI_TIMEOUT') {
         showNotification("AI 响应超时，请检查 OpenCode AI 模型配置");
       } else if (data.errorType === 'AI_RESPONSE_ERROR') {
@@ -129,12 +127,7 @@ const { setupSSE } = useSSE(
     if (data.task) {
       updateStatusFromTask(data.task, data.sessionUrl, data.errorType, data.errorMessage);
       if (data.sessionUrl) {
-        try {
-          const urlObj = new URL(data.sessionUrl, window.location.origin);
-          setSessionUrl(`${props.proxyUrl}${urlObj.pathname}${urlObj.search}`);
-        } catch {
-          // ignore
-        }
+        setSessionUrl(data.sessionUrl);
       }
     }
     if (serviceStatus.value !== "idle") {
@@ -144,12 +137,7 @@ const { setupSSE } = useSSE(
   (data) => {
     updateStatusFromTask(data.task, data.sessionUrl, data.errorType, data.errorMessage);
     if (data.sessionUrl) {
-      try {
-        const urlObj = new URL(data.sessionUrl, window.location.origin);
-        setSessionUrl(`${props.proxyUrl}${urlObj.pathname}${urlObj.search}`);
-      } catch {
-        // ignore
-      }
+      setSessionUrl(data.sessionUrl);
     }
   },
   () => clearElements(),
@@ -181,6 +169,10 @@ useHotkey("ctrl+p", (e) => {
   e.preventDefault();
   const win = window as typeof window & { __VUE_INSPECTOR__?: unknown };
   if (win.__VUE_INSPECTOR__) {
+    if (!iframeReady.value) {
+      showNotification("请等待 iframe 加载完成");
+      return;
+    }
     selectMode.value = !selectMode.value;
   } else {
     showNotification("Vue Inspector 未加载，无法使用元素选择功能");
@@ -200,11 +192,14 @@ onMounted(() => {
   }
 
   const handleIframeMessage = (event: MessageEvent) => {
+    console.log('[App] Received message:', event.data?.type);
     if (event.data?.type === "OPENCODE_THINKING_STATE") {
       setThinking(event.data.thinking);
     }
     if (event.data?.type === "OPENCODE_READY") {
+      console.log('[App] OPENCODE_READY received, setting iframeReady to true');
       sendThemeToIframe();
+      iframeReady.value = true;
     }
   };
   window.addEventListener("message", handleIframeMessage);
@@ -228,13 +223,26 @@ const handleToggle = async (val: boolean) => {
 };
 
 const handleSelectNode = (element: any) => {
-  const added = addElement(element);
-  if (added) {
-    showNotification(`已选中元素 (${selectedElements.value.length}个)`);
-    updateContext(true);
-  } else {
-    showNotification("该元素已选中");
+  console.log('[App] handleSelectNode, iframeReady:', iframeReady.value);
+  if (!iframeReady.value) {
+    showNotification("请等待 iframe 加载完成");
+    return;
   }
+  
+  const contextData = {
+    id: `${element.filePath}:${element.line}:${element.column ?? 0}`,
+    title: element.description || 'context',
+    content: element.innerText || element.description || "",
+    source: {
+      file: element.filePath,
+      lineStart: element.line,
+      lineEnd: element.line,
+      column: element.column,
+    },
+  };
+  
+  sendMessageToIframe("ADD_CONTEXT_TAG", { data: contextData });
+  showNotification(`已添加到输入框`);
 };
 
 const handleClearSelected = () => {

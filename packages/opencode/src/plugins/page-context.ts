@@ -85,21 +85,18 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
   function formatSelectedElement(element: SelectedElement, index: number): string {
     const parts: string[] = [];
 
-    parts.push(`### 选中节点 ${index + 1}`);
+    parts.push(`### 用户选中节点 ${index + 1}`);
 
     if (element.filePath) {
       const isNodeModule = element.filePath.includes("node_modules");
 
       if (isNodeModule) {
         // node_modules 中的元素：提供选择器信息，引导使用 Chrome MCP
-        parts.push(`- **元素描述**: \`${element.description}\``);
+        parts.push(`- **元素选择器**: \`${element.description}\``);
         if (element.innerText?.trim()) {
           const text = element.innerText.trim().substring(0, 100);
           parts.push(`- **节点文本**: \`${text}${element.innerText.length > 100 ? "..." : ""}\``);
         }
-        parts.push(
-          `- **分析建议**: 请使用 Chrome DevTools MCP 获取当前页面快照，结合 CSS 选择器 \`${element.description}\` 来获取更多的页面上下文`,
-        );
       } else {
         // 项目内元素：显示源码位置
         let location = element.filePath;
@@ -170,24 +167,11 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 
 1. **页面信息**：用户当前浏览的页面 URL 和标题
 2. **选中元素**：用户在页面上选中的 DOM 元素信息，包括：
-   - 源码文件路径（如 \`src/components/Button.tsx\`）
-   - 行号和列号（精确定位到代码位置）
+   - 元素的选择器
    - 元素的文本内容
+   - 源码文件路径（如果有）
 
 这些信息由 Vite 插件通过内部 API 收集，并在用户发送消息时自动附加到消息前缀中。
-
-## 上下文处理规则
-
-当你在对话中看到类似以下格式的上下文信息时：
-
-\`\`\`
-【系统提示：以下是用户当前正在浏览的页面上下文...】
-用户现在正在浏览项目中的这个页面：[页面标题](URL)
-用户选中了以下节点：
-### 选中节点 1
-- **文件位置**: \`src/components/Button.tsx:42:10\`
-- **节点文本**: ...
-\`\`\`
 
 请遵循以下规则：
 

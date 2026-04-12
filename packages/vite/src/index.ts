@@ -15,6 +15,7 @@ import { injectWidget } from "./core/injector.js";
 import { OpenCodeAPI } from "./core/api.js";
 import { OpenCodeService } from "./core/service.js";
 import { resolveWidgetPath, resolveWidgetStylePath } from "./utils/paths.js";
+import { findGitRoot } from "./utils/system.js";
 
 export default function opencodePlugin(options: OpenCodeOptions = {}): Plugin[] {
   const plugins: Plugin[] = [];
@@ -45,7 +46,7 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
 
   const sseClients: Set<http.ServerResponse> = new Set();
 
-  const api = new OpenCodeAPI(config.hostname, () => actualWebPort, config.warmupChromeMcp);
+  const api = new OpenCodeAPI(config.hostname, () => actualWebPort, () => actualProxyPort, config.warmupChromeMcp);
   const service = new OpenCodeService(
     config,
     api,
@@ -94,8 +95,8 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
         get currentTask() {
           return service.currentTask;
         },
-        getSessions: () => api.getSessions(),
-        createSession: () => api.createSession(),
+        getSessions: () => api.getSessions(service.workspaceRoot!),
+        createSession: () => api.createSession(service.workspaceRoot!),
         deleteSession: (id) => api.deleteSession(id),
         resolveWidgetPath,
         resolveWidgetStylePath,
@@ -164,15 +165,9 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
       const timer = log.timer("transformIndexHtml");
 
       const widget = injectWidget({
-        webUrl: `http://${config.hostname}:${actualWebPort}`,
-        proxyUrl: `http://${config.hostname}:${actualProxyPort}`,
-        serverUrl: `http://${config.hostname}:${actualWebPort}`,
         position: config.position,
         theme: config.theme,
         open: config.open,
-        autoReload: config.autoReload,
-        cwd: process.cwd(),
-        // 不再注入 sessionUrl，客户端完全依赖 SSE 状态同步
         hotkey: config.hotkey,
       });
 
