@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import type { OpenCodeWidgetSession } from "@vite-plugin-opencode-assistant/shared";
+import type { OpenCodeWidgetSession, SessionInfo } from "@vite-plugin-opencode-assistant/shared";
 
 export function extractSessionId(url: string) {
   if (!url) return null;
@@ -18,10 +18,10 @@ export function useSessions(showNotification: (msg: string) => void) {
     loadingSessionList.value = true;
     try {
       const response = await fetch("/__opencode_sessions__");
-      const data = await response.json();
+      const data: SessionInfo[] = await response.json();
       sessions.value = data
-        .filter((s: any) => s.title !== "__chrome_mcp_warmup__")
-        .map((s: any) => ({
+        .filter((s) => s.title !== "__chrome_mcp_warmup__")
+        .map((s) => ({
           ...s,
           updatedAt: s.time?.updated || Date.now(),
         }));

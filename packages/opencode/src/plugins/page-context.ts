@@ -66,21 +66,21 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
     }
   }
 
-  async function clearSelectedElements(): Promise<void> {
-    try {
-      log.debug("Clearing selected elements", { apiUrl });
-      const response = await fetch(apiUrl, { method: "DELETE" });
-      log.debug("Clear response", { status: response.status });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorName = error instanceof Error ? error.name : "UnknownError";
-      log.error("Failed to clear selected elements", {
-        error: errorMessage,
-        errorType: errorName,
-        apiUrl,
-      });
-    }
-  }
+  // async function clearSelectedElements(): Promise<void> {
+  //   try {
+  //     log.debug("Clearing selected elements", { apiUrl });
+  //     const response = await fetch(apiUrl, { method: "DELETE" });
+  //     log.debug("Clear response", { status: response.status });
+  //   } catch (error) {
+  //     const errorMessage = error instanceof Error ? error.message : String(error);
+  //     const errorName = error instanceof Error ? error.name : "UnknownError";
+  //     log.error("Failed to clear selected elements", {
+  //       error: errorMessage,
+  //       errorType: errorName,
+  //       apiUrl,
+  //     });
+  //   }
+  // }
 
   function formatSelectedElement(element: SelectedElement, index: number): string {
     const parts: string[] = [];

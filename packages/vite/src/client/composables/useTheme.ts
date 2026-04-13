@@ -1,9 +1,13 @@
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import type { OpenCodeWidgetTheme } from "@vite-plugin-opencode-assistant/shared";
 
+interface WidgetRef {
+  sendMessageToIframe: (type: string, data?: Record<string, unknown>) => void;
+}
+
 export function useTheme(
   initialTheme: OpenCodeWidgetTheme,
-  widgetRef: { value: any },
+  widgetRef: { value: WidgetRef | null },
 ) {
   const theme = ref<OpenCodeWidgetTheme>(initialTheme);
 

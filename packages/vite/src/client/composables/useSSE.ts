@@ -1,12 +1,29 @@
 import { ref, onUnmounted } from "vue";
-import type { ServiceStartupTask, ServiceStatus } from "@vite-plugin-opencode-assistant/shared";
+import { ServiceStartupTask } from "@vite-plugin-opencode-assistant/shared";
 
 const MAX_SSE_RETRIES = 10;
 const SSE_RETRY_DELAY = 1000;
 
+interface SSEStatusSyncData {
+  type: "STATUS_SYNC";
+  isStarted?: boolean;
+  task: ServiceStartupTask;
+  sessionUrl?: string;
+  errorType?: string;
+  errorMessage?: string;
+}
+
+interface SSETaskUpdateData {
+  type: "TASK_UPDATE";
+  task: ServiceStartupTask;
+  sessionUrl?: string;
+  errorType?: string;
+  errorMessage?: string;
+}
+
 export function useSSE(
-  onStatusSync: (data: any) => void,
-  onTaskUpdate: (data: any) => void,
+  onStatusSync: (data: SSEStatusSyncData) => void,
+  onTaskUpdate: (data: SSETaskUpdateData) => void,
   onClearElements: () => void,
   onConnected: () => void,
 ) {

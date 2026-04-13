@@ -1,4 +1,4 @@
-import { ref, onMounted, onUnmounted } from "vue";
+import { onMounted, onUnmounted } from "vue";
 import type { OpenCodeSelectedElement, ServiceStatus } from "@vite-plugin-opencode-assistant/shared";
 
 export function useContext(

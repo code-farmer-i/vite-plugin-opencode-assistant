@@ -15,7 +15,6 @@ import { injectWidget } from "./core/injector.js";
 import { OpenCodeAPI } from "./core/api.js";
 import { OpenCodeService } from "./core/service.js";
 import { resolveWidgetPath, resolveWidgetStylePath } from "./utils/paths.js";
-import { findGitRoot } from "./utils/system.js";
 
 export default function opencodePlugin(options: OpenCodeOptions = {}): Plugin[] {
   const plugins: Plugin[] = [];

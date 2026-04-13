@@ -217,19 +217,25 @@ function generateBridgeScript(options: ProxyServerOptions): string {
   }
 
   // === 就绪通知 ===
-  window.addEventListener("load", function() {
+  function init() {
     if (window.parent !== window) {
       window.parent.postMessage({ type: "OPENCODE_READY" }, "*");
     }
     setupThinkingListener();
-  });
-
-  // DOMContentLoaded 后也尝试设置（防止 load 事件已经触发）
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setupThinkingListener();
-  } else {
-    document.addEventListener('DOMContentLoaded', setupThinkingListener);
   }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  window.addEventListener('beforeunload', function() {
+    if (eventSource) {
+      eventSource.close();
+      eventSource = null;
+    }
+  });
 })();
 `;
 }

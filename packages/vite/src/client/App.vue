@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { OpenCodeWidget } from "@vite-plugin-opencode-assistant/components";
-import type { OpenCodeWidgetPosition, OpenCodeWidgetTheme } from "@vite-plugin-opencode-assistant/shared";
+import type { OpenCodeWidgetPosition, OpenCodeWidgetTheme, OpenCodeSelectedElement } from "@vite-plugin-opencode-assistant/shared";
 import type { WidgetOptions } from "@vite-plugin-opencode-assistant/shared";
 
 import { useHotkey } from "./composables/useHotkey";
@@ -39,12 +39,7 @@ const showNotification = (msg: string) => {
   widgetRef.value?.showNotification?.(msg);
 };
 
-const sendMessageToIframe = (type: string, data?: Record<string, unknown>) => {
-  widgetRef.value?.sendMessageToIframe?.(type, data);
-};
-
 const {
-  currentTask,
   serviceStatus,
   chromeMcpFailed,
   chromeMcpErrorType,
@@ -65,7 +60,6 @@ const {
 
 const {
   theme,
-  resolvedTheme,
   sendThemeToIframe,
 } = useTheme(widgetTheme, widgetRef);
 
@@ -91,7 +85,7 @@ const computedLoading = computed(() => {
 
 const retryWarmup = async () => {
   retryingWarmup.value = true;
-  
+
   try {
     const res = await fetch("/__opencode_warmup__", { method: "POST" });
     const data = await res.json();
@@ -166,7 +160,7 @@ useHotkey(hotkey, (e) => {
 
 useHotkey("ctrl+p", (e) => {
   e.preventDefault();
-  const win = window as typeof window & { __VUE_INSPECTOR__?: unknown };
+  const win = window as typeof window & { __VUE_INSPECTOR__?: unknown; };
   if (win.__VUE_INSPECTOR__) {
     selectMode.value = !selectMode.value;
   } else {
@@ -214,7 +208,7 @@ const handleToggle = async (val: boolean) => {
   }
 };
 
-const handleSelectNode = (element: any) => {
+const handleSelectNode = (element: OpenCodeSelectedElement) => {
   const added = addElement(element);
   if (added) {
     showNotification(`已选中元素 (${selectedElements.value.length}个)`);
@@ -245,7 +239,7 @@ const handleThemeChange = (val: OpenCodeWidgetTheme) => {
   theme.value = val;
 };
 
-const handleRemoveSelectedNode = ({ index }: { index: number }) => {
+const handleRemoveSelectedNode = ({ index }: { index: number; }) => {
   removeElement(index);
   updateContext(true);
 };
@@ -261,22 +255,22 @@ const handleFrameLoaded = () => {
     :position="widgetPosition"
     :theme="theme"
     :open="open"
-    :selectMode="selectMode"
-    :sessionListCollapsed="sessionListCollapsed"
-    :frameLoading="computedLoading"
-    :loadingSessionList="loadingSessionList"
-    :showSessionListSkeleton="showSessionListSkeleton"
-    :showError="chromeMcpFailed"
-    :iframeSrc="iframeSrc"
-    :currentSessionId="currentSessionId"
+    :select-mode="selectMode"
+    :session-list-collapsed="sessionListCollapsed"
+    :frame-loading="computedLoading"
+    :loading-session-list="loadingSessionList"
+    :show-session-list-skeleton="showSessionListSkeleton"
+    :show-error="chromeMcpFailed"
+    :iframe-src="iframeSrc"
+    :current-session-id="currentSessionId"
     :sessions="sessions"
-    sessionKey="id"
-    :selectedElements="selectedElements"
-    :hotkeyLabel="hotkey"
+    session-key="id"
+    :selected-elements="selectedElements"
+    :hotkey-label="hotkey"
     :thinking="thinking"
     @update:open="handleToggle"
-    @update:selectMode="handleSelectModeChange"
-    @update:sessionListCollapsed="handleSessionListCollapsedChange"
+    @update:select-mode="handleSelectModeChange"
+    @update:session-list-collapsed="handleSessionListCollapsedChange"
     @update:theme="handleThemeChange"
     @toggle-theme="handleThemeChange"
     @create-session="createSession"
@@ -289,14 +283,14 @@ const handleFrameLoaded = () => {
     @frame-loaded="handleFrameLoaded"
   >
     <template #loading>
-      <LoadingContent :loadingText="loadingText" />
+      <LoadingContent :loading-text="loadingText" />
     </template>
     <template #error>
       <ChromeWarmupError
         v-if="chromeMcpFailed"
         :retrying="retryingWarmup"
-        :errorType="chromeMcpErrorType"
-        :errorMessage="chromeMcpErrorMessage"
+        :error-type="chromeMcpErrorType"
+        :error-message="chromeMcpErrorMessage"
         @retry="retryWarmup"
       />
     </template>

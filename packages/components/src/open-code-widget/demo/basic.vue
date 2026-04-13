@@ -120,10 +120,6 @@ const handleToggleThinking = () => {
   thinking.value = !thinking.value;
 };
 
-const handleToggleSessionList = () => {
-  sessionListCollapsed.value = !sessionListCollapsed.value;
-};
-
 // 监听主题变化
 watch(theme, (newVal) => {
   console.log("主题切换为:", newVal);
