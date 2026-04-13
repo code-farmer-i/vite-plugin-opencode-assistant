@@ -29,7 +29,6 @@ export default defineConfig({
             ...opencode({
               // warmupChromeMcp: false,
               // verbose: true,
-              // 1
             }),
           );
           return config;

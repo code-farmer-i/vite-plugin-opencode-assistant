@@ -4,20 +4,9 @@
  */
 
 import type { Plugin, Hooks } from "@opencode-ai/plugin";
-import {
-  createLogger,
-  MAX_TEXT_LENGTH,
-  CONTEXT_MARKER,
-  type SelectedElement,
-} from "@vite-plugin-opencode-assistant/shared";
+import { createLogger } from "@vite-plugin-opencode-assistant/shared";
 
 const log = createLogger("OpenCodePluginPageContext");
-
-interface PageContextData {
-  url: string;
-  title: string;
-  selectedElements?: SelectedElement[];
-}
 
 export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
   log.info("PageContextPlugin loading...");
@@ -30,109 +19,7 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
     return {};
   }
 
-  const apiUrl = contextApiUrl as string;
   log.info("Plugin initialized successfully");
-
-  async function getPageContext(): Promise<PageContextData | null> {
-    try {
-      log.debug("Fetching context...", { apiUrl });
-      const response = await fetch(apiUrl);
-
-      if (!response.ok) {
-        log.error("Context API returned error status", {
-          status: response.status,
-          statusText: response.statusText,
-          apiUrl,
-        });
-        return null;
-      }
-
-      const data = (await response.json()) as PageContextData;
-      log.debug("Context received", { url: data.url, title: data.title });
-      return {
-        url: data.url || "",
-        title: data.title || "",
-        selectedElements: data.selectedElements,
-      };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const errorName = error instanceof Error ? error.name : "UnknownError";
-      log.error("Failed to get context", {
-        error: errorMessage,
-        errorType: errorName,
-        apiUrl,
-      });
-      return null;
-    }
-  }
-
-  // async function clearSelectedElements(): Promise<void> {
-  //   try {
-  //     log.debug("Clearing selected elements", { apiUrl });
-  //     const response = await fetch(apiUrl, { method: "DELETE" });
-  //     log.debug("Clear response", { status: response.status });
-  //   } catch (error) {
-  //     const errorMessage = error instanceof Error ? error.message : String(error);
-  //     const errorName = error instanceof Error ? error.name : "UnknownError";
-  //     log.error("Failed to clear selected elements", {
-  //       error: errorMessage,
-  //       errorType: errorName,
-  //       apiUrl,
-  //     });
-  //   }
-  // }
-
-  function formatSelectedElement(element: SelectedElement, index: number): string {
-    const parts: string[] = [];
-
-    parts.push(`### 用户选中节点 ${index + 1}`);
-
-    if (element.filePath) {
-      const isNodeModule = element.filePath.includes("node_modules");
-
-      if (isNodeModule) {
-        // node_modules 中的元素：提供选择器信息，引导使用 Chrome MCP
-        parts.push(`- **元素选择器**: \`${element.description}\``);
-        if (element.innerText?.trim()) {
-          const text = element.innerText.trim().substring(0, 100);
-          parts.push(`- **节点文本**: \`${text}${element.innerText.length > 100 ? "..." : ""}\``);
-        }
-      } else {
-        // 项目内元素：显示源码位置
-        let location = element.filePath;
-        if (element.line) {
-          location += `:${element.line}`;
-          if (element.column) {
-            location += `:${element.column}`;
-          }
-        }
-        parts.push(`- **文件位置**: \`${location}\``);
-        if (element.innerText?.trim()) {
-          const text = element.innerText.trim().substring(0, MAX_TEXT_LENGTH);
-          const suffix = element.innerText.length > MAX_TEXT_LENGTH ? "\n... (已省略部分内容)" : "";
-          parts.push(`- **节点文本**:\n\`\`\`text\n${text}${suffix}\n\`\`\``);
-        }
-      }
-    }
-
-    return parts.join("\n") + "\n";
-  }
-
-  function buildContextPrefix(context: PageContextData): string {
-    const pageLink = context.title ? `[${context.title}](${context.url})` : context.url;
-    let prefix = `【系统提示：以下是用户当前正在浏览的页面上下文，请将其作为最高优先级的背景信息来理解和响应用户的请求。】\n\n`;
-    prefix += `用户现在正在浏览项目中的这个页面：${pageLink}\n\n`;
-
-    if (context.selectedElements?.length) {
-      prefix += `用户选中了以下节点：\n\n`;
-      context.selectedElements.forEach((element, index) => {
-        prefix += formatSelectedElement(element, index) + "\n";
-      });
-    }
-
-    prefix += `---\n**用户的请求**：\n\n`;
-    return prefix;
-  }
 
   return {
     "experimental.chat.system.transform": async (_input, output) => {
@@ -165,11 +52,11 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 
 当用户与你对话时，系统会自动收集并注入以下页面上下文信息：
 
-1. **页面信息**：用户当前浏览的页面 URL 和标题
-2. **选中元素**：用户在页面上选中的 DOM 元素信息，包括：
-   - 元素的选择器
-   - 元素的文本内容
-   - 源码文件路径（如果有）
+**选中元素**：用户在页面上选中的 DOM 元素信息，包括：
+  - 元素的预览页面 URL 和标题
+  - 元素的选择器
+  - 元素的文本内容
+  - 源码文件路径
 
 这些信息由 Vite 插件通过内部 API 收集，并在用户发送消息时自动附加到消息前缀中。
 
@@ -187,27 +74,6 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 `.trim();
 
       output.system.push(systemPrompt);
-    },
-    "experimental.chat.messages.transform": async (_input, output) => {
-      log.debug("Message transform hook called");
-      const context = await getPageContext();
-      log.debug("Context data", {
-        hasUrl: !!context?.url,
-        hasElements: !!context?.selectedElements?.length,
-      });
-
-      if (!context?.url) return;
-
-      const lastUserMsg = [...output.messages].reverse().find((m) => m.info.role === "user");
-      if (!lastUserMsg) return;
-
-      const textPart = lastUserMsg.parts.find((p) => p.type === "text");
-      if (!textPart || !("text" in textPart)) return;
-
-      if (textPart.text.includes(CONTEXT_MARKER)) return;
-
-      const prefix = buildContextPrefix(context);
-      textPart.text = prefix + textPart.text;
     },
   };
 };

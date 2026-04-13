@@ -184,6 +184,8 @@ export class OpenCodeAPI {
             {
               name?: string;
               cost?: { input: number; output: number };
+              // xxxx-xx-xx
+              release_date: string;
             }
           >;
         }>;
@@ -202,11 +204,14 @@ export class OpenCodeAPI {
         modelID: string;
         name?: string;
         inputCost: number;
+        releaseDate: string;
       }
 
       const allModels: ModelInfo[] = [];
 
       for (const provider of response.all) {
+        if (provider.id === "opencode") continue;
+
         if (!connectedProviders.has(provider.id)) {
           log.debug("Skipping not connected provider", { providerID: provider.id });
           continue;
@@ -218,6 +223,7 @@ export class OpenCodeAPI {
             modelID,
             name: model.name,
             inputCost: model.cost?.input ?? 0,
+            releaseDate: model.release_date,
           });
         }
       }
@@ -242,6 +248,7 @@ export class OpenCodeAPI {
         modelID: availableModel.modelID,
         name: availableModel.name,
         inputCost: availableModel.inputCost,
+        releaseDate: availableModel.releaseDate,
         totalModels: allModels.length,
         failedModels: this.failedFreeModels.size,
         connectedProviders: response.connected,
@@ -361,19 +368,6 @@ export class OpenCodeAPI {
       );
       warmupSessionId = warmupSession.id;
 
-      const prompt = [
-        "Call the browser tool list_pages immediately to establish the Chrome DevTools MCP connection.",
-        viteOrigin
-          ? `If there are no pages, call new_page with ${viteOrigin}.`
-          : "If there are no pages, call new_page with about:blank.",
-        "Do not read or modify project files.",
-        "Do not use any non-browser tools.",
-        "After the tool call is complete, reply with exactly: ready",
-        "If the tool call fails, reply with exactly: fail",
-      ].join(" ");
-
-      const WARMUP_TIMEOUT = 60000;
-
       freeModel = await this.getCheapestModel();
       if (freeModel) {
         log.debug("Using cheapest model for warmup", {
@@ -384,6 +378,8 @@ export class OpenCodeAPI {
         log.debug("No model available, using default model");
       }
 
+      const WARMUP_TIMEOUT = 60000;
+
       const data = await this.createHttpRequest<unknown>(
         {
           hostname: this.hostname,
@@ -393,9 +389,12 @@ export class OpenCodeAPI {
           headers: { "Content-Type": "application/json" },
         },
         JSON.stringify({
-          system:
-            "You are warming up Chrome DevTools MCP during startup. You must use the available browser tools immediately before replying.",
-          parts: [{ type: "text", text: prompt }],
+          parts: [
+            {
+              type: "text",
+              text: "Test if the chrome-devtools_list_pages tool is available. If available, reply with: ready. If not available, explain why.",
+            },
+          ],
           ...(freeModel && {
             model: {
               providerID: freeModel.providerID,
@@ -418,14 +417,6 @@ export class OpenCodeAPI {
 
       const lowerResponse = responseText.toLowerCase();
 
-      if (lowerResponse.includes("fail")) {
-        throw new ChromeMcpWarmupError(
-          ChromeMcpWarmupErrorType.CHROME_NOT_CONNECTED,
-          "Chrome DevTools MCP is not connected",
-          "AI reported that browser tools are not available. This should not happen if Chrome DevTools check passed.",
-        );
-      }
-
       if (!lowerResponse.includes("ready")) {
         throw new ChromeMcpWarmupError(
           ChromeMcpWarmupErrorType.AI_RESPONSE_ERROR,
@@ -443,6 +434,9 @@ export class OpenCodeAPI {
         log.warn(`Chrome MCP warmup failed: ${e.type}`, {
           message: e.message,
           details: e.details,
+          ...(freeModel && {
+            model: `${freeModel.providerID}/${freeModel.modelID}`,
+          }),
         });
         timer.end(`Chrome MCP warmup failed: ${e.type}`);
         throw e;
@@ -465,7 +459,12 @@ export class OpenCodeAPI {
           "AI response timeout",
           "AI did not respond within 30 seconds. Please check if the OpenCode AI model is properly configured and available.",
         );
-        log.warn("Chrome MCP warmup timeout", { error: errorMessage });
+        log.warn("Chrome MCP warmup timeout", {
+          error: errorMessage,
+          ...(freeModel && {
+            model: `${freeModel.providerID}/${freeModel.modelID}`,
+          }),
+        });
         timer.end("Chrome MCP warmup timeout");
         throw error;
       }
@@ -475,7 +474,12 @@ export class OpenCodeAPI {
         "Unknown error during Chrome MCP warmup",
         errorMessage,
       );
-      log.warn("Chrome MCP warmup failed with unknown error", { error: errorMessage });
+      log.warn("Chrome MCP warmup failed with unknown error", {
+        error: errorMessage,
+        ...(freeModel && {
+          model: `${freeModel.providerID}/${freeModel.modelID}`,
+        }),
+      });
       timer.end("Chrome MCP warmup failed");
       throw error;
     } finally {
@@ -549,19 +553,6 @@ export class OpenCodeAPI {
       );
       warmupSessionId = warmupSession.id;
 
-      const prompt = [
-        "Call the browser tool list_pages immediately to establish the Chrome DevTools MCP connection.",
-        viteOrigin
-          ? `If there are no pages, call new_page with ${viteOrigin}.`
-          : "If there are no pages, call new_page with about:blank.",
-        "Do not read or modify project files.",
-        "Do not use any non-browser tools.",
-        "After the tool call is complete, reply with exactly: ready",
-        "If the tool call fails, reply with exactly: fail",
-      ].join(" ");
-
-      const WARMUP_TIMEOUT = 60000;
-
       freeModel = await this.getCheapestModel();
       if (freeModel) {
         log.debug("Using cheapest model for retry warmup", {
@@ -572,6 +563,8 @@ export class OpenCodeAPI {
         log.debug("No model available for retry, using default model");
       }
 
+      const WARMUP_TIMEOUT = 60000;
+
       const data = await this.createHttpRequest<unknown>(
         {
           hostname: this.hostname,
@@ -581,9 +574,12 @@ export class OpenCodeAPI {
           headers: { "Content-Type": "application/json" },
         },
         JSON.stringify({
-          system:
-            "You are warming up Chrome DevTools MCP during startup. You must use the available browser tools immediately before replying.",
-          parts: [{ type: "text", text: prompt }],
+          parts: [
+            {
+              type: "text",
+              text: "Test if the chrome-devtools_list_pages tool is available. If available, reply with: ready. If not available, explain why.",
+            },
+          ],
           ...(freeModel && {
             model: {
               providerID: freeModel.providerID,
@@ -607,14 +603,6 @@ export class OpenCodeAPI {
 
       const lowerResponse = responseText.toLowerCase();
 
-      if (lowerResponse.includes("fail")) {
-        throw new ChromeMcpWarmupError(
-          ChromeMcpWarmupErrorType.CHROME_NOT_CONNECTED,
-          "Chrome DevTools MCP is not connected",
-          "AI reported that browser tools are not available. This should not happen if Chrome DevTools check passed.",
-        );
-      }
-
       if (!lowerResponse.includes("ready")) {
         throw new ChromeMcpWarmupError(
           ChromeMcpWarmupErrorType.AI_RESPONSE_ERROR,
@@ -633,6 +621,9 @@ export class OpenCodeAPI {
         log.warn(`Chrome MCP warmup retry failed: ${e.type}`, {
           message: e.message,
           details: e.details,
+          ...(freeModel && {
+            model: `${freeModel.providerID}/${freeModel.modelID}`,
+          }),
         });
         timer.end(`Chrome MCP warmup retry failed: ${e.type}`);
         return { success: false, error: e };
@@ -655,7 +646,12 @@ export class OpenCodeAPI {
           "AI response timeout",
           "AI did not respond within 60 seconds. Please check if the OpenCode AI model is properly configured and available.",
         );
-        log.warn("Chrome MCP warmup retry timeout", { error: errorMessage });
+        log.warn("Chrome MCP warmup retry timeout", {
+          error: errorMessage,
+          ...(freeModel && {
+            model: `${freeModel.providerID}/${freeModel.modelID}`,
+          }),
+        });
         timer.end("Chrome MCP warmup retry timeout");
         return { success: false, error };
       }
@@ -665,7 +661,12 @@ export class OpenCodeAPI {
         "Unknown error during Chrome MCP warmup retry",
         errorMessage,
       );
-      log.warn("Chrome MCP warmup retry failed with unknown error", { error: errorMessage });
+      log.warn("Chrome MCP warmup retry failed with unknown error", {
+        error: errorMessage,
+        ...(freeModel && {
+          model: `${freeModel.providerID}/${freeModel.modelID}`,
+        }),
+      });
       timer.end("Chrome MCP warmup retry failed");
       return { success: false, error };
     } finally {

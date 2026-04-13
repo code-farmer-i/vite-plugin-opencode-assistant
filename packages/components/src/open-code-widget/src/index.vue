@@ -49,11 +49,14 @@ const slots = useSlots();
 // Notification state
 const notificationMessage = ref("");
 const notificationVisible = ref(false);
+const notificationMode = ref<"widget" | "page">("widget");
 let notificationTimer: ReturnType<typeof setTimeout> | null = null;
 
-const showNotification = (message: string, duration = 3000) => {
+const showNotification = (message: string, options?: { duration?: number; mode?: "widget" | "page"; }) => {
+  const { duration = 3000, mode = "widget" } = options || {};
   notificationMessage.value = message;
   notificationVisible.value = true;
+  notificationMode.value = mode;
   if (notificationTimer) clearTimeout(notificationTimer);
   notificationTimer = setTimeout(() => {
     notificationVisible.value = false;
@@ -250,30 +253,50 @@ provideOpenCodeWidgetContext({
 <template>
   <div :class="containerClasses">
     <Trigger>
-      <template v-if="slots['button-icon']" #default>
+      <template
+        v-if="slots['button-icon']"
+        #default
+      >
         <slot name="button-icon" />
       </template>
     </Trigger>
 
-    <SelectedBubbles v-if="bubbleVisible" />
+    <!-- <SelectedBubbles v-if="bubbleVisible" /> -->
 
-    <div v-show="!selectMode" class="opencode-chat" :class="{ open }">
+    <div
+      v-show="!selectMode"
+      class="opencode-chat"
+      :class="{ open }"
+    >
       <Header>
-        <template v-if="slots['session-toggle-icon']" #session-toggle-icon>
+        <template
+          v-if="slots['session-toggle-icon']"
+          #session-toggle-icon
+        >
           <slot name="session-toggle-icon" />
         </template>
 
-        <template v-if="slots['select-icon']" #select-icon>
+        <template
+          v-if="slots['select-icon']"
+          #select-icon
+        >
           <slot name="select-icon" />
         </template>
 
-        <template v-if="slots['close-icon']" #close-icon>
+        <template
+          v-if="slots['close-icon']"
+          #close-icon
+        >
           <slot name="close-icon" />
         </template>
       </Header>
 
       <!-- Notification -->
-      <div v-if="notificationVisible" class="opencode-notification" role="alert">
+      <div
+        v-if="notificationVisible && notificationMode === 'widget'"
+        class="opencode-notification"
+        role="alert"
+      >
         {{ notificationMessage }}
       </div>
 
@@ -287,19 +310,31 @@ provideOpenCodeWidgetContext({
         </SessionList>
 
         <Frame ref="frameRef">
-          <template v-if="slots['empty-state']" #empty-state>
+          <template
+            v-if="slots['empty-state']"
+            #empty-state
+          >
             <slot name="empty-state" />
           </template>
 
-          <template v-if="slots.loading" #loading>
+          <template
+            v-if="slots.loading"
+            #loading
+          >
             <slot name="loading" />
           </template>
 
-          <template v-if="slots.error" #error>
+          <template
+            v-if="slots.error"
+            #error
+          >
             <slot name="error" />
           </template>
 
-          <template v-if="slots.content" #content>
+          <template
+            v-if="slots.content"
+            #content
+          >
             <slot name="content" />
           </template>
         </Frame>
@@ -338,17 +373,41 @@ provideOpenCodeWidgetContext({
     </div>
 
     <!-- Dialog -->
-    <div v-if="dialogVisible" class="opencode-dialog-overlay">
-      <div class="opencode-dialog" role="alertdialog" aria-modal="true">
+    <div
+      v-if="dialogVisible"
+      class="opencode-dialog-overlay"
+    >
+      <div
+        class="opencode-dialog"
+        role="alertdialog"
+        aria-modal="true"
+      >
         <div class="opencode-dialog-content">
           <div class="opencode-dialog-message">{{ dialogMessage }}</div>
         </div>
         <div class="opencode-dialog-actions">
-          <button class="opencode-dialog-btn cancel" @click="handleDialogCancel">取消</button>
-          <button class="opencode-dialog-btn confirm" @click="handleDialogConfirm">确认</button>
+          <button
+            class="opencode-dialog-btn cancel"
+            @click="handleDialogCancel"
+          >取消</button>
+          <button
+            class="opencode-dialog-btn confirm"
+            @click="handleDialogConfirm"
+          >确认</button>
         </div>
       </div>
     </div>
+
+    <!-- Page-level Notification -->
+    <Teleport to="body">
+      <div
+        v-if="notificationVisible && notificationMode === 'page'"
+        class="opencode-page-notification"
+        role="alert"
+      >
+        {{ notificationMessage }}
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -692,6 +751,33 @@ provideOpenCodeWidgetContext({
     transform: translateX(-50%) translateY(0px);
     opacity: 1;
   }
+}
+
+.opencode-page-notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow:
+    0 4px 16px rgba(59, 130, 246, 0.4),
+    0 0 0 2px rgba(59, 130, 246, 0.2);
+  animation: slideDown 0.3s ease;
+  z-index: 2147483647;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.opencode-page-notification::before {
+  content: "💡";
+  font-size: 16px;
 }
 
 .opencode-element-highlight {

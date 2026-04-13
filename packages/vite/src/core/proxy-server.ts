@@ -112,7 +112,136 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     if (event.data && event.data.type === "OPENCODE_SET_THEME") {
       setTheme(event.data.theme);
     }
+    
+    if (event.data && event.data.type === "OPENCODE_INSERT_FILE_PART") {
+      insertFilePart(event.data.element);
+    }
   });
+
+  // === 保存输入框光标位置 ===
+  let savedRange = null;
+  
+  function setupPromptInputListener() {
+    const promptInput = document.querySelector('[data-component="prompt-input"]');
+    if (!promptInput) return;
+    
+    promptInput.addEventListener('blur', function() {
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        const range = selection.getRangeAt(0);
+        if (promptInput.contains(range.commonAncestorContainer)) {
+          savedRange = range.cloneRange();
+        }
+      }
+    });
+    
+    promptInput.addEventListener('focus', function() {
+      savedRange = null;
+    });
+  }
+
+  // === 插入 File Part 到输入框 ===
+  function insertFilePart(element) {
+    const promptInput = document.querySelector('[data-component="prompt-input"]');
+    if (!promptInput) {
+      console.warn('[OpenCode Bridge] Prompt input not found');
+      return;
+    }
+
+    const { filePath, line, column, description, innerText, previewPageUrl, previewPageTitle } = element;
+
+    const selector = description || 'element';
+    let textPreview = '';
+    if (innerText && innerText.trim()) {
+      const trimmed = innerText.trim();
+      textPreview = trimmed.length > 5 ? trimmed.substring(0, 5) + '...' : trimmed;
+    }
+    const displayText = '@' + selector + (textPreview ? '(' + textPreview + ')' : '');
+
+    const jsonStr = JSON.stringify({
+      pageContext: {
+        url: previewPageUrl || '',
+        title: previewPageTitle || '',
+      },
+      nodeContext: {
+        filePath,
+        line,
+        column,
+        description,
+        innerText: innerText ? innerText.substring(0, 500) : ''
+      }
+    });
+
+    const span = document.createElement('span');
+    span.setAttribute('data-type', 'file');
+    span.setAttribute('data-path', jsonStr);
+    span.setAttribute('contenteditable', 'false');
+    
+    span.textContent = displayText;
+
+    if (savedRange) {
+      const range = savedRange;
+      range.collapse(false);
+      range.insertNode(span);
+      
+      const space = document.createTextNode('\\u00A0');
+      span.parentNode.insertBefore(space, span.nextSibling);
+      
+      const newRange = document.createRange();
+      newRange.setStartAfter(space);
+      newRange.collapse(true);
+      
+      promptInput.focus();
+      
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+      }
+      savedRange = null;
+      
+      promptInput.dispatchEvent(new Event('input', { bubbles: true }));
+      return;
+    }
+
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      
+      if (promptInput.contains(range.commonAncestorContainer)) {
+        range.collapse(false);
+        range.insertNode(span);
+        
+        const space = document.createTextNode('\\u00A0');
+        span.parentNode.insertBefore(space, span.nextSibling);
+        
+        const newRange = document.createRange();
+        newRange.setStartAfter(space);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        
+        promptInput.dispatchEvent(new Event('input', { bubbles: true }));
+        return;
+      }
+    }
+
+    promptInput.appendChild(span);
+    const space = document.createTextNode('\\u00A0');
+    promptInput.appendChild(space);
+    
+    const newRange = document.createRange();
+    newRange.setStartAfter(space);
+    newRange.collapse(true);
+    const newSelection = window.getSelection();
+    if (newSelection) {
+      newSelection.removeAllRanges();
+      newSelection.addRange(newRange);
+    }
+    
+    promptInput.dispatchEvent(new Event('input', { bubbles: true }));
+    promptInput.focus();
+  }
 
   // === 思考状态监听 (完全复刻 OpenCode Web 实现) ===
   // OpenCode Web 核心逻辑:
@@ -222,6 +351,16 @@ function generateBridgeScript(options: ProxyServerOptions): string {
       window.parent.postMessage({ type: "OPENCODE_READY" }, "*");
     }
     setupThinkingListener();
+    setupPromptInputListener();
+    
+    const observer = new MutationObserver(function(mutations) {
+      const promptInput = document.querySelector('[data-component="prompt-input"]');
+      if (promptInput && !promptInput._opencodeListenerAttached) {
+        setupPromptInputListener();
+        promptInput._opencodeListenerAttached = true;
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
   }
 
   if (document.readyState === 'loading') {

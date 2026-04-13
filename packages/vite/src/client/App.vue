@@ -35,8 +35,8 @@ const {
 const widgetPosition = position as OpenCodeWidgetPosition;
 const widgetTheme = initialTheme as OpenCodeWidgetTheme;
 
-const showNotification = (msg: string) => {
-  widgetRef.value?.showNotification?.(msg);
+const showNotification = (msg: string, options?: { duration?: number; mode?: "widget" | "page"; }) => {
+  widgetRef.value?.showNotification?.(msg, options);
 };
 
 const {
@@ -53,7 +53,6 @@ const {
 
 const {
   selectedElements,
-  addElement,
   removeElement,
   clearElements,
 } = useSelectedElements();
@@ -202,13 +201,22 @@ const handleToggle = async (val: boolean) => {
 };
 
 const handleSelectNode = (element: OpenCodeSelectedElement) => {
-  const added = addElement(element);
-  if (added) {
-    showNotification(`已选中元素 (${selectedElements.value.length}个)`);
-    updateContext(true);
-  } else {
-    showNotification("该元素已选中");
-  }
+  const elementWithContext = {
+    ...element,
+    previewPageUrl: window.location.href,
+    previewPageTitle: document.title,
+  };
+  widgetRef.value?.sendMessageToIframe("OPENCODE_INSERT_FILE_PART", { element: elementWithContext });
+
+  showNotification(`节点已添加到对话框`, { mode: 'page' });
+
+  // const added = addElement(element);
+  // if (added) {
+  //   showNotification(`已选中元素 (${selectedElements.value.length}个)`);
+  //   updateContext(true);
+  // } else {
+  //   showNotification("该元素已选中");
+  // }
 };
 
 const handleClearSelected = () => {
@@ -258,7 +266,6 @@ const handleFrameLoaded = () => {
     :current-session-id="currentSessionId"
     :sessions="sessions"
     session-key="id"
-    :selected-elements="selectedElements"
     :hotkey-label="hotkey"
     :thinking="thinking"
     @update:open="handleToggle"
