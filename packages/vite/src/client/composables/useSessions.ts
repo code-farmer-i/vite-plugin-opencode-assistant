@@ -1,23 +1,23 @@
-import { ref } from "vue";
+import { ref, computed } from "vue";
+import { SESSIONS_API_PATH } from "@vite-plugin-opencode-assistant/shared";
 import type { OpenCodeWidgetSession, SessionInfo } from "@vite-plugin-opencode-assistant/shared";
-
-export function extractSessionId(url: string) {
-  if (!url) return null;
-  const match = url.match(/\/session\/([^/?]+)/);
-  return match ? match[1] : null;
-}
 
 export function useSessions(showNotification: (msg: string) => void) {
   const sessions = ref<OpenCodeWidgetSession[]>([]);
   const loadingSessionList = ref<boolean | undefined>(undefined);
   const currentSessionId = ref<string | null>(null);
-  const iframeSrc = ref("");
   const iframeLoading = ref(false);
+
+  const iframeSrc = computed(() => {
+    return currentSessionId.value
+      ? sessions.value.find((s) => s.id === currentSessionId.value)?.url || ""
+      : "";
+  });
 
   const loadSessions = async () => {
     loadingSessionList.value = true;
     try {
-      const response = await fetch("/__opencode_sessions__");
+      const response = await fetch(SESSIONS_API_PATH);
       const data: SessionInfo[] = await response.json();
       sessions.value = data
         .filter((s) => s.title !== "__chrome_mcp_warmup__")
@@ -25,6 +25,11 @@ export function useSessions(showNotification: (msg: string) => void) {
           ...s,
           updatedAt: s.time?.updated || Date.now(),
         }));
+
+      if (!sessions.value.length) {
+        createSession();
+      }
+      currentSessionId.value = sessions.value[0]?.id || null;
     } catch (e) {
       console.error("[OpenCode] Failed to load sessions:", e);
     } finally {
@@ -34,7 +39,7 @@ export function useSessions(showNotification: (msg: string) => void) {
 
   const createSession = async () => {
     try {
-      const response = await fetch("/__opencode_sessions__", { method: "POST" });
+      const response = await fetch(SESSIONS_API_PATH, { method: "POST" });
       const newSession = await response.json();
       sessions.value.unshift({
         id: newSession.id,
@@ -44,7 +49,6 @@ export function useSessions(showNotification: (msg: string) => void) {
       });
       currentSessionId.value = newSession.id;
       iframeLoading.value = true;
-      iframeSrc.value = newSession.url;
       loadSessions();
     } catch {
       showNotification("创建会话失败");
@@ -53,7 +57,7 @@ export function useSessions(showNotification: (msg: string) => void) {
 
   const deleteSession = async (session: OpenCodeWidgetSession) => {
     try {
-      await fetch(`/__opencode_sessions__?id=${session.id}`, { method: "DELETE" });
+      await fetch(`${SESSIONS_API_PATH}?id=${session.id}`, { method: "DELETE" });
       await loadSessions();
       showNotification("会话已删除");
       if (currentSessionId.value === session.id) {
@@ -61,10 +65,8 @@ export function useSessions(showNotification: (msg: string) => void) {
           const nextSession = sessions.value[0];
           currentSessionId.value = nextSession.id;
           iframeLoading.value = true;
-          iframeSrc.value = nextSession.url || "";
         } else {
           currentSessionId.value = null;
-          iframeSrc.value = "";
         }
       }
     } catch {
@@ -76,14 +78,6 @@ export function useSessions(showNotification: (msg: string) => void) {
     if (currentSessionId.value === session.id) return;
     currentSessionId.value = session.id;
     iframeLoading.value = true;
-    iframeSrc.value = session.url || "";
-  };
-
-  const setSessionUrl = (url: string) => {
-    if (!iframeSrc.value && url) {
-      iframeSrc.value = url;
-      currentSessionId.value = extractSessionId(url);
-    }
   };
 
   return {
@@ -96,6 +90,5 @@ export function useSessions(showNotification: (msg: string) => void) {
     createSession,
     deleteSession,
     selectSession,
-    setSessionUrl,
   };
 }

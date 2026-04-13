@@ -32,10 +32,7 @@ export function setupSseEndpoint(server: ViteDevServer, ctx: EndpointContext) {
         Object.assign(statusPayload, ctx.currentTask.data);
       }
     }
-    // 如果有 sessionUrl，也一并同步
-    if (ctx.sessionUrl) {
-      statusPayload.sessionUrl = ctx.sessionUrl;
-    }
+
     res.write(`data: ${JSON.stringify(statusPayload)}\n\n`);
 
     req.on("close", () => {

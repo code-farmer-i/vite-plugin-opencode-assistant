@@ -45,7 +45,12 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
 
   const sseClients: Set<http.ServerResponse> = new Set();
 
-  const api = new OpenCodeAPI(config.hostname, () => actualWebPort, () => actualProxyPort, config.warmupChromeMcp);
+  const api = new OpenCodeAPI(
+    config.hostname,
+    () => actualWebPort,
+    () => actualProxyPort,
+    config.warmupChromeMcp,
+  );
   const service = new OpenCodeService(
     config,
     api,
@@ -73,9 +78,6 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
       const getViteOrigin = () => viteOrigin;
 
       setupMiddlewares(server, {
-        get sessionUrl() {
-          return service.sessionUrl;
-        },
         get webUrl() {
           return actualWebPort ? `http://${config.hostname}:${actualWebPort}` : null;
         },

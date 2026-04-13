@@ -148,8 +148,6 @@ export interface WidgetOptions {
   theme: string;
   /** 是否自动打开 */
   open: boolean;
-  /** 会话 URL */
-  sessionUrl?: string;
   /** 快捷键配置 */
   hotkey?: string;
 }

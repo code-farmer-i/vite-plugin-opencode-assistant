@@ -73,7 +73,6 @@ const {
   createSession,
   deleteSession,
   selectSession,
-  setSessionUrl,
 } = useSessions(showNotification);
 
 const { updateContext } = useContext(serviceStatus, selectedElements);
@@ -118,20 +117,14 @@ const { setupSSE } = useSSE(
       setStarting();
     }
     if (data.task) {
-      updateStatusFromTask(data.task, data.sessionUrl, data.errorType, data.errorMessage);
-      if (data.sessionUrl) {
-        setSessionUrl(data.sessionUrl);
-      }
+      updateStatusFromTask(data.task, data.errorType, data.errorMessage);
     }
     if (serviceStatus.value !== "idle") {
       loadSessions();
     }
   },
   (data) => {
-    updateStatusFromTask(data.task, data.sessionUrl, data.errorType, data.errorMessage);
-    if (data.sessionUrl) {
-      setSessionUrl(data.sessionUrl);
-    }
+    updateStatusFromTask(data.task, data.errorType, data.errorMessage);
   },
   () => clearElements(),
   () => updateContext(true),

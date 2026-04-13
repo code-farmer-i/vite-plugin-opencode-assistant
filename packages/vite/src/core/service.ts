@@ -27,7 +27,6 @@ export class OpenCodeService {
   public actualProxyPort: number;
   public isStarted = false;
   private startPromise: Promise<void> | null = null;
-  public sessionUrl: string | null = null;
   private proxyServer: http.Server | null = null;
   public chromeMcpWarmupFailed = false;
   public chromeMcpWarmupErrorType: ChromeMcpWarmupErrorType | null = null;
@@ -226,7 +225,7 @@ Please install OpenCode first:
         log.warn("Chrome MCP warmup failed", { error: e });
         this.chromeMcpWarmupFailed = true;
         warmupFailed = true;
-        
+
         // 保存错误类型和错误信息
         if (e instanceof ChromeMcpWarmupError) {
           this.chromeMcpWarmupErrorType = e.type;
@@ -238,50 +237,32 @@ Please install OpenCode first:
       }
 
       this.sendTaskUpdate("creating_session");
-      let sessionFailed = false;
-      try {
-        this.sessionUrl = await this.api.getOrCreateSession(this.workspaceRoot!);
-        timer.checkpoint("Session created");
-        log.debug(`Session URL: ${this.sessionUrl}`);
-      } catch (e) {
-        log.warn("Failed to get/create session", { error: e });
-        sessionFailed = true;
-      }
 
-      if (sessionFailed) {
-        this.sendTaskUpdate("session_creation_failed");
-        this.isStarted = false;
-        this.startPromise = null; // 清理启动 Promise，允许重试
-      } else if (warmupFailed) {
-        this.sendTaskUpdate("chrome_mcp_failed", { 
-          sessionUrl: this.sessionUrl,
+      if (warmupFailed) {
+        this.sendTaskUpdate("chrome_mcp_failed", {
           errorType: this.chromeMcpWarmupErrorType,
           errorMessage: this.chromeMcpWarmupErrorMessage,
-        }); // 传递 sessionUrl 让客户端可用
+        });
         this.isStarted = true;
       } else {
-        this.sendTaskUpdate("ready", { sessionUrl: this.sessionUrl });
+        this.sendTaskUpdate("ready");
       }
-      if (!sessionFailed) {
-        this.isStarted = true;
-      } else {
-        this.sessionUrl = null; // 失败时清理 sessionUrl
-      }
-      log.debug(`OpenCode services started successfully: ${this.sessionUrl || webUrl}`);
       timer.end("✓ Services started successfully");
     })();
 
     return this.startPromise;
   }
 
-  async retryWarmupChromeMcp(viteOrigin?: string): Promise<{ success: boolean; errorType?: string; errorMessage?: string }> {
+  async retryWarmupChromeMcp(
+    viteOrigin?: string,
+  ): Promise<{ success: boolean; errorType?: string; errorMessage?: string }> {
     const result = await this.api.retryWarmupChromeMcp(this.workspaceRoot!, viteOrigin);
     if (result.success) {
       this.chromeMcpWarmupFailed = false;
-      this.sendTaskUpdate("ready", { sessionUrl: this.sessionUrl });
+      this.sendTaskUpdate("ready");
       return { success: true };
     }
-    
+
     const error = result.error;
     return {
       success: false,

@@ -6,7 +6,6 @@ import type {
 import type http from "http";
 
 export interface EndpointContext {
-  get sessionUrl(): string | null;
   get webUrl(): string | null;
   get sseClients(): Set<http.ServerResponse>;
   get pageContext(): PageContext;
@@ -18,5 +17,9 @@ export interface EndpointContext {
   deleteSession: (id: string) => Promise<void>;
   resolveWidgetPath: () => string;
   resolveWidgetStylePath: () => string;
-  retryWarmupChromeMcp: () => Promise<{ success: boolean; errorType?: string; errorMessage?: string }>;
+  retryWarmupChromeMcp: () => Promise<{
+    success: boolean;
+    errorType?: string;
+    errorMessage?: string;
+  }>;
 }

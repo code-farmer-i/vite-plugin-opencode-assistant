@@ -16,8 +16,7 @@ export function useServiceStatus() {
   });
 
   const updateStatusFromTask = (
-    task: ServiceStartupTask | "", 
-    sessionUrl?: string,
+    task: ServiceStartupTask | "",
     errorType?: string,
     errorMessage?: string,
   ) => {

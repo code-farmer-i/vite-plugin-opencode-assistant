@@ -8,7 +8,6 @@ interface SSEStatusSyncData {
   type: "STATUS_SYNC";
   isStarted?: boolean;
   task: ServiceStartupTask;
-  sessionUrl?: string;
   errorType?: string;
   errorMessage?: string;
 }
@@ -16,7 +15,6 @@ interface SSEStatusSyncData {
 interface SSETaskUpdateData {
   type: "TASK_UPDATE";
   task: ServiceStartupTask;
-  sessionUrl?: string;
   errorType?: string;
   errorMessage?: string;
 }

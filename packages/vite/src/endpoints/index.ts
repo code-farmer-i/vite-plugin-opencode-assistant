@@ -12,7 +12,7 @@ export * from "./types.js";
 export function setupMiddlewares(server: ViteDevServer, ctx: EndpointContext) {
   setupWidgetEndpoints(server, ctx);
   setupContextEndpoint(server, ctx);
-  setupStartEndpoint(server, ctx);
+  setupStartEndpoint(server);
   setupSseEndpoint(server, ctx);
   setupSessionsEndpoint(server, ctx);
   setupWarmupEndpoint(server, ctx);

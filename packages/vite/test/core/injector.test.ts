@@ -5,14 +5,9 @@ import { injectWidget } from "../../src/core/injector.js";
 describe("injectWidget", () => {
   it("injects script tag with encoded config", () => {
     const html = injectWidget({
-      webUrl: "http://127.0.0.1:4097",
-      serverUrl: "http://127.0.0.1:5173",
       position: "bottom-right",
       theme: "auto",
       open: false,
-      autoReload: true,
-      cwd: "/tmp/project",
-      sessionUrl: "http://127.0.0.1:4097/session/1",
       hotkey: "ctrl+k",
     });
 
