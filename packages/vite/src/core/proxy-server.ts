@@ -159,16 +159,31 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     const displayText = '@' + selector + (textPreview ? '(' + textPreview + ')' : '');
 
     const jsonStr = JSON.stringify({
-      pageContext: {
-        url: previewPageUrl || '',
-        title: previewPageTitle || '',
-      },
       nodeContext: {
-        filePath,
-        line,
-        column,
-        description,
-        innerText: innerText ? innerText.substring(0, 500) : ''
+        "filePath": { 
+          "value": filePath, 
+          "desc": "源码文件路径" 
+        },
+        "line": { 
+          "value": line, 
+          "desc": "代码所在行号" 
+        },
+        "column": { 
+          "value": column, 
+          "desc": "代码所在列号" 
+        },
+        "description": { 
+          "value": description, 
+          "desc": "DOM 元素选择器" 
+        },
+        "innerText": { 
+          "value": innerText ? innerText.substring(0, 500) : '', 
+          "desc": "DOM 元素内部文本" 
+        },
+        "selectAt": { 
+          "value": previewPageUrl || '', 
+          "desc": "用户选中节点时的页面 URL" 
+        }
       }
     });
 
