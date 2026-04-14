@@ -28,6 +28,26 @@ interface UseInspectorOptions {
   onExitSelectMode: () => void;
 }
 
+function throttle<T extends (...args: never[]) => void>(fn: T, delay: number): T {
+  let lastCall = 0;
+  let rafId: number | null = null;
+
+  return ((...args: never[]) => {
+    const now = performance.now();
+
+    if (now - lastCall >= delay) {
+      lastCall = now;
+      fn(...args);
+    } else if (!rafId) {
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        lastCall = performance.now();
+        fn(...args);
+      });
+    }
+  }) as T;
+}
+
 function getDirectText(element: Element): string {
   let text = "";
   for (let i = 0; i < element.childNodes.length; i++) {
@@ -39,6 +59,69 @@ function getDirectText(element: Element): string {
   return text.trim();
 }
 
+const DYNAMIC_ID_PATTERN =
+  /^(?:el-|:r[0-9]+:|radix-|uid-|ts-|uuid-|id-[a-f0-9]{4,}|.*[0-9]{4,}.*|.*-[a-f0-9]{6,}$)/i;
+
+const STATE_CLASS_PATTERN =
+  /^(?:hover|active|focus|focus-visible|focus-within|disabled|enabled|checked|selected|open|closed|loading|error|success|warning|hidden|visible|show|hide|current|expanded|collapsed|pressed|dragging|droppable|sortable|placeholder|transition|enter|leave|appear|move)$/i;
+
+const STATE_CLASS_PREFIX_PATTERN =
+  /^(?:is-|has-|was-|are-|can-|should-|will-|did-|does-|on-|off-|in-|out-|at-|to-|from-)/i;
+
+function isDynamicId(id: string): boolean {
+  if (!id) return false;
+
+  if (DYNAMIC_ID_PATTERN.test(id)) {
+    return true;
+  }
+
+  const digitCount = (id.match(/\d/g) || []).length;
+  const letterCount = (id.match(/[a-zA-Z]/g) || []).length;
+  if (digitCount > letterCount && digitCount >= 3) {
+    return true;
+  }
+
+  const dashParts = id.split("-");
+  if (dashParts.length >= 3) {
+    const lastPart = dashParts[dashParts.length - 1];
+    if (/^\d+$/.test(lastPart) || /^[a-f0-9]{4,}$/i.test(lastPart)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isStateClass(className: string): boolean {
+  if (!className) return false;
+
+  if (STATE_CLASS_PATTERN.test(className)) {
+    return true;
+  }
+
+  if (STATE_CLASS_PREFIX_PATTERN.test(className)) {
+    return true;
+  }
+
+  if (
+    className.includes("-active") ||
+    className.includes("-hover") ||
+    className.includes("-focus")
+  ) {
+    return true;
+  }
+
+  if (/^(?:router-link|nuxt-link)/.test(className)) {
+    return true;
+  }
+
+  return false;
+}
+
+function filterStateClasses(classes: string[]): string[] {
+  return classes.filter((cls) => !isStateClass(cls));
+}
+
 function getElementDescription(element: Element): string {
   try {
     const selector = getCssSelector(element, {
@@ -47,6 +130,19 @@ function getElementDescription(element: Element): string {
       combineBetweenSelectors: true,
       maxCombinations: 100,
       maxCandidates: 100,
+      blacklist: [
+        (selectorValue: string) => {
+          const idMatch = selectorValue.match(/^#(.+)$/);
+          if (idMatch) {
+            return isDynamicId(idMatch[1]);
+          }
+          const classMatch = selectorValue.match(/^\.([a-zA-Z_-][\w-]*)$/);
+          if (classMatch) {
+            return isStateClass(classMatch[1]);
+          }
+          return false;
+        },
+      ],
     });
     return selector;
   } catch {
@@ -54,11 +150,21 @@ function getElementDescription(element: Element): string {
     const parts = [tag];
 
     const id = element.id;
-    if (id) parts.push(`#${id}`);
+    if (id && !isDynamicId(id)) parts.push(`#${id}`);
 
-    if (typeof element.className === "string") {
-      const className = element.className.trim().split(/\s+/).filter(Boolean).slice(0, 2).join(".");
-      if (className) parts.push(`.${className}`);
+    const className = element.className;
+    if (typeof className === "string") {
+      const classes = filterStateClasses(className.trim().split(/\s+/).filter(Boolean)).slice(0, 2);
+      if (classes.length > 0) parts.push(`.${classes.join(".")}`);
+    } else {
+      const svgClass = (className as SVGAnimatedString).baseVal;
+      if (svgClass) {
+        const classes = filterStateClasses(svgClass.trim().split(/\s+/).filter(Boolean)).slice(
+          0,
+          2,
+        );
+        if (classes.length > 0) parts.push(`.${classes.join(".")}`);
+      }
     }
 
     const name = element.getAttribute("name");
@@ -83,10 +189,85 @@ interface FileInfo {
   column: number | null;
 }
 
+interface Vue3ComponentInstance {
+  type?: {
+    __file?: string;
+    name?: string;
+  };
+  parent?: Vue3ComponentInstance;
+  vnode?: {
+    type?: {
+      __file?: string;
+      name?: string;
+    };
+  };
+}
+
+interface Vue2ComponentInstance {
+  $options?: {
+    __file?: string;
+    name?: string;
+    _componentTag?: string;
+  };
+  $parent?: Vue2ComponentInstance;
+}
+
+function getFileInfoFromAttributes(element: Element): FileInfo | null {
+  const file = element.getAttribute("data-v-inspector-file");
+  if (file) {
+    const line = element.getAttribute("data-v-inspector-line");
+    const column = element.getAttribute("data-v-inspector-column");
+    return {
+      file,
+      line: line ? parseInt(line, 10) : null,
+      column: column ? parseInt(column, 10) : null,
+    };
+  }
+  return null;
+}
+
+function getFileInfoFromVueInstance(element: Element): FileInfo | null {
+  const vue3Instance = (element as Element & { __vueParentComponent?: Vue3ComponentInstance })
+    .__vueParentComponent;
+  if (vue3Instance) {
+    let current: Vue3ComponentInstance | undefined = vue3Instance;
+    while (current) {
+      const file = current.type?.__file || current.vnode?.type?.__file;
+      if (file) {
+        return { file, line: null, column: null };
+      }
+      current = current.parent;
+    }
+  }
+
+  const vue2Instance = (element as Element & { __vue__?: Vue2ComponentInstance }).__vue__;
+  if (vue2Instance) {
+    let current: Vue2ComponentInstance | undefined = vue2Instance;
+    while (current) {
+      const file = current.$options?.__file;
+      if (file) {
+        return { file, line: null, column: null };
+      }
+      current = current.$parent;
+    }
+  }
+
+  return null;
+}
+
 function findFileInfo(element: Element, inspector: VueInspector): FileInfo {
   let current: Element | null = element;
+  let fallbackFileInfo: FileInfo | null = null;
 
   while (current) {
+    const attrInfo = getFileInfoFromAttributes(current);
+    if (attrInfo && attrInfo.line !== null) {
+      return attrInfo;
+    }
+    if (attrInfo && !fallbackFileInfo) {
+      fallbackFileInfo = attrInfo;
+    }
+
     const fakeEvent = {
       clientX: 0,
       clientY: 0,
@@ -97,17 +278,28 @@ function findFileInfo(element: Element, inspector: VueInspector): FileInfo {
     const { params } = inspector.getTargetNode(fakeEvent);
 
     if (params && params.file) {
-      return {
+      const info: FileInfo = {
         file: params.file,
         line: params.line ?? null,
         column: params.column ?? null,
       };
+      if (info.line !== null) {
+        return info;
+      }
+      if (!fallbackFileInfo) {
+        fallbackFileInfo = info;
+      }
+    }
+
+    const vueInfo = getFileInfoFromVueInstance(current);
+    if (vueInfo && !fallbackFileInfo) {
+      fallbackFileInfo = vueInfo;
     }
 
     current = current.parentElement;
   }
 
-  return { file: null, line: null, column: null };
+  return fallbackFileInfo || { file: null, line: null, column: null };
 }
 
 /**
@@ -170,7 +362,7 @@ export function useInspector(options: UseInspectorOptions) {
   const INSPECTOR_CHECK_INTERVAL = 500;
   let inspectorCheckTimer: number | null = null;
 
-  function handleMouseMove(e: MouseEvent) {
+  function handleMouseMoveCore(e: MouseEvent) {
     if (!options.selectMode.value) return;
 
     const inspector = window.__VUE_INSPECTOR__;
@@ -199,6 +391,10 @@ export function useInspector(options: UseInspectorOptions) {
 
     if (!elementToHighlight) {
       elementToHighlight = getPreciseElementAtPoint(e.clientX, e.clientY, null);
+    }
+
+    if (elementToHighlight && !fileInfo.file) {
+      fileInfo = getFileInfoFromVueInstance(elementToHighlight) || fileInfo;
     }
 
     if (elementToHighlight) {
@@ -262,6 +458,8 @@ export function useInspector(options: UseInspectorOptions) {
     }
   }
 
+  const handleMouseMove = throttle(handleMouseMoveCore, 16);
+
   function setupInspectorHook() {
     const inspector = window.__VUE_INSPECTOR__;
     if (!inspector || inspector.__opencode_hooked) return;
@@ -292,6 +490,10 @@ export function useInspector(options: UseInspectorOptions) {
 
         if (!elementToSelect) {
           elementToSelect = getPreciseElementAtPoint(e.clientX, e.clientY, null);
+        }
+
+        if (elementToSelect && !fileInfo.file) {
+          fileInfo = getFileInfoFromVueInstance(elementToSelect) || fileInfo;
         }
 
         if (elementToSelect) {

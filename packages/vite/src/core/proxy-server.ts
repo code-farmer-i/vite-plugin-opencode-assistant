@@ -161,19 +161,19 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     const jsonStr = JSON.stringify({
       nodeContext: {
         "filePath": { 
-          "value": filePath, 
+          "value": filePath ?? '未知', 
           "desc": "源码文件路径" 
         },
         "line": { 
-          "value": line, 
+          "value": line ?? '未知', 
           "desc": "代码所在行号" 
         },
         "column": { 
-          "value": column, 
+          "value": column ?? '未知', 
           "desc": "代码所在列号" 
         },
         "description": { 
-          "value": description, 
+          "value": description ?? '未知', 
           "desc": "DOM 元素选择器" 
         },
         "innerText": { 
@@ -181,7 +181,7 @@ function generateBridgeScript(options: ProxyServerOptions): string {
           "desc": "DOM 元素内部文本" 
         },
         "selectAt": { 
-          "value": previewPageUrl || '', 
+          "value": previewPageUrl || '未知', 
           "desc": "用户选中节点时的页面 URL" 
         }
       }

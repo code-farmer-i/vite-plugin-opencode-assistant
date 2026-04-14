@@ -7,6 +7,9 @@
     "dev": "pagoda-cli site",
     "build": "pagoda-cli build-site"
   },
+  "dependencies": {
+    "element-plus": "^2.13.7"
+  },
   "devDependencies": {
     "vite-plugin-opencode-assistant": "workspace:*"
   }
