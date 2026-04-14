@@ -116,7 +116,37 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     if (event.data && event.data.type === "OPENCODE_INSERT_FILE_PART") {
       insertFilePart(event.data.element);
     }
+    
+    if (event.data && event.data.type === "minimize-state-change") {
+      handleMinimizeStateChange(event.data.minimized);
+    }
+    
+    if (event.data && event.data.type === "prompt-dock-visibility-change") {
+      handlePromptDockVisibilityChange(event.data.visible);
+    }
   });
+
+  // === 最小化状态处理 ===
+  function handleMinimizeStateChange(minimized) {
+    const dockSurface = document.querySelector('[data-dock-surface="tray"]');
+    const sessionTurnList = document.querySelector('[data-slot="session-turn-list"]');
+    
+    if (dockSurface) {
+      dockSurface.style.display = minimized ? 'none' : '';
+    }
+    
+    if (sessionTurnList) {
+      sessionTurnList.style.paddingBottom = minimized ? '10px' : '';
+    }
+  }
+
+  // === 对话框显示状态处理 ===
+  function handlePromptDockVisibilityChange(visible) {
+    const promptDock = document.querySelector('[data-component="session-prompt-dock"]');
+    if (promptDock) {
+      promptDock.style.display = visible ? '' : 'none';
+    }
+  }
 
   // === 保存输入框光标位置 ===
   let savedRange = null;

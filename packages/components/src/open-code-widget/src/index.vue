@@ -3,7 +3,6 @@ import { useSlots, toRef, ref, watch } from "vue";
 import Frame from "./components/Frame.vue";
 import Header from "./components/Header.vue";
 import SelectHint from "./components/SelectHint.vue";
-import SelectedBubbles from "./components/SelectedBubbles.vue";
 import SelectedNodes from "./components/SelectedNodes.vue";
 import SessionList from "./components/SessionList.vue";
 import Trigger from "./components/Trigger.vue";
@@ -103,6 +102,9 @@ defineExpose({
 });
 
 const localSessionListCollapsed = ref(props.sessionListCollapsed);
+const minimized = ref(false);
+const promptDockVisible = ref(true);
+
 watch(
   () => props.sessionListCollapsed,
   (val: boolean) => {
@@ -206,6 +208,18 @@ const { highlightVisible, highlightStyle, tooltipVisible, tooltipStyle, tooltipC
     },
   });
 
+const handleToggleMinimize = () => {
+  minimized.value = !minimized.value;
+  promptDockVisible.value = !minimized.value;
+  sendMessageToIframe("prompt-dock-visibility-change", { visible: promptDockVisible.value });
+  sendMessageToIframe("minimize-state-change", { minimized: minimized.value });
+};
+
+const handleTogglePromptDock = () => {
+  promptDockVisible.value = !promptDockVisible.value;
+  sendMessageToIframe("prompt-dock-visibility-change", { visible: promptDockVisible.value });
+};
+
 provideOpenCodeWidgetContext({
   theme: toRef(props, "theme"),
   resolvedTheme,
@@ -226,6 +240,8 @@ provideOpenCodeWidgetContext({
   showClearAll: toRef(props, "showClearAll"),
   open: toRef(props, "open"),
   thinking: toRef(props, "thinking"),
+  minimized,
+  promptDockVisible,
   iframeSource,
   buttonActive,
   sessionListTitle,
@@ -235,6 +251,8 @@ provideOpenCodeWidgetContext({
   selectedElementItems,
   handleToggle,
   handleClose,
+  handleToggleMinimize,
+  handleTogglePromptDock,
   handleToggleSessionList,
   handleToggleTheme,
   handleEmptyAction,
@@ -266,7 +284,7 @@ provideOpenCodeWidgetContext({
     <div
       v-show="!selectMode"
       class="opencode-chat"
-      :class="{ open }"
+      :class="{ open, minimized }"
     >
       <Header>
         <template
@@ -568,6 +586,15 @@ provideOpenCodeWidgetContext({
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
+}
+
+.opencode-chat.minimized {
+  width: 300px;
+  height: 300px;
+}
+
+.opencode-chat.minimized .opencode-iframe-container {
+  margin-top: -146px;
 }
 
 .opencode-chat-content {

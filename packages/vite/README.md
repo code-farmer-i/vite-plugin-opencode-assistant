@@ -267,34 +267,6 @@ opencodeAssistant({
 
 这是预期行为。插件仅在开发模式（`vite serve`）下工作，不会影响生产构建。
 
-## 示例项目
-
-仓库包含 `packages/playground` 示例项目：
-
-```bash
-npm install
-npm run build
-cd packages/playground
-npm install
-npm run dev
-```
-
-## 开发
-
-```bash
-# 安装依赖
-npm install
-
-# 构建所有包
-npm run build
-
-# 运行测试
-npm test
-
-# 启动文档站点
-npm run dev:playground
-```
-
 ## License
 
 MIT

@@ -10,10 +10,14 @@ const {
   selectEnabled,
   theme,
   resolvedTheme,
+  minimized,
+  promptDockVisible,
   handleToggleSessionList,
   handleToggleSelectMode,
   handleToggleTheme,
   handleClose,
+  handleToggleMinimize,
+  handleTogglePromptDock,
 } = useOpenCodeWidgetContext();
 
 const themeIconTitle = computed(() => {
@@ -57,7 +61,10 @@ const themeIconLabel = computed(() => {
             stroke-width="2"
             aria-hidden="true"
           >
-            <path d="M4 6h16M4 12h16M4 18h16" stroke-linecap="round" />
+            <path
+              d="M4 6h16M4 12h16M4 18h16"
+              stroke-linecap="round"
+            />
           </svg>
         </slot>
       </button>
@@ -73,7 +80,12 @@ const themeIconLabel = computed(() => {
         @click="handleToggleSelectMode"
       >
         <slot name="select-icon">
-          <svg viewBox="0 0 1024 1024" width="16" height="16" aria-hidden="true">
+          <svg
+            viewBox="0 0 1024 1024"
+            width="16"
+            height="16"
+            aria-hidden="true"
+          >
             <path
               fill="currentColor"
               d="M512 896a384 384 0 1 0 0-768 384 384 0 0 0 0 768m0 64a448 448 0 1 1 0-896 448 448 0 0 1 0 896"
@@ -104,15 +116,59 @@ const themeIconLabel = computed(() => {
             stroke-width="2"
             aria-hidden="true"
           >
-            <circle cx="12" cy="12" r="5" />
-            <line x1="12" y1="1" x2="12" y2="3" />
-            <line x1="12" y1="21" x2="12" y2="23" />
-            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-            <line x1="1" y1="12" x2="3" y2="12" />
-            <line x1="21" y1="12" x2="23" y2="12" />
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+            <circle
+              cx="12"
+              cy="12"
+              r="5"
+            />
+            <line
+              x1="12"
+              y1="1"
+              x2="12"
+              y2="3"
+            />
+            <line
+              x1="12"
+              y1="21"
+              x2="12"
+              y2="23"
+            />
+            <line
+              x1="4.22"
+              y1="4.22"
+              x2="5.64"
+              y2="5.64"
+            />
+            <line
+              x1="18.36"
+              y1="18.36"
+              x2="19.78"
+              y2="19.78"
+            />
+            <line
+              x1="1"
+              y1="12"
+              x2="3"
+              y2="12"
+            />
+            <line
+              x1="21"
+              y1="12"
+              x2="23"
+              y2="12"
+            />
+            <line
+              x1="4.22"
+              y1="19.78"
+              x2="5.64"
+              y2="18.36"
+            />
+            <line
+              x1="18.36"
+              y1="5.64"
+              x2="19.78"
+              y2="4.22"
+            />
           </svg>
           <svg
             v-else-if="theme === 'dark'"
@@ -136,10 +192,31 @@ const themeIconLabel = computed(() => {
             stroke-width="2"
             aria-hidden="true"
           >
-            <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-            <line x1="8" y1="21" x2="16" y2="21" />
-            <line x1="12" y1="17" x2="12" y2="21" />
-            <circle cx="12" cy="10" r="3" />
+            <rect
+              x="2"
+              y="3"
+              width="20"
+              height="14"
+              rx="2"
+              ry="2"
+            />
+            <line
+              x1="8"
+              y1="21"
+              x2="16"
+              y2="21"
+            />
+            <line
+              x1="12"
+              y1="17"
+              x2="12"
+              y2="21"
+            />
+            <circle
+              cx="12"
+              cy="10"
+              r="3"
+            />
             <path d="M7 7l2 2M17 7l-2 2M7 13l2-2M17 13l-2-2" />
           </svg>
         </slot>
@@ -149,6 +226,63 @@ const themeIconLabel = computed(() => {
     <span class="opencode-chat-header-title">{{ title }}</span>
 
     <div class="opencode-chat-header-actions">
+      <button
+        class="opencode-header-btn prompt-dock"
+        type="button"
+        :title="promptDockVisible ? '隐藏对话框' : '显示对话框'"
+        :aria-label="promptDockVisible ? '隐藏对话框' : '显示对话框'"
+        :aria-pressed="promptDockVisible"
+        @click="handleTogglePromptDock"
+      >
+        <slot name="prompt-dock-icon">
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+        </slot>
+      </button>
+      <button
+        class="opencode-header-btn minimize"
+        type="button"
+        :title="minimized ? '展开' : '最小化'"
+        :aria-label="minimized ? '展开面板' : '最小化面板'"
+        :aria-pressed="minimized"
+        @click="handleToggleMinimize"
+      >
+        <slot name="minimize-icon">
+          <svg
+            v-if="minimized"
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+          </svg>
+          <svg
+            v-else
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+          </svg>
+        </slot>
+      </button>
       <button
         class="opencode-header-btn close"
         type="button"

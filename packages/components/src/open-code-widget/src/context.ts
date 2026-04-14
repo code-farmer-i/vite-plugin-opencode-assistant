@@ -25,6 +25,8 @@ export interface OpenCodeWidgetContext {
   showClearAll: Ref<boolean>;
   open: Ref<boolean>;
   thinking: Ref<boolean>;
+  minimized: Ref<boolean>;
+  promptDockVisible: Ref<boolean>;
 
   // Computed
   iframeSource: Ref<string>;
@@ -38,6 +40,8 @@ export interface OpenCodeWidgetContext {
   // Actions
   handleToggle: () => void;
   handleClose: () => void;
+  handleToggleMinimize: () => void;
+  handleTogglePromptDock: () => void;
   handleToggleSessionList: () => void;
   handleToggleTheme: () => void;
   handleEmptyAction: () => void;
