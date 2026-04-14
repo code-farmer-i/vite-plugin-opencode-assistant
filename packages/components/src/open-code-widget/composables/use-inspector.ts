@@ -125,7 +125,7 @@ function filterStateClasses(classes: string[]): string[] {
 function getElementDescription(element: Element): string {
   try {
     const selector = getCssSelector(element, {
-      selectors: ["id", "class", "tag", "attribute", "nthchild"],
+      selectors: ["id", "class", "tag", "nthchild"],
       combineWithinSelector: true,
       combineBetweenSelectors: true,
       maxCombinations: 100,
