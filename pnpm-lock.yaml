@@ -62,6 +62,9 @@ importers:
       '@vite-plugin-opencode-assistant/shared':
         specifier: workspace:*
         version: link:../shared
+      css-selector-generator:
+        specifier: ^3.9.1
+        version: 3.9.1
     devDependencies:
       '@vitejs/plugin-vue':
         specifier: ^6.0.5
@@ -2203,6 +2206,9 @@ packages:
   crypto-random-string@2.0.0:
     resolution: {integrity: sha512-v1plID3y9r/lPhviJ1wrXpLeyUIGAZ2SHNYTEapm7/8A9nLPoyvVp3RK/EPFqn5kEznyWgYZNsRtYYIWbuG8KA==}
     engines: {node: '>=8'}
+
+  css-selector-generator@3.9.1:
+    resolution: {integrity: sha512-4giy+GjICc/J0JxoDgH8zxM1F0Scjsj9dkXnHzrPwcKXN26T8qW+h7megakTr/TqO2tynTYWZq+lcD1me3rShw==}
 
   css-tree@3.2.1:
     resolution: {integrity: sha512-X7sjQzceUhu1u7Y/ylrRZFU2FS6LRiFVp6rKLPg23y3x3c3DOKAwuXGDp+PAGjh6CSnCjYeAul8pcT8bAl+lSA==}
@@ -7748,6 +7754,8 @@ snapshots:
   crypto-random-string@1.0.0: {}
 
   crypto-random-string@2.0.0: {}
+
+  css-selector-generator@3.9.1: {}
 
   css-tree@3.2.1:
     dependencies:
