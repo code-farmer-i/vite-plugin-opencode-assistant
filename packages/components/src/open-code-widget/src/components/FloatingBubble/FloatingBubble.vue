@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import type {
   FloatingBubbleAxis,
   FloatingBubbleMagnetic,
@@ -79,10 +79,8 @@ const rootStyle = computed(() => {
   return style;
 });
 
-const show = ref(true);
-
 const updateState = () => {
-  if (!show.value || !rootRef.value || typeof window === "undefined") return;
+  if (!rootRef.value || typeof window === "undefined") return;
 
   const rect = rootRef.value.getBoundingClientRect();
   const { offset } = props;
@@ -249,7 +247,7 @@ const handleResize = () => {
 
 onMounted(() => {
   updateState();
-  nextTick(() => {
+  requestAnimationFrame(() => {
     initialized.value = true;
   });
 
@@ -258,7 +256,6 @@ onMounted(() => {
   }
 
   if (rootRef.value) {
-    // useEventListener will set passive to `false` to eliminate the warning of Chrome
     rootRef.value.addEventListener("touchmove", onTouchMove as EventListener, {
       passive: false,
     });
@@ -282,12 +279,7 @@ watch(
   { deep: true }
 );
 
-const isOnRightSide = computed(() => {
-  return state.value.x > windowWidth.value / 2;
-});
-
 defineExpose({
-  isOnRightSide,
   offset: computed(() => ({ x: state.value.x, y: state.value.y })),
 });
 </script>
@@ -295,7 +287,6 @@ defineExpose({
 <template>
   <Teleport :to="teleport">
     <div
-      v-show="show"
       ref="rootRef"
       class="floating-bubble"
       :style="rootStyle"
@@ -319,12 +310,7 @@ defineExpose({
   cursor: grab;
   user-select: none;
   touch-action: none;
-  visibility: hidden;
   will-change: transform;
-}
-
-.floating-bubble[style*="translate3d"] {
-  visibility: visible;
 }
 
 .floating-bubble:active {

@@ -218,12 +218,34 @@ const handleTogglePromptDock = () => {
   sendMessageToIframe("prompt-dock-visibility-change", { visible: promptDockVisible.value });
 };
 
-const bubbleOffset = ref<FloatingBubbleOffset>({ x: 0, y: 0 });
+const bubbleOffset = ref<FloatingBubbleOffset | undefined>(undefined);
+
+type BubbleQuadrant = "top-left" | "top-right" | "bottom-left" | "bottom-right";
+
+const bubbleQuadrant = computed((): BubbleQuadrant => {
+  if (typeof window === "undefined") return "bottom-right";
+
+  const centerX = window.innerWidth / 2;
+  const centerY = window.innerHeight / 2;
+
+  const bubbleSize = 44;
+  const effectiveX = (bubbleOffset.value?.x ?? window.innerWidth - bubbleSize - 24) + bubbleSize / 2;
+  const effectiveY = (bubbleOffset.value?.y ?? window.innerHeight - bubbleSize - 24) + bubbleSize / 2;
+
+  if (effectiveX >= centerX && effectiveY >= centerY) {
+    return "bottom-right";
+  } else if (effectiveX < centerX && effectiveY >= centerY) {
+    return "bottom-left";
+  } else if (effectiveX >= centerX && effectiveY < centerY) {
+    return "top-right";
+  } else {
+    return "top-left";
+  }
+});
 
 const isBubbleOnRightSide = computed(() => {
-  if (typeof window === "undefined") return true;
-  const centerX = window.innerWidth / 2;
-  return bubbleOffset.value.x > centerX;
+  const quadrant = bubbleQuadrant.value;
+  return quadrant === "top-right" || quadrant === "bottom-right";
 });
 
 const chatPositionStyle = computed(() => {
@@ -237,11 +259,14 @@ const chatPositionStyle = computed(() => {
   const bubbleSize = 44;
   const screenMargin = 20;
 
+  // Use default position (bottom-right) if offset is not set yet
+  const effectiveOffset = bubbleOffset.value ?? { x: windowWidth - bubbleSize - gap, y: windowHeight - bubbleSize - gap };
+
   const style: Record<string, string> = {};
 
   // Calculate horizontal position
   if (isBubbleOnRightSide.value) {
-    let rightPos = windowWidth - bubbleOffset.value.x + gap;
+    let rightPos = windowWidth - effectiveOffset.x + gap;
     const maxRight = windowWidth - chatWidth - screenMargin;
 
     if (rightPos > maxRight) {
@@ -251,7 +276,7 @@ const chatPositionStyle = computed(() => {
     style.right = `${rightPos}px`;
     style.left = "auto";
   } else {
-    let leftPos = bubbleOffset.value.x + bubbleSize + gap;
+    let leftPos = effectiveOffset.x + bubbleSize + gap;
     const maxLeft = windowWidth - chatWidth - screenMargin;
 
     if (leftPos > maxLeft) {
@@ -263,7 +288,7 @@ const chatPositionStyle = computed(() => {
   }
 
   // Calculate vertical position (align with bubble if possible)
-  let bottomPos = windowHeight - bubbleOffset.value.y - bubbleSize;
+  let bottomPos = windowHeight - effectiveOffset.y - bubbleSize;
   const maxBottom = windowHeight - chatHeight - screenMargin;
 
   // Ensure the panel doesn't go off the top of the screen
@@ -281,9 +306,24 @@ const chatPositionStyle = computed(() => {
   return style;
 });
 
-const handleBubbleOffsetChange = (offset: FloatingBubbleOffset) => {
+const handleBubbleOffsetChange = (offset: FloatingBubbleOffset | undefined) => {
   bubbleOffset.value = offset;
 };
+
+const chatAnimationOrigin = computed(() => {
+  const quadrant = bubbleQuadrant.value;
+  switch (quadrant) {
+    case "top-left":
+      return { x: "-20px", y: "-20px" };
+    case "top-right":
+      return { x: "20px", y: "-20px" };
+    case "bottom-left":
+      return { x: "-20px", y: "20px" };
+    case "bottom-right":
+    default:
+      return { x: "20px", y: "20px" };
+  }
+});
 
 const isDragging = ref(false);
 let wasOpenBeforeDrag = false;
@@ -636,7 +676,7 @@ provideOpenCodeWidgetContext({
   overflow: hidden;
   opacity: 0;
   visibility: hidden;
-  transform: translateY(20px) scale(0.95);
+  transform: translate3d(v-bind("chatAnimationOrigin.x"), v-bind("chatAnimationOrigin.y"), 0) scale(0.95);
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
@@ -661,7 +701,7 @@ provideOpenCodeWidgetContext({
 .opencode-chat.open {
   opacity: 1;
   visibility: visible;
-  transform: translateY(0) scale(1);
+  transform: translate3d(0, 0, 0) scale(1);
 }
 
 .opencode-notification {

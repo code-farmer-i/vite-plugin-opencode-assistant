@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, watch } from "vue";
 import { useOpenCodeWidgetContext } from "../context";
 import FloatingBubble from "./FloatingBubble/FloatingBubble.vue";
 import type { FloatingBubbleOffset } from "./FloatingBubble/types";
@@ -15,7 +15,7 @@ const {
 
 const STORAGE_KEY = "opencode-bubble-offset";
 
-const loadOffset = (): FloatingBubbleOffset => {
+const loadOffset = (): FloatingBubbleOffset | undefined => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -27,18 +27,18 @@ const loadOffset = (): FloatingBubbleOffset => {
   } catch {
     // ignore
   }
-  return { x: 0, y: 0 };
+  return undefined;
 };
 
-const offset = ref<FloatingBubbleOffset>(loadOffset());
+const offset = ref<FloatingBubbleOffset | undefined>(loadOffset());
 
 const emit = defineEmits<{
-  (e: "offset-change", offset: FloatingBubbleOffset): void;
+  (e: "offset-change", offset: FloatingBubbleOffset | undefined): void;
   (e: "drag-start"): void;
   (e: "drag-end"): void;
 }>();
 
-const saveOffset = (value: FloatingBubbleOffset) => {
+const saveOffset = (value: FloatingBubbleOffset | undefined) => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
   } catch {
@@ -46,28 +46,15 @@ const saveOffset = (value: FloatingBubbleOffset) => {
   }
 };
 
-const handleOffsetChange = (value: FloatingBubbleOffset) => {
+const handleOffsetChange = (value: FloatingBubbleOffset | undefined) => {
   offset.value = value;
   saveOffset(value);
   emit("offset-change", value);
 };
 
-const bubbleRef = ref<InstanceType<typeof FloatingBubble> | null>(null);
-
-const isOnRightSide = computed(() => {
-  if (typeof window === "undefined") return true;
-  const centerX = window.innerWidth / 2;
-  return offset.value.x > centerX;
-});
-
-onMounted(() => {
-  if (offset.value.x !== 0 || offset.value.y !== 0) {
-    emit("offset-change", offset.value);
-  }
-});
+watch(offset, handleOffsetChange, { immediate: true });
 
 defineExpose({
-  isOnRightSide,
   offset,
 });
 </script>
