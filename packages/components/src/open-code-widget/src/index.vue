@@ -10,6 +10,7 @@ import { useSelection } from "../composables/use-selection";
 import { useSession } from "../composables/use-session";
 import { useWidget } from "../composables/use-widget";
 import { useInspector } from "../composables/use-inspector";
+import { usePersistState } from "../composables/use-persist-state";
 import type { OpenCodeWidgetEmits, OpenCodeWidgetProps } from "./types";
 import { provideOpenCodeWidgetContext } from "./context";
 import type { FloatingBubbleOffset } from "./components/FloatingBubble/types";
@@ -90,8 +91,14 @@ const sendMessageToIframe = (type: string, data?: Record<string, unknown>) => {
   frameRef.value?.sendMessageToIframe(type, data);
 };
 
+const localSessionListCollapsed = ref(props.sessionListCollapsed);
+const minimized = ref(false);
+const promptDockVisible = ref(true);
+
 const handleFrameLoaded = () => {
   emit("frame-loaded");
+  sendMessageToIframe("prompt-dock-visibility-change", { visible: promptDockVisible.value });
+  sendMessageToIframe("minimize-state-change", { minimized: minimized.value });
 };
 
 defineExpose({
@@ -99,10 +106,6 @@ defineExpose({
   showConfirmDialog,
   sendMessageToIframe,
 });
-
-const localSessionListCollapsed = ref(props.sessionListCollapsed);
-const minimized = ref(false);
-const promptDockVisible = ref(true);
 
 watch(
   () => props.sessionListCollapsed,
@@ -206,6 +209,42 @@ const { highlightVisible, highlightStyle, tooltipVisible, tooltipStyle, tooltipC
     },
   });
 
+const bubbleOffset = ref<FloatingBubbleOffset | undefined>(undefined);
+
+usePersistState({
+  open: toRef(props, "open"),
+  minimized,
+  promptDockVisible,
+  bubbleOffset,
+  theme: toRef(props, "theme"),
+  sessionListCollapsed: localSessionListCollapsed,
+  onRestore: (state) => {
+    if (state.open !== undefined && state.open !== props.open) {
+      emit("update:open", state.open);
+      emit("toggle", state.open);
+    }
+    if (state.minimized !== undefined) {
+      minimized.value = state.minimized;
+    }
+    if (state.bubbleOffset !== undefined) {
+      bubbleOffset.value = state.bubbleOffset;
+    }
+    if (state.theme !== undefined && state.theme !== props.theme) {
+      emit("update:theme", state.theme);
+      emit("toggle-theme", state.theme);
+    }
+    if (state.sessionListCollapsed !== undefined && state.sessionListCollapsed !== props.sessionListCollapsed) {
+      localSessionListCollapsed.value = state.sessionListCollapsed;
+      emit("update:sessionListCollapsed", state.sessionListCollapsed);
+    }
+    if (minimized.value) {
+      promptDockVisible.value = false;
+    } else if (state.promptDockVisible !== undefined) {
+      promptDockVisible.value = state.promptDockVisible;
+    }
+  },
+});
+
 const handleToggleMinimize = () => {
   minimized.value = !minimized.value;
   promptDockVisible.value = !minimized.value;
@@ -217,8 +256,6 @@ const handleTogglePromptDock = () => {
   promptDockVisible.value = !promptDockVisible.value;
   sendMessageToIframe("prompt-dock-visibility-change", { visible: promptDockVisible.value });
 };
-
-const bubbleOffset = ref<FloatingBubbleOffset | undefined>(undefined);
 
 type BubbleQuadrant = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
@@ -492,19 +529,13 @@ provideOpenCodeWidgetContext({
     <div
       v-show="highlightVisible"
       class="opencode-element-highlight"
-      :style="{
-        display: highlightVisible ? 'block' : 'none',
-        ...highlightStyle,
-      }"
+      :style="highlightStyle"
     />
 
     <div
       v-show="tooltipVisible"
       class="opencode-element-tooltip"
-      :style="{
-        display: tooltipVisible ? 'block' : 'none',
-        ...tooltipStyle,
-      }"
+      :style="tooltipStyle"
     >
       <div class="opencode-tooltip-tag">
         {{ tooltipContent.description }}
@@ -864,8 +895,6 @@ provideOpenCodeWidgetContext({
   position: fixed;
   pointer-events: none;
   z-index: 999998;
-  display: none;
-  transition: all 0.1s ease;
   border-radius: 4px;
 }
 
@@ -881,7 +910,6 @@ provideOpenCodeWidgetContext({
   border-radius: 6px;
   font-size: 12px;
   z-index: 9999998;
-  display: none;
   box-shadow: var(--oc-shadow-md);
   max-width: 300px;
   pointer-events: none;

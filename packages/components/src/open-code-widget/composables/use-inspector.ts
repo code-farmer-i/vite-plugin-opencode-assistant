@@ -307,43 +307,23 @@ function findFileInfo(element: Element, inspector: VueInspector): FileInfo {
  * 使用 document.elementsFromPoint 获取所有层叠元素，找到最深层且在边界内的元素
  */
 function getPreciseElementAtPoint(x: number, y: number, boundary: Element | null): Element | null {
-  const highlight = document.querySelector(".opencode-element-highlight");
-  const tooltip = document.querySelector(".opencode-element-tooltip");
-  const highlightDisplay = highlight?.getAttribute("style")?.includes("display: block")
-    ? "block"
-    : "none";
-  const tooltipDisplay = tooltip?.getAttribute("style")?.includes("display: block")
-    ? "block"
-    : "none";
+  const elements = document.elementsFromPoint(x, y);
 
-  if (highlight) (highlight as HTMLElement).style.display = "none";
-  if (tooltip) (tooltip as HTMLElement).style.display = "none";
+  for (const el of elements) {
+    if (el.closest("#vue-inspector-container")) continue;
+    if (el.closest(".opencode-widget")) continue;
+    if (el.hasAttribute("data-v-inspector-ignore")) continue;
 
-  let element: Element | null = null;
-  try {
-    const elements = document.elementsFromPoint(x, y);
-
-    for (const el of elements) {
-      if (el.closest("#vue-inspector-container")) continue;
-      if (el.closest(".opencode-widget")) continue;
-      if (el.hasAttribute("data-v-inspector-ignore")) continue;
-
-      if (boundary) {
-        if (boundary.contains(el) || el === boundary) {
-          element = el;
-          break;
-        }
-      } else {
-        element = el;
-        break;
+    if (boundary) {
+      if (boundary.contains(el) || el === boundary) {
+        return el;
       }
+    } else {
+      return el;
     }
-  } finally {
-    if (highlight) (highlight as HTMLElement).style.display = highlightDisplay;
-    if (tooltip) (tooltip as HTMLElement).style.display = tooltipDisplay;
   }
 
-  return element;
+  return null;
 }
 
 export function useInspector(options: UseInspectorOptions) {
@@ -361,65 +341,61 @@ export function useInspector(options: UseInspectorOptions) {
 
   const INSPECTOR_CHECK_INTERVAL = 500;
   let inspectorCheckTimer: number | null = null;
+  let currentHighlightElement: Element | null = null;
+  let currentPrimary = "#3b82f6";
+  let currentPrimaryBg = "rgba(59, 130, 246, 0.1)";
+  let currentDescription = "";
+  let currentFileInfoText = "";
 
   function handleMouseMoveCore(e: MouseEvent) {
     if (!options.selectMode.value) return;
 
     const inspector = window.__VUE_INSPECTOR__;
 
+    const highlight = document.querySelector(".opencode-element-highlight");
+    const tooltip = document.querySelector(".opencode-element-tooltip");
+
+    if (highlight) (highlight as HTMLElement).style.pointerEvents = "none";
+    if (tooltip) (tooltip as HTMLElement).style.pointerEvents = "none";
+
     let elementToHighlight: Element | null = null;
     let fileInfo: FileInfo = { file: null, line: null, column: null };
 
-    if (inspector) {
-      const { targetNode, params } = inspector.getTargetNode(e);
+    try {
+      if (inspector) {
+        const { targetNode, params } = inspector.getTargetNode(e);
 
-      if (targetNode) {
-        const preciseElement = getPreciseElementAtPoint(e.clientX, e.clientY, targetNode);
-        elementToHighlight = preciseElement || targetNode;
+        if (targetNode) {
+          const preciseElement = getPreciseElementAtPoint(e.clientX, e.clientY, targetNode);
+          elementToHighlight = preciseElement || targetNode;
 
-        if (params && params.file) {
-          fileInfo = {
-            file: params.file,
-            line: params.line ?? null,
-            column: params.column ?? null,
-          };
-        } else if (elementToHighlight) {
-          fileInfo = findFileInfo(elementToHighlight, inspector);
+          if (params && params.file) {
+            fileInfo = {
+              file: params.file,
+              line: params.line ?? null,
+              column: params.column ?? null,
+            };
+          } else {
+            fileInfo = findFileInfo(targetNode, inspector);
+          }
         }
       }
-    }
 
-    if (!elementToHighlight) {
-      elementToHighlight = getPreciseElementAtPoint(e.clientX, e.clientY, null);
-    }
+      if (!elementToHighlight) {
+        elementToHighlight = getPreciseElementAtPoint(e.clientX, e.clientY, null);
+      }
 
-    if (elementToHighlight && !fileInfo.file) {
-      fileInfo = getFileInfoFromVueInstance(elementToHighlight) || fileInfo;
+      if (elementToHighlight && !fileInfo.file) {
+        fileInfo = getFileInfoFromVueInstance(elementToHighlight) || fileInfo;
+      }
+    } finally {
+      if (highlight) (highlight as HTMLElement).style.pointerEvents = "";
+      if (tooltip) (tooltip as HTMLElement).style.pointerEvents = "";
     }
 
     if (elementToHighlight) {
-      const rect = elementToHighlight.getBoundingClientRect();
+      const elementChanged = currentHighlightElement !== elementToHighlight;
 
-      const widget = document.querySelector(".opencode-widget");
-      let primary = "#3b82f6";
-      let primaryBg = "rgba(59, 130, 246, 0.1)";
-      if (widget) {
-        const style = getComputedStyle(widget);
-        primary = style.getPropertyValue("--oc-primary").trim() || primary;
-        primaryBg = style.getPropertyValue("--oc-primary-bg").trim() || primaryBg;
-      }
-
-      highlightVisible.value = true;
-      highlightStyle.value = {
-        top: `${rect.top}px`,
-        left: `${rect.left}px`,
-        width: `${rect.width}px`,
-        height: `${rect.height}px`,
-        border: `2px solid ${primary}`,
-        background: primaryBg,
-      };
-
-      const description = getElementDescription(elementToHighlight);
       const fileName = fileInfo.file ? fileInfo.file.split("/").pop() : "";
       let lineInfo = "";
       if (fileInfo.line) {
@@ -428,12 +404,50 @@ export function useInspector(options: UseInspectorOptions) {
           lineInfo += `:${fileInfo.column}`;
         }
       }
+      const newFileInfoText = fileName ? `${fileName}${lineInfo}` : "";
+      const fileInfoChanged = currentFileInfoText !== newFileInfoText;
 
-      tooltipContent.value = {
-        description,
-        fileInfo: fileName ? `${fileName}${lineInfo}` : "",
-      };
-      tooltipVisible.value = true;
+      if (elementChanged || fileInfoChanged) {
+        currentHighlightElement = elementToHighlight;
+
+        const widget = document.querySelector(".opencode-widget");
+        if (widget) {
+          const style = getComputedStyle(widget);
+          currentPrimary = style.getPropertyValue("--oc-primary").trim() || currentPrimary;
+          currentPrimaryBg = style.getPropertyValue("--oc-primary-bg").trim() || currentPrimaryBg;
+        }
+
+        currentDescription = getElementDescription(elementToHighlight);
+        currentFileInfoText = newFileInfoText;
+
+        tooltipContent.value = {
+          description: currentDescription,
+          fileInfo: currentFileInfoText,
+        };
+      }
+
+      const rect = elementToHighlight.getBoundingClientRect();
+
+      const newTop = `${rect.top}px`;
+      const newLeft = `${rect.left}px`;
+      const newWidth = `${rect.width}px`;
+      const newHeight = `${rect.height}px`;
+
+      if (
+        highlightStyle.value.top !== newTop ||
+        highlightStyle.value.left !== newLeft ||
+        highlightStyle.value.width !== newWidth ||
+        highlightStyle.value.height !== newHeight
+      ) {
+        highlightStyle.value = {
+          top: newTop,
+          left: newLeft,
+          width: newWidth,
+          height: newHeight,
+          border: `2px solid ${currentPrimary}`,
+          background: currentPrimaryBg,
+        };
+      }
 
       const tooltipHeight = 50;
       const tooltipWidth = 200;
@@ -448,13 +462,32 @@ export function useInspector(options: UseInspectorOptions) {
         tooltipLeft = window.innerWidth - tooltipWidth - 10;
       }
 
-      tooltipStyle.value = {
-        top: `${tooltipTop}px`,
-        left: `${tooltipLeft}px`,
-      };
+      const newTooltipTop = `${tooltipTop}px`;
+      const newTooltipLeft = `${tooltipLeft}px`;
+
+      if (tooltipStyle.value.top !== newTooltipTop || tooltipStyle.value.left !== newTooltipLeft) {
+        tooltipStyle.value = {
+          top: newTooltipTop,
+          left: newTooltipLeft,
+        };
+      }
+
+      if (!highlightVisible.value) {
+        highlightVisible.value = true;
+      }
+      if (!tooltipVisible.value) {
+        tooltipVisible.value = true;
+      }
     } else {
-      highlightVisible.value = false;
-      tooltipVisible.value = false;
+      currentHighlightElement = null;
+      currentDescription = "";
+      currentFileInfoText = "";
+      if (highlightVisible.value) {
+        highlightVisible.value = false;
+      }
+      if (tooltipVisible.value) {
+        tooltipVisible.value = false;
+      }
     }
   }
 
@@ -541,6 +574,9 @@ export function useInspector(options: UseInspectorOptions) {
       }
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("keydown", handleKeydown, true);
+      currentHighlightElement = null;
+      currentDescription = "";
+      currentFileInfoText = "";
       highlightVisible.value = false;
       tooltipVisible.value = false;
     }

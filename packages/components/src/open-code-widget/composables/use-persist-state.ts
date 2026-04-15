@@ -1,0 +1,86 @@
+import { watch, onMounted, type Ref } from "vue";
+import type { FloatingBubbleOffset } from "../src/components/FloatingBubble/types";
+import type { OpenCodeWidgetTheme } from "../src/types";
+
+export interface WidgetPersistState {
+  open: boolean;
+  minimized: boolean;
+  promptDockVisible: boolean;
+  bubbleOffset?: FloatingBubbleOffset;
+  theme: OpenCodeWidgetTheme;
+  sessionListCollapsed: boolean;
+}
+
+const STORAGE_KEY = "opencode-widget-state";
+
+function loadState(): Partial<WidgetPersistState> | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (e) {
+    console.warn("[OpenCodeWidget] Failed to load persisted state:", e);
+  }
+  return null;
+}
+
+function saveState(state: WidgetPersistState): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    console.warn("[OpenCodeWidget] Failed to save state:", e);
+  }
+}
+
+export interface UsePersistStateOptions {
+  open: Ref<boolean>;
+  minimized: Ref<boolean>;
+  promptDockVisible: Ref<boolean>;
+  bubbleOffset: Ref<FloatingBubbleOffset | undefined>;
+  theme: Ref<OpenCodeWidgetTheme>;
+  sessionListCollapsed: Ref<boolean>;
+  onRestore?: (state: Partial<WidgetPersistState>) => void;
+}
+
+export function usePersistState(options: UsePersistStateOptions) {
+  const restoreState = (): Partial<WidgetPersistState> | null => {
+    const saved = loadState();
+    if (saved && options.onRestore) {
+      options.onRestore(saved);
+    }
+    return saved;
+  };
+
+  const getCurrentState = (): WidgetPersistState => ({
+    open: options.open.value,
+    minimized: options.minimized.value,
+    promptDockVisible: options.promptDockVisible.value,
+    bubbleOffset: options.bubbleOffset.value,
+    theme: options.theme.value,
+    sessionListCollapsed: options.sessionListCollapsed.value,
+  });
+
+  const persistState = () => {
+    saveState(getCurrentState());
+  };
+
+  onMounted(() => {
+    restoreState();
+
+    watch(
+      [options.open, options.minimized, options.promptDockVisible, options.bubbleOffset, options.theme, options.sessionListCollapsed],
+      () => {
+        persistState();
+      },
+      { deep: true },
+    );
+  });
+
+  return {
+    restoreState,
+    persistState,
+  };
+}
