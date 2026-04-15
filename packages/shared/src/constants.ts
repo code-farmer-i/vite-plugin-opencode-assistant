@@ -138,7 +138,6 @@ export const DEFAULT_CONFIG = {
   enabled: true,
   webPort: DEFAULT_WEB_PORT,
   hostname: DEFAULT_HOSTNAME,
-  position: "bottom-right" as const,
   theme: "auto" as const,
   open: false,
   autoReload: true,

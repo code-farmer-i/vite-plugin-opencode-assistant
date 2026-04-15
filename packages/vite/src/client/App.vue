@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import { OpenCodeWidget } from "@vite-plugin-opencode-assistant/components";
-import type { OpenCodeWidgetPosition, OpenCodeWidgetTheme, OpenCodeSelectedElement } from "@vite-plugin-opencode-assistant/shared";
+import type { OpenCodeWidgetTheme, OpenCodeSelectedElement } from "@vite-plugin-opencode-assistant/shared";
 import type { WidgetOptions } from "@vite-plugin-opencode-assistant/shared";
 
 import { useHotkey } from "./composables/useHotkey";
@@ -26,13 +26,11 @@ const widgetRef = ref<InstanceType<typeof OpenCodeWidget> | null>(null);
 const retryingWarmup = ref(false);
 
 const {
-  position = "bottom-right",
   theme: initialTheme = "auto",
   open: autoOpen = false,
   hotkey = "ctrl+k",
 } = props.config;
 
-const widgetPosition = position as OpenCodeWidgetPosition;
 const widgetTheme = initialTheme as OpenCodeWidgetTheme;
 
 const showNotification = (msg: string, options?: { duration?: number; mode?: "widget" | "page"; }) => {
@@ -253,7 +251,6 @@ const handleFrameLoaded = () => {
 <template>
   <OpenCodeWidget
     ref="widgetRef"
-    :position="widgetPosition"
     :theme="theme"
     :open="open"
     :select-mode="selectMode"

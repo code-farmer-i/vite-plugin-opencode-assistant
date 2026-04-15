@@ -142,8 +142,6 @@ export interface WebOptions {
  * 挂件注入配置选项
  */
 export interface WidgetOptions {
-  /** 挂件位置 */
-  position: string;
   /** 主题模式 */
   theme: string;
   /** 是否自动打开 */
@@ -256,11 +254,6 @@ export const SERVICE_STARTUP_TASKS: Record<ServiceStartupTask, string> = {
 // ==================== Widget 组件类型 ====================
 
 /**
- * 挂件位置选项
- */
-export type OpenCodeWidgetPosition = "bottom-right" | "bottom-left" | "top-right" | "top-left";
-
-/**
  * 挂件主题选项
  */
 export type OpenCodeWidgetTheme = "light" | "dark" | "auto";
@@ -331,7 +324,6 @@ export interface OpenCodeSelectedElementItem {
  * 挂件组件 Props
  */
 export interface OpenCodeWidgetProps {
-  position?: OpenCodeWidgetPosition;
   open?: boolean;
   theme?: OpenCodeWidgetTheme;
   title?: string;

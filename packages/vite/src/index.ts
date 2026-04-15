@@ -166,7 +166,6 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
       const timer = log.timer("transformIndexHtml");
 
       const widget = injectWidget({
-        position: config.position,
         theme: config.theme,
         open: config.open,
         hotkey: config.hotkey,

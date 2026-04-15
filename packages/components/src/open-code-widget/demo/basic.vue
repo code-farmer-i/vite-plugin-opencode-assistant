@@ -7,7 +7,6 @@ const open = ref(false);
 const loading = ref(true);
 const selectMode = ref(false);
 const theme = ref<"light" | "dark" | "auto">("auto");
-const position = ref<"bottom-right" | "bottom-left" | "top-right" | "top-left">("bottom-right");
 const currentSessionId = ref<string | null>(null);
 const sessionListCollapsed = ref(true);
 const sessions = ref<{ id: string; title: string; updatedAt: number }[]>([]);
@@ -149,14 +148,6 @@ watch(theme, (newVal) => {
       </div>
 
       <div class="control-group">
-        <h4>位置配置</h4>
-        <button @click="position = 'bottom-right'">底部右侧</button>
-        <button @click="position = 'bottom-left'">底部左侧</button>
-        <button @click="position = 'top-right'">顶部右侧</button>
-        <button @click="position = 'top-left'">顶部左侧</button>
-      </div>
-
-      <div class="control-group">
         <h4>会话管理</h4>
         <button @click="sessionListCollapsed = !sessionListCollapsed">
           切换会话列表 (当前: {{ sessionListCollapsed ? "折叠" : "展开" }})
@@ -174,12 +165,11 @@ watch(theme, (newVal) => {
       </div>
     </div>
 
-    <div class="widget-wrapper" :class="`position-${position}`">
+    <div class="widget-wrapper">
       <opencode-widget
         :open="open"
         :loading="loading"
         :theme="theme"
-        :position="position"
         :select-mode="selectMode"
         :session-list-collapsed="sessionListCollapsed"
         :sessions="sessions"
@@ -205,9 +195,9 @@ watch(theme, (newVal) => {
       <h3>场景演示说明</h3>
       <ul>
         <li><strong>基本操作:</strong> 测试挂件的打开/关闭、选择模式、主题切换、加载状态</li>
-        <li><strong>位置配置:</strong> 测试挂件在页面四个角的显示效果</li>
         <li><strong>会话管理:</strong> 测试会话列表的折叠/展开、创建新会话、清空已选节点</li>
         <li><strong>状态演示:</strong> 测试空状态和正常状态的切换</li>
+        <li><strong>拖拽功能:</strong> 气泡按钮支持自由拖拽，松手后自动磁吸到屏幕边缘</li>
       </ul>
     </div>
   </div>
@@ -312,21 +302,5 @@ button:hover {
   position: absolute;
   width: 100%;
   height: 100%;
-}
-
-.position-bottom-right {
-  position: relative;
-}
-
-.position-bottom-left {
-  position: relative;
-}
-
-.position-top-right {
-  position: relative;
-}
-
-.position-top-left {
-  position: relative;
 }
 </style>

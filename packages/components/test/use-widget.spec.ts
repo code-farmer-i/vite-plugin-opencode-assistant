@@ -3,9 +3,8 @@ import { ref } from "vue";
 import { useWidget } from "../src/open-code-widget/composables/use-widget";
 
 describe("useWidget composable", () => {
-  it("should compute containerClasses based on position, theme, and state", () => {
+  it("should compute containerClasses based on theme", () => {
     const options = {
-      position: ref("bottom-right"),
       theme: ref("dark"),
       open: ref(false),
       selectMode: ref(false),
@@ -20,17 +19,15 @@ describe("useWidget composable", () => {
     const { containerClasses } = useWidget(options);
     expect(containerClasses.value).toEqual([
       "opencode-widget",
-      "bottom-right",
       "opencode-theme-dark",
     ]);
 
-    options.position.value = "top-left";
-    expect(containerClasses.value).toEqual(["opencode-widget", "top-left", "opencode-theme-dark"]);
+    options.theme.value = "light";
+    expect(containerClasses.value).toEqual(["opencode-widget", "opencode-theme-light"]);
   });
 
   it("should compute buttonActive based on open or selectMode", () => {
     const options = {
-      position: ref("bottom-right"),
       theme: ref("light"),
       open: ref(false),
       selectMode: ref(false),
@@ -55,7 +52,6 @@ describe("useWidget composable", () => {
 
   it("should compute sessionListTitle correctly", () => {
     const options = {
-      position: ref("bottom-right"),
       theme: ref("light"),
       open: ref(false),
       selectMode: ref(false),
@@ -76,7 +72,6 @@ describe("useWidget composable", () => {
 
   it("should trigger callbacks correctly", () => {
     const options = {
-      position: ref("bottom-right"),
       theme: ref("light"),
       open: ref(false),
       selectMode: ref(false),

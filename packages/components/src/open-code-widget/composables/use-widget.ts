@@ -2,7 +2,6 @@ import { computed, ref, onMounted, onUnmounted, type Ref } from "vue";
 import type { OpenCodeWidgetTheme } from "../src/types";
 
 export interface UseWidgetOptions {
-  position: Ref<string>;
   theme: Ref<string>;
   open: Ref<boolean>;
   selectMode: Ref<boolean>;
@@ -54,7 +53,6 @@ export function useWidget(options: UseWidgetOptions) {
 
   const containerClasses = computed(() => [
     "opencode-widget",
-    options.position.value,
     `opencode-theme-${resolvedTheme.value}`,
   ]);
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSlots, toRef, ref, watch } from "vue";
+import { useSlots, toRef, ref, watch, computed } from "vue";
 import Frame from "./components/Frame.vue";
 import Header from "./components/Header.vue";
 import SelectHint from "./components/SelectHint.vue";
@@ -12,13 +12,13 @@ import { useWidget } from "../composables/use-widget";
 import { useInspector } from "../composables/use-inspector";
 import type { OpenCodeWidgetEmits, OpenCodeWidgetProps } from "./types";
 import { provideOpenCodeWidgetContext } from "./context";
+import type { FloatingBubbleOffset } from "./components/FloatingBubble/types";
 
 defineOptions({
   name: "OpencodeWidget",
 });
 
 const props = withDefaults(defineProps<OpenCodeWidgetProps>(), {
-  position: "bottom-right",
   open: false,
   theme: "auto",
   title: "AI 助手",
@@ -45,7 +45,6 @@ const props = withDefaults(defineProps<OpenCodeWidgetProps>(), {
 const emit = defineEmits<OpenCodeWidgetEmits>();
 const slots = useSlots();
 
-// Notification state
 const notificationMessage = ref("");
 const notificationVisible = ref(false);
 const notificationMode = ref<"widget" | "page">("widget");
@@ -62,7 +61,6 @@ const showNotification = (message: string, options?: { duration?: number; mode?:
   }, duration);
 };
 
-// Dialog state
 const dialogVisible = ref(false);
 const dialogMessage = ref("");
 let dialogResolve: ((value: boolean) => void) | null = null;
@@ -86,6 +84,7 @@ const handleDialogCancel = () => {
 };
 
 const frameRef = ref<InstanceType<typeof Frame> | null>(null);
+const triggerRef = ref<InstanceType<typeof Trigger> | null>(null);
 
 const sendMessageToIframe = (type: string, data?: Record<string, unknown>) => {
   frameRef.value?.sendMessageToIframe(type, data);
@@ -124,7 +123,6 @@ const {
   handleToggleSessionList,
   handleToggleTheme,
 } = useWidget({
-  position: toRef(props, "position"),
   theme: toRef(props, "theme"),
   open: toRef(props, "open"),
   selectMode: toRef(props, "selectMode"),
@@ -220,6 +218,91 @@ const handleTogglePromptDock = () => {
   sendMessageToIframe("prompt-dock-visibility-change", { visible: promptDockVisible.value });
 };
 
+const bubbleOffset = ref<FloatingBubbleOffset>({ x: 0, y: 0 });
+
+const isBubbleOnRightSide = computed(() => {
+  if (typeof window === "undefined") return true;
+  const centerX = window.innerWidth / 2;
+  return bubbleOffset.value.x > centerX;
+});
+
+const chatPositionStyle = computed(() => {
+  if (typeof window === "undefined") return {};
+
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+  const chatWidth = minimized.value ? 300 : 700;
+  const chatHeight = minimized.value ? 300 : Math.min(windowHeight * 0.86, windowHeight - 40); // Matches max-height: calc(100vh - 40px)
+  const gap = 24;
+  const bubbleSize = 44;
+  const screenMargin = 20;
+
+  const style: Record<string, string> = {};
+
+  // Calculate horizontal position
+  if (isBubbleOnRightSide.value) {
+    let rightPos = windowWidth - bubbleOffset.value.x + gap;
+    const maxRight = windowWidth - chatWidth - screenMargin;
+
+    if (rightPos > maxRight) {
+      rightPos = maxRight;
+    }
+
+    style.right = `${rightPos}px`;
+    style.left = "auto";
+  } else {
+    let leftPos = bubbleOffset.value.x + bubbleSize + gap;
+    const maxLeft = windowWidth - chatWidth - screenMargin;
+
+    if (leftPos > maxLeft) {
+      leftPos = maxLeft;
+    }
+
+    style.left = `${leftPos}px`;
+    style.right = "auto";
+  }
+
+  // Calculate vertical position (align with bubble if possible)
+  let bottomPos = windowHeight - bubbleOffset.value.y - bubbleSize;
+  const maxBottom = windowHeight - chatHeight - screenMargin;
+
+  // Ensure the panel doesn't go off the top of the screen
+  if (bottomPos > maxBottom) {
+    bottomPos = maxBottom;
+  }
+
+  // Ensure the panel doesn't go off the bottom of the screen
+  if (bottomPos < screenMargin) {
+    bottomPos = screenMargin;
+  }
+
+  style.bottom = `${bottomPos}px`;
+
+  return style;
+});
+
+const handleBubbleOffsetChange = (offset: FloatingBubbleOffset) => {
+  bubbleOffset.value = offset;
+};
+
+const isDragging = ref(false);
+let wasOpenBeforeDrag = false;
+
+const handleDragStart = () => {
+  isDragging.value = true;
+  wasOpenBeforeDrag = props.open;
+  if (props.open) {
+    emit("update:open", false);
+  }
+};
+
+const handleDragEnd = () => {
+  isDragging.value = false;
+  if (wasOpenBeforeDrag) {
+    emit("update:open", true);
+  }
+};
+
 provideOpenCodeWidgetContext({
   theme: toRef(props, "theme"),
   resolvedTheme,
@@ -270,7 +353,12 @@ provideOpenCodeWidgetContext({
 
 <template>
   <div :class="containerClasses">
-    <Trigger>
+    <Trigger
+      ref="triggerRef"
+      @offset-change="handleBubbleOffsetChange"
+      @drag-start="handleDragStart"
+      @drag-end="handleDragEnd"
+    >
       <template
         v-if="slots['button-icon']"
         #default
@@ -279,12 +367,11 @@ provideOpenCodeWidgetContext({
       </template>
     </Trigger>
 
-    <!-- <SelectedBubbles v-if="bubbleVisible" /> -->
-
     <div
       v-show="!selectMode"
       class="opencode-chat"
-      :class="{ open, minimized }"
+      :class="{ open, minimized, dragging: isDragging }"
+      :style="chatPositionStyle"
     >
       <Header>
         <template
@@ -309,7 +396,6 @@ provideOpenCodeWidgetContext({
         </template>
       </Header>
 
-      <!-- Notification -->
       <div
         v-if="notificationVisible && notificationMode === 'widget'"
         class="opencode-notification"
@@ -363,7 +449,6 @@ provideOpenCodeWidgetContext({
 
     <SelectHint />
 
-    <!-- Inspector Highlight -->
     <div
       v-show="highlightVisible"
       class="opencode-element-highlight"
@@ -373,7 +458,6 @@ provideOpenCodeWidgetContext({
       }"
     />
 
-    <!-- Inspector Tooltip -->
     <div
       v-show="tooltipVisible"
       class="opencode-element-tooltip"
@@ -390,7 +474,6 @@ provideOpenCodeWidgetContext({
       </div>
     </div>
 
-    <!-- Dialog -->
     <div
       v-if="dialogVisible"
       class="opencode-dialog-overlay"
@@ -416,7 +499,6 @@ provideOpenCodeWidgetContext({
       </div>
     </div>
 
-    <!-- Page-level Notification -->
     <Teleport to="body">
       <div
         v-if="notificationVisible && notificationMode === 'page'"
@@ -431,7 +513,6 @@ provideOpenCodeWidgetContext({
 
 <style>
 .opencode-widget {
-  /* Colors - Light Theme */
   --oc-bg-main: #ffffff;
   --oc-bg-secondary: #f8f9fa;
   --oc-bg-tertiary: #f3f4f6;
@@ -461,17 +542,14 @@ provideOpenCodeWidgetContext({
   --oc-tooltip-bg: #1e1e1e;
   --oc-dialog-overlay: rgba(0, 0, 0, 0.5);
 
-  /* Thinking State */
   --oc-thinking-gradient-1: #10b981;
   --oc-thinking-gradient-2: #059669;
   --oc-thinking-glow: rgba(16, 185, 129, 0.3);
   --oc-thinking-glow-strong: rgba(16, 185, 129, 0.6);
 
-  /* Skeleton */
   --oc-skeleton-bg: #e5e7eb;
   --oc-skeleton-gradient: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
 
-  /* Shadows */
   --oc-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
   --oc-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
   --oc-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
@@ -480,7 +558,6 @@ provideOpenCodeWidgetContext({
   --oc-shadow-primary-hover: 0 4px 6px rgba(59, 130, 246, 0.3);
   --oc-shadow-danger: 0 4px 12px rgba(239, 68, 68, 0.3);
 
-  /* Trigger */
   --oc-trigger-bg: #3b82f6;
   --oc-trigger-bg-hover: #2563eb;
   --oc-trigger-bg-active: #1d4ed8;
@@ -494,7 +571,6 @@ provideOpenCodeWidgetContext({
 }
 
 .opencode-widget.opencode-theme-dark {
-  /* Colors - Dark Theme */
   --oc-bg-main: #1a1a1a;
   --oc-bg-secondary: #1e1e1e;
   --oc-bg-tertiary: #282828;
@@ -524,17 +600,14 @@ provideOpenCodeWidgetContext({
   --oc-tooltip-bg: #282828;
   --oc-dialog-overlay: rgba(0, 0, 0, 0.7);
 
-  /* Thinking State - Dark Mode */
   --oc-thinking-gradient-1: #34d399;
   --oc-thinking-gradient-2: #10b981;
   --oc-thinking-glow: rgba(52, 211, 153, 0.3);
   --oc-thinking-glow-strong: rgba(52, 211, 153, 0.6);
 
-  /* Skeleton */
   --oc-skeleton-bg: #151515;
   --oc-skeleton-gradient: linear-gradient(90deg, #282828 25%, #4b5563 50%, #282828 75%);
 
-  /* Shadows */
   --oc-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3);
   --oc-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
   --oc-shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.4);
@@ -543,7 +616,6 @@ provideOpenCodeWidgetContext({
   --oc-shadow-primary-hover: 0 4px 6px rgba(59, 130, 246, 0.4);
   --oc-shadow-danger: 0 4px 12px rgba(239, 68, 68, 0.4);
 
-  /* Trigger */
   --oc-trigger-bg: #60a5fa;
   --oc-trigger-bg-hover: #3b82f6;
   --oc-trigger-bg-active: #2563eb;
@@ -552,30 +624,12 @@ provideOpenCodeWidgetContext({
   --oc-trigger-shadow-active: 0 4px 12px rgba(96, 165, 250, 0.6);
 }
 
-.opencode-widget.bottom-right {
-  bottom: 20px;
-  right: 20px;
-}
-
-.opencode-widget.bottom-left {
-  bottom: 20px;
-  left: 20px;
-}
-
-.opencode-widget.top-right {
-  top: 20px;
-  right: 20px;
-}
-
-.opencode-widget.top-left {
-  top: 20px;
-  left: 20px;
-}
-
 .opencode-chat {
-  position: absolute;
+  position: fixed;
+  bottom: 20px;
   width: 700px;
   height: 86vh;
+  max-height: calc(100vh - 40px);
   background: var(--oc-bg-main);
   border-radius: 16px;
   box-shadow: var(--oc-shadow-lg);
@@ -586,6 +640,7 @@ provideOpenCodeWidgetContext({
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
+  z-index: 99999;
 }
 
 .opencode-chat.minimized {
@@ -601,48 +656,6 @@ provideOpenCodeWidgetContext({
   display: flex;
   flex: 1;
   overflow: hidden;
-}
-
-.opencode-widget.bottom-right .opencode-chat {
-  bottom: 56px;
-  right: 0;
-}
-
-.opencode-widget.bottom-left .opencode-chat {
-  bottom: 56px;
-  left: 0;
-}
-
-.opencode-widget.top-right .opencode-chat {
-  top: 56px;
-  right: 0;
-}
-
-.opencode-widget.top-left .opencode-chat {
-  top: 56px;
-  left: 0;
-}
-
-.opencode-widget.bottom-right .opencode-selected-bubbles {
-  bottom: 56px;
-  right: 0;
-}
-
-.opencode-widget.bottom-left .opencode-selected-bubbles {
-  bottom: 56px;
-  left: 0;
-}
-
-.opencode-widget.top-right .opencode-selected-bubbles {
-  top: 56px;
-  bottom: auto;
-  right: 0;
-}
-
-.opencode-widget.top-left .opencode-selected-bubbles {
-  top: 56px;
-  bottom: auto;
-  left: 0;
 }
 
 .opencode-chat.open {
