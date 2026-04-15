@@ -11,48 +11,25 @@ const {
   thinking,
   resolvedTheme,
   handleToggle,
+  bubbleOffset,
+  handleBubbleOffsetChange,
 } = useOpenCodeWidgetContext();
 
-const STORAGE_KEY = "opencode-bubble-offset";
-
-const loadOffset = (): FloatingBubbleOffset | undefined => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed && (parsed.x !== 0 || parsed.y !== 0)) {
-        return parsed;
-      }
-    }
-  } catch {
-    // ignore
-  }
-  return undefined;
-};
-
-const offset = ref<FloatingBubbleOffset | undefined>(loadOffset());
+const offset = ref<FloatingBubbleOffset | undefined>(bubbleOffset.value);
 
 const emit = defineEmits<{
-  (e: "offset-change", offset: FloatingBubbleOffset | undefined): void;
   (e: "drag-start"): void;
   (e: "drag-end"): void;
 }>();
 
-const saveOffset = (value: FloatingBubbleOffset | undefined) => {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-  } catch {
-    // ignore
-  }
-};
-
 const handleOffsetChange = (value: FloatingBubbleOffset | undefined) => {
   offset.value = value;
-  saveOffset(value);
-  emit("offset-change", value);
+  handleBubbleOffsetChange(value);
 };
 
-watch(offset, handleOffsetChange, { immediate: true });
+watch(bubbleOffset, (newOffset) => {
+  offset.value = newOffset;
+});
 
 defineExpose({
   offset,

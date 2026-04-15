@@ -4,6 +4,7 @@ import type {
   OpenCodeSelectedElementItem,
   OpenCodeRemoveSelectedPayload,
 } from "./types";
+import type { FloatingBubbleOffset } from "./components/FloatingBubble/types";
 
 export interface OpenCodeWidgetContext {
   theme: Ref<string>;
@@ -27,6 +28,7 @@ export interface OpenCodeWidgetContext {
   thinking: Ref<boolean>;
   minimized: Ref<boolean>;
   promptDockVisible: Ref<boolean>;
+  bubbleOffset: Ref<FloatingBubbleOffset | undefined>;
 
   // Computed
   iframeSource: Ref<string>;
@@ -57,6 +59,7 @@ export interface OpenCodeWidgetContext {
   }) => void;
   handleClearSelectedNodes: () => void;
   handleFrameLoaded: () => void;
+  handleBubbleOffsetChange: (offset: FloatingBubbleOffset | undefined) => void;
 }
 
 const CONTEXT_KEY = Symbol("OpenCodeWidgetContext");

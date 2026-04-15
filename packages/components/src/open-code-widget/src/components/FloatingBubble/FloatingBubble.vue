@@ -60,6 +60,29 @@ const boundary = computed(() => ({
   left: gapX.value,
 }));
 
+const closest = (arr: number[], target: number) => {
+  return arr.reduce((pre, cur) =>
+    Math.abs(pre - target) < Math.abs(cur - target) ? pre : cur
+  );
+};
+
+const applyMagnetic = () => {
+  if (props.magnetic === "x") {
+    const nextX = closest(
+      [boundary.value.left, boundary.value.right],
+      state.value.x
+    );
+    state.value.x = nextX;
+  }
+  if (props.magnetic === "y") {
+    const nextY = closest(
+      [boundary.value.top, boundary.value.bottom],
+      state.value.y
+    );
+    state.value.y = nextY;
+  }
+};
+
 const dragging = ref(false);
 const initialized = ref(false);
 
@@ -96,12 +119,25 @@ const updateState = () => {
   if (y < gapY.value) y = gapY.value;
   if (y > maxY) y = maxY;
 
+  const oldX = state.value.x;
+  const oldY = state.value.y;
+
   state.value = {
     x,
     y,
     width: rect.width,
     height: rect.height,
   };
+
+  if (!dragging.value) {
+    applyMagnetic();
+
+    if (state.value.x !== oldX || state.value.y !== oldY) {
+      const offset = { x: state.value.x, y: state.value.y };
+      emit("update:offset", offset);
+      emit("offset-change", offset);
+    }
+  }
 };
 
 // Inline useTouch implementation to match Vant's useTouch exactly
@@ -148,6 +184,8 @@ const onTouchStart = (e: TouchEvent | MouseEvent) => {
   prevX = state.value.x;
   prevY = state.value.y;
 
+  document.body.classList.add('floating-bubble-dragging');
+
   if (!("touches" in e)) {
     window.addEventListener("mousemove", onTouchMove, { passive: false });
     window.addEventListener("mouseup", onTouchEnd);
@@ -188,14 +226,10 @@ const onTouchMove = (e: TouchEvent | MouseEvent) => {
   }
 };
 
-const closest = (arr: number[], target: number) => {
-  return arr.reduce((pre, cur) =>
-    Math.abs(pre - target) < Math.abs(cur - target) ? pre : cur
-  );
-};
-
 const onTouchEnd = (e?: TouchEvent | MouseEvent) => {
   dragging.value = false;
+
+  document.body.classList.remove('floating-bubble-dragging');
 
   if (e && !("touches" in e) && e.type === "mouseup") {
     window.removeEventListener("mousemove", onTouchMove);
@@ -203,20 +237,7 @@ const onTouchEnd = (e?: TouchEvent | MouseEvent) => {
   }
 
   requestAnimationFrame(() => {
-    if (props.magnetic === "x") {
-      const nextX = closest(
-        [boundary.value.left, boundary.value.right],
-        state.value.x
-      );
-      state.value.x = nextX;
-    }
-    if (props.magnetic === "y") {
-      const nextY = closest(
-        [boundary.value.top, boundary.value.bottom],
-        state.value.y
-      );
-      state.value.y = nextY;
-    }
+    applyMagnetic();
 
     if (!touch.isTap.value) {
       emit("drag-end");
@@ -263,6 +284,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  document.body.classList.remove('floating-bubble-dragging');
+  
   if (typeof window !== "undefined") {
     window.removeEventListener("resize", handleResize);
     window.removeEventListener("mousemove", onTouchMove as EventListener);
@@ -315,5 +338,14 @@ defineExpose({
 
 .floating-bubble:active {
   cursor: grabbing;
+}
+
+body.floating-bubble-dragging * {
+  pointer-events: none !important;
+}
+
+body.floating-bubble-dragging .floating-bubble,
+body.floating-bubble-dragging .floating-bubble * {
+  pointer-events: auto !important;
 }
 </style>

@@ -121,6 +121,9 @@ ${currentPageSection}
 
 2. **快照获取**
    在没有获取到需要的节点信息时，使用 verbose 参数来获取更详细的节点信息。如果设置了 verbose 参数还是没有获取到节点信息，再尝试考虑其他方案。
+
+3. **单页应用（SPA）特性**
+   如果用户开发的是单页应用（SPA），执行任务大部分情况下不需要刷新页面。
 `.trim();
 
       output.system.push(systemPrompt);

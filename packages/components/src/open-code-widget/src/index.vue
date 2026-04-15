@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useSlots, toRef, ref, watch, computed } from "vue";
+import { useSlots, toRef, ref, watch, computed, nextTick, onMounted, onUnmounted } from "vue";
 import Frame from "./components/Frame.vue";
 import Header from "./components/Header.vue";
 import SelectHint from "./components/SelectHint.vue";
@@ -94,11 +94,19 @@ const sendMessageToIframe = (type: string, data?: Record<string, unknown>) => {
 const localSessionListCollapsed = ref(props.sessionListCollapsed);
 const minimized = ref(false);
 const promptDockVisible = ref(true);
+const isRestoring = ref(true);
+const iframeLoaded = ref(false);
+
+const syncStateToIframe = () => {
+  if (!iframeLoaded.value) return;
+  sendMessageToIframe("prompt-dock-visibility-change", { visible: promptDockVisible.value });
+  sendMessageToIframe("minimize-state-change", { minimized: minimized.value });
+};
 
 const handleFrameLoaded = () => {
   emit("frame-loaded");
-  sendMessageToIframe("prompt-dock-visibility-change", { visible: promptDockVisible.value });
-  sendMessageToIframe("minimize-state-change", { minimized: minimized.value });
+  iframeLoaded.value = true;
+  syncStateToIframe();
 };
 
 defineExpose({
@@ -227,7 +235,15 @@ usePersistState({
       minimized.value = state.minimized;
     }
     if (state.bubbleOffset !== undefined) {
-      bubbleOffset.value = state.bubbleOffset;
+      const bubbleSize = 44;
+      const margin = 10;
+      const maxX = window.innerWidth - bubbleSize - margin;
+      const maxY = window.innerHeight - bubbleSize - margin;
+      
+      bubbleOffset.value = {
+        x: Math.max(margin, Math.min(state.bubbleOffset.x, maxX)),
+        y: Math.max(margin, Math.min(state.bubbleOffset.y, maxY)),
+      };
     }
     if (state.theme !== undefined && state.theme !== props.theme) {
       emit("update:theme", state.theme);
@@ -237,11 +253,17 @@ usePersistState({
       localSessionListCollapsed.value = state.sessionListCollapsed;
       emit("update:sessionListCollapsed", state.sessionListCollapsed);
     }
-    if (minimized.value) {
-      promptDockVisible.value = false;
-    } else if (state.promptDockVisible !== undefined) {
+    if (state.promptDockVisible !== undefined) {
       promptDockVisible.value = state.promptDockVisible;
+    } else if (minimized.value) {
+      promptDockVisible.value = false;
     }
+    nextTick(() => {
+      syncStateToIframe();
+      setTimeout(() => {
+        isRestoring.value = false;
+      }, 50);
+    });
   },
 });
 
@@ -259,15 +281,38 @@ const handleTogglePromptDock = () => {
 
 type BubbleQuadrant = "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
+const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 0);
+const windowHeight = ref(typeof window !== "undefined" ? window.innerHeight : 0);
+
+const handleWindowResize = () => {
+  if (typeof window !== "undefined") {
+    windowWidth.value = window.innerWidth;
+    windowHeight.value = window.innerHeight;
+  }
+};
+
+onMounted(() => {
+  if (typeof window !== "undefined") {
+    window.addEventListener("resize", handleWindowResize);
+  }
+});
+
+onUnmounted(() => {
+  if (typeof window !== "undefined") {
+    window.removeEventListener("resize", handleWindowResize);
+  }
+});
+
 const bubbleQuadrant = computed((): BubbleQuadrant => {
   if (typeof window === "undefined") return "bottom-right";
 
-  const centerX = window.innerWidth / 2;
-  const centerY = window.innerHeight / 2;
+  const centerX = windowWidth.value / 2;
+  const centerY = windowHeight.value / 2;
 
   const bubbleSize = 44;
-  const effectiveX = (bubbleOffset.value?.x ?? window.innerWidth - bubbleSize - 24) + bubbleSize / 2;
-  const effectiveY = (bubbleOffset.value?.y ?? window.innerHeight - bubbleSize - 24) + bubbleSize / 2;
+  const currentOffset = triggerRef.value?.offset ?? bubbleOffset.value;
+  const effectiveX = (currentOffset?.x ?? windowWidth.value - bubbleSize - 24) + bubbleSize / 2;
+  const effectiveY = (currentOffset?.y ?? windowHeight.value - bubbleSize - 24) + bubbleSize / 2;
 
   if (effectiveX >= centerX && effectiveY >= centerY) {
     return "bottom-right";
@@ -288,52 +333,53 @@ const isBubbleOnRightSide = computed(() => {
 const chatPositionStyle = computed(() => {
   if (typeof window === "undefined") return {};
 
-  const windowWidth = window.innerWidth;
-  const windowHeight = window.innerHeight;
   const chatWidth = minimized.value ? 300 : 700;
-  const chatHeight = minimized.value ? 300 : Math.min(windowHeight * 0.86, windowHeight - 40); // Matches max-height: calc(100vh - 40px)
+  const chatHeight = minimized.value ? 300 : Math.min(windowHeight.value * 0.86, windowHeight.value - 40);
   const gap = 24;
   const bubbleSize = 44;
   const screenMargin = 20;
 
-  // Use default position (bottom-right) if offset is not set yet
-  const effectiveOffset = bubbleOffset.value ?? { x: windowWidth - bubbleSize - gap, y: windowHeight - bubbleSize - gap };
+  const effectiveOffset = triggerRef.value?.offset ?? bubbleOffset.value ?? { x: windowWidth.value - bubbleSize - gap, y: windowHeight.value - bubbleSize - gap };
 
   const style: Record<string, string> = {};
 
-  // Calculate horizontal position
   if (isBubbleOnRightSide.value) {
-    let rightPos = windowWidth - effectiveOffset.x + gap;
-    const maxRight = windowWidth - chatWidth - screenMargin;
+    let rightPos = windowWidth.value - effectiveOffset.x + gap;
+    const minRight = screenMargin;
+    const maxRight = windowWidth.value - chatWidth - screenMargin;
 
     if (rightPos > maxRight) {
       rightPos = maxRight;
+    }
+    if (rightPos < minRight) {
+      rightPos = minRight;
     }
 
     style.right = `${rightPos}px`;
     style.left = "auto";
   } else {
     let leftPos = effectiveOffset.x + bubbleSize + gap;
-    const maxLeft = windowWidth - chatWidth - screenMargin;
+    const minLeft = screenMargin;
+    const maxLeft = windowWidth.value - chatWidth - screenMargin;
 
     if (leftPos > maxLeft) {
       leftPos = maxLeft;
+    }
+    if (leftPos < minLeft) {
+      leftPos = minLeft;
     }
 
     style.left = `${leftPos}px`;
     style.right = "auto";
   }
 
-  // Calculate vertical position (align with bubble if possible)
-  let bottomPos = windowHeight - effectiveOffset.y - bubbleSize;
-  const maxBottom = windowHeight - chatHeight - screenMargin;
+  let bottomPos = windowHeight.value - effectiveOffset.y - bubbleSize;
+  const maxBottom = windowHeight.value - chatHeight - screenMargin;
 
-  // Ensure the panel doesn't go off the top of the screen
   if (bottomPos > maxBottom) {
     bottomPos = maxBottom;
   }
 
-  // Ensure the panel doesn't go off the bottom of the screen
   if (bottomPos < screenMargin) {
     bottomPos = screenMargin;
   }
@@ -402,6 +448,7 @@ provideOpenCodeWidgetContext({
   thinking: toRef(props, "thinking"),
   minimized,
   promptDockVisible,
+  bubbleOffset,
   iframeSource,
   buttonActive,
   sessionListTitle,
@@ -425,6 +472,7 @@ provideOpenCodeWidgetContext({
     handleRemoveSelectedNode(payload.item, payload.index, payload.source),
   handleClearSelectedNodes,
   handleFrameLoaded,
+  handleBubbleOffsetChange,
 });
 </script>
 
@@ -432,7 +480,6 @@ provideOpenCodeWidgetContext({
   <div :class="containerClasses">
     <Trigger
       ref="triggerRef"
-      @offset-change="handleBubbleOffsetChange"
       @drag-start="handleDragStart"
       @drag-end="handleDragEnd"
     >
@@ -447,7 +494,7 @@ provideOpenCodeWidgetContext({
     <div
       v-show="!selectMode"
       class="opencode-chat"
-      :class="{ open, minimized, dragging: isDragging }"
+      :class="{ open, minimized, dragging: isDragging, 'no-transition': isRestoring }"
       :style="chatPositionStyle"
     >
       <Header>
@@ -714,6 +761,17 @@ provideOpenCodeWidgetContext({
   z-index: 99999;
 }
 
+.opencode-chat.open {
+  opacity: 1;
+  visibility: visible;
+  transform: translate3d(0, 0, 0) scale(1);
+}
+
+.opencode-chat.no-transition,
+.opencode-chat.no-transition.open {
+  transition: none !important;
+}
+
 .opencode-chat.minimized {
   width: 300px;
   height: 300px;
@@ -727,12 +785,6 @@ provideOpenCodeWidgetContext({
   display: flex;
   flex: 1;
   overflow: hidden;
-}
-
-.opencode-chat.open {
-  opacity: 1;
-  visibility: visible;
-  transform: translate3d(0, 0, 0) scale(1);
 }
 
 .opencode-notification {

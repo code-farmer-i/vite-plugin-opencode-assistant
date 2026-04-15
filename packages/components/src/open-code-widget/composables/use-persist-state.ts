@@ -48,8 +48,8 @@ export interface UsePersistStateOptions {
 export function usePersistState(options: UsePersistStateOptions) {
   const restoreState = (): Partial<WidgetPersistState> | null => {
     const saved = loadState();
-    if (saved && options.onRestore) {
-      options.onRestore(saved);
+    if (options.onRestore) {
+      options.onRestore(saved || {});
     }
     return saved;
   };

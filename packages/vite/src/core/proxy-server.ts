@@ -127,7 +127,11 @@ function generateBridgeScript(options: ProxyServerOptions): string {
   });
 
   // === 最小化状态处理 ===
+  let savedMinimizedState = null;
+  let savedPromptDockVisibleState = null;
+  
   function handleMinimizeStateChange(minimized) {
+    savedMinimizedState = minimized;
     const dockSurface = document.querySelector('[data-dock-surface="tray"]');
     const sessionTurnList = document.querySelector('[data-slot="session-turn-list"]');
     
@@ -142,9 +146,20 @@ function generateBridgeScript(options: ProxyServerOptions): string {
 
   // === 对话框显示状态处理 ===
   function handlePromptDockVisibilityChange(visible) {
+    savedPromptDockVisibleState = visible;
     const promptDock = document.querySelector('[data-component="session-prompt-dock"]');
     if (promptDock) {
       promptDock.style.display = visible ? '' : 'none';
+    }
+  }
+  
+  // === 应用保存的状态 ===
+  function applySavedStates() {
+    if (savedMinimizedState !== null) {
+      handleMinimizeStateChange(savedMinimizedState);
+    }
+    if (savedPromptDockVisibleState !== null) {
+      handlePromptDockVisibilityChange(savedPromptDockVisibleState);
     }
   }
 
@@ -397,12 +412,20 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     }
     setupThinkingListener();
     setupPromptInputListener();
+    applySavedStates();
     
     const observer = new MutationObserver(function(mutations) {
       const promptInput = document.querySelector('[data-component="prompt-input"]');
       if (promptInput && !promptInput._opencodeListenerAttached) {
         setupPromptInputListener();
         promptInput._opencodeListenerAttached = true;
+      }
+      
+      // 当目标元素出现时应用保存的状态
+      const promptDock = document.querySelector('[data-component="session-prompt-dock"]');
+      const dockSurface = document.querySelector('[data-dock-surface="tray"]');
+      if (promptDock || dockSurface) {
+        applySavedStates();
       }
     });
     observer.observe(document.body, { childList: true, subtree: true });
