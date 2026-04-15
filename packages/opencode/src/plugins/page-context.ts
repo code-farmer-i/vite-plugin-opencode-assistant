@@ -61,6 +61,10 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 2. **理解上下文**：将页面 URL、标题和选中节点信息作为用户请求的背景，帮助理解用户的真实意图。
 
 3. **直接行动**：在明确节点位置后，针对用户的实际请求给出清晰、可执行的方案。
+
+### Chrome DevTools Mcp 最佳实践
+
+1. **快照获取** 在没有获取到需要的节点信息时，使用 verbose 模式来获取更详细的节点信息。
 `.trim();
 
       output.system.push(systemPrompt);
