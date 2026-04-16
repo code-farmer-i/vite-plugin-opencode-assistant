@@ -215,7 +215,7 @@ defineExpose({
   }
 
   50% {
-    transform: scale(0.95);
+    transform: scale(0.85);
   }
 }
 
