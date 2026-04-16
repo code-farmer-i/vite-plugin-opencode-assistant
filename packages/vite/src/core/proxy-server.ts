@@ -52,6 +52,7 @@ function mergeSettings(
 
 /**
  * 生成 PostMessage Bridge 脚本
+ * 只处理 DOM 操作和主题同步，SSE 监听已迁移到 client 层
  */
 function generateBridgeScript(options: ProxyServerOptions): string {
   const { theme = "auto", language, settings } = options;
@@ -112,15 +113,15 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     if (event.data && event.data.type === "OPENCODE_SET_THEME") {
       setTheme(event.data.theme);
     }
-    
+
     if (event.data && event.data.type === "OPENCODE_INSERT_FILE_PART") {
       insertFilePart(event.data.element);
     }
-    
+
     if (event.data && event.data.type === "minimize-state-change") {
       handleMinimizeStateChange(event.data.minimized);
     }
-    
+
     if (event.data && event.data.type === "prompt-dock-visibility-change") {
       handlePromptDockVisibilityChange(event.data.visible);
     }
@@ -134,11 +135,11 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     savedMinimizedState = minimized;
     const dockSurface = document.querySelector('[data-dock-surface="tray"]');
     const sessionTurnList = document.querySelector('[data-slot="session-turn-list"]');
-    
+
     if (dockSurface) {
       dockSurface.style.display = minimized ? 'none' : '';
     }
-    
+
     if (sessionTurnList) {
       sessionTurnList.style.paddingBottom = minimized ? '10px' : '';
     }
@@ -165,11 +166,11 @@ function generateBridgeScript(options: ProxyServerOptions): string {
 
   // === 保存输入框光标位置 ===
   let savedRange = null;
-  
+
   function setupPromptInputListener() {
     const promptInput = document.querySelector('[data-component="prompt-input"]');
     if (!promptInput) return;
-    
+
     promptInput.addEventListener('blur', function() {
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
@@ -179,7 +180,7 @@ function generateBridgeScript(options: ProxyServerOptions): string {
         }
       }
     });
-    
+
     promptInput.addEventListener('focus', function() {
       savedRange = null;
     });
@@ -205,29 +206,29 @@ function generateBridgeScript(options: ProxyServerOptions): string {
 
     const jsonStr = JSON.stringify({
       nodeContext: {
-        "filePath": { 
-          "value": filePath ?? '未知', 
-          "desc": "源码文件路径" 
+        "filePath": {
+          "value": filePath ?? '未知',
+          "desc": "源码文件路径"
         },
-        "line": { 
-          "value": line ?? '未知', 
-          "desc": "代码所在行号" 
+        "line": {
+          "value": line ?? '未知',
+          "desc": "代码所在行号"
         },
-        "column": { 
-          "value": column ?? '未知', 
-          "desc": "代码所在列号" 
+        "column": {
+          "value": column ?? '未知',
+          "desc": "代码所在列号"
         },
-        "description": { 
-          "value": description ?? '未知', 
-          "desc": "DOM 元素选择器" 
+        "description": {
+          "value": description ?? '未知',
+          "desc": "DOM 元素选择器"
         },
-        "innerText": { 
-          "value": innerText ? innerText.substring(0, 500) : '', 
-          "desc": "DOM 元素内部文本" 
+        "innerText": {
+          "value": innerText ? innerText.substring(0, 500) : '',
+          "desc": "DOM 元素内部文本"
         },
-        "selectAt": { 
-          "value": previewPageUrl || '未知', 
-          "desc": "用户选中节点时的页面 URL" 
+        "selectAt": {
+          "value": previewPageUrl || '未知',
+          "desc": "用户选中节点时的页面 URL"
         }
       }
     });
@@ -236,30 +237,30 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     span.setAttribute('data-type', 'file');
     span.setAttribute('data-path', jsonStr);
     span.setAttribute('contenteditable', 'false');
-    
+
     span.textContent = displayText;
 
     if (savedRange) {
       const range = savedRange;
       range.collapse(false);
       range.insertNode(span);
-      
+
       const space = document.createTextNode('\\u00A0');
       span.parentNode.insertBefore(space, span.nextSibling);
-      
+
       const newRange = document.createRange();
       newRange.setStartAfter(space);
       newRange.collapse(true);
-      
+
       promptInput.focus();
-      
+
       const selection = window.getSelection();
       if (selection) {
         selection.removeAllRanges();
         selection.addRange(newRange);
       }
       savedRange = null;
-      
+
       promptInput.dispatchEvent(new Event('input', { bubbles: true }));
       return;
     }
@@ -267,20 +268,20 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     const selection = window.getSelection();
     if (selection && selection.rangeCount > 0) {
       const range = selection.getRangeAt(0);
-      
+
       if (promptInput.contains(range.commonAncestorContainer)) {
         range.collapse(false);
         range.insertNode(span);
-        
+
         const space = document.createTextNode('\\u00A0');
         span.parentNode.insertBefore(space, span.nextSibling);
-        
+
         const newRange = document.createRange();
         newRange.setStartAfter(space);
         newRange.collapse(true);
         selection.removeAllRanges();
         selection.addRange(newRange);
-        
+
         promptInput.dispatchEvent(new Event('input', { bubbles: true }));
         return;
       }
@@ -289,7 +290,7 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     promptInput.appendChild(span);
     const space = document.createTextNode('\\u00A0');
     promptInput.appendChild(space);
-    
+
     const newRange = document.createRange();
     newRange.setStartAfter(space);
     newRange.collapse(true);
@@ -298,111 +299,9 @@ function generateBridgeScript(options: ProxyServerOptions): string {
       newSelection.removeAllRanges();
       newSelection.addRange(newRange);
     }
-    
+
     promptInput.dispatchEvent(new Event('input', { bubbles: true }));
     promptInput.focus();
-  }
-
-  // === 思考状态监听 (完全复刻 OpenCode Web 实现) ===
-  // OpenCode Web 核心逻辑:
-  // working = !!pending() || sessionStatus().type !== "idle"
-  // pending = 最后一条未完成的 assistant 消息 (time.completed 不是数字)
-  // sessionStatus = sync.data.session_status[sessionID]
-  
-  let eventSource = null;
-  const sessionStatus = {};
-  const pendingMessages = {};
-
-  function getCurrentSessionID() {
-    const match = window.location.pathname.match(/\\/session\\/([^\\/]+)/);
-    return match ? match[1] : null;
-  }
-
-  function isPending(message) {
-    return message.role === 'assistant' && typeof message.time?.completed !== 'number';
-  }
-
-  function updateThinkingState(sessionID) {
-    const status = sessionStatus[sessionID];
-    const pending = pendingMessages[sessionID];
-    
-    const isThinking = !!pending || (status && status.type !== 'idle');
-    
-    if (window.parent !== window) {
-      window.parent.postMessage({
-        type: 'OPENCODE_THINKING_STATE',
-        thinking: isThinking,
-        sessionID: sessionID,
-        statusType: status?.type || 'idle',
-        hasPending: !!pending
-      }, '*');
-    }
-  }
-
-  function handleEvent(payload) {
-    const type = payload.type;
-    const props = payload.properties;
-
-    switch (type) {
-      case 'session.status': {
-        const sessionID = props.sessionID;
-        sessionStatus[sessionID] = props.status;
-        updateThinkingState(sessionID);
-        break;
-      }
-      
-      case 'message.updated': {
-        const info = props.info;
-        if (!info || !info.sessionID) break;
-        const sessionID = info.sessionID;
-        
-        if (info.role === 'assistant') {
-          if (isPending(info)) {
-            pendingMessages[sessionID] = info;
-          } else {
-            delete pendingMessages[sessionID];
-          }
-          updateThinkingState(sessionID);
-        }
-        break;
-      }
-      
-      case 'message.part.delta': {
-        const sessionID = props.sessionID;
-        if (sessionID && !pendingMessages[sessionID]) {
-          pendingMessages[sessionID] = { role: 'assistant', time: {} };
-          updateThinkingState(sessionID);
-        }
-        break;
-      }
-    }
-  }
-
-  function setupThinkingListener() {
-    if (eventSource) {
-      eventSource.close();
-    }
-
-    eventSource = new EventSource('/global/event');
-
-    eventSource.onmessage = function(event) {
-      try {
-        const data = JSON.parse(event.data);
-        const payload = data.payload;
-        if (!payload) return;
-        handleEvent(payload);
-      } catch (e) {
-        // ignore parse errors
-      }
-    };
-
-    eventSource.onerror = function(err) {
-      console.warn('[OpenCode Bridge] SSE connection error, retrying in 3s...');
-      eventSource.close();
-      setTimeout(setupThinkingListener, 3000);
-    };
-
-    console.log('[OpenCode Bridge] SSE listener setup complete');
   }
 
   // === 就绪通知 ===
@@ -410,7 +309,6 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     if (window.parent !== window) {
       window.parent.postMessage({ type: "OPENCODE_READY" }, "*");
     }
-    setupThinkingListener();
     setupPromptInputListener();
     applySavedStates();
     
@@ -436,13 +334,6 @@ function generateBridgeScript(options: ProxyServerOptions): string {
   } else {
     init();
   }
-
-  window.addEventListener('beforeunload', function() {
-    if (eventSource) {
-      eventSource.close();
-      eventSource = null;
-    }
-  });
 })();
 `;
 }

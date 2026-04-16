@@ -8,7 +8,6 @@ export function useServiceStatus() {
   const chromeMcpFailed = ref(false);
   const chromeMcpErrorType = ref<string | undefined>(undefined);
   const chromeMcpErrorMessage = ref<string | undefined>(undefined);
-  const thinking = ref(false);
 
   const loadingText = computed(() => {
     if (!currentTask.value) return "加载中...";
@@ -47,20 +46,14 @@ export function useServiceStatus() {
     serviceStatus.value = "starting";
   };
 
-  const setThinking = (value: boolean) => {
-    thinking.value = value;
-  };
-
   return {
     currentTask,
     serviceStatus,
     chromeMcpFailed,
     chromeMcpErrorType,
     chromeMcpErrorMessage,
-    thinking,
     loadingText,
     updateStatusFromTask,
     setStarting,
-    setThinking,
   };
 }

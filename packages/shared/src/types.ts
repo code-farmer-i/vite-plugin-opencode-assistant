@@ -148,6 +148,10 @@ export interface WidgetOptions {
   open: boolean;
   /** 快捷键配置 */
   hotkey?: string;
+  /** OpenCode 代理服务端口 */
+  proxyPort?: number;
+  /** OpenCode 代理服务主机名 */
+  proxyHost?: string;
 }
 
 /**
@@ -264,6 +268,20 @@ export type OpenCodeWidgetTheme = "light" | "dark" | "auto";
 export type ServiceStatus = "idle" | "starting" | "ready" | "partial" | "failed";
 
 /**
+ * Session 状态类型
+ */
+export type OpencodeSessionStatusType = "idle" | "running" | "streaming" | "completed";
+
+/**
+ * Session 思考状态
+ */
+export interface OpencodeSessionThinkingState {
+  thinking: boolean;
+  statusType: OpencodeSessionStatusType;
+  hasPending: boolean;
+}
+
+/**
  * 挂件会话信息
  */
 export interface OpenCodeWidgetSession {
@@ -346,6 +364,8 @@ export interface OpenCodeWidgetProps {
   showClearAll?: boolean;
   selectEnabled?: boolean;
   thinking?: boolean;
+  /** 所有 session 的状态映射 */
+  sessionStates?: Record<string, OpencodeSessionThinkingState>;
 }
 
 /**

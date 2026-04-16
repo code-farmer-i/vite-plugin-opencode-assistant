@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { OpenCodeWidget } from "@vite-plugin-opencode-assistant/components";
 import type { OpenCodeWidgetTheme, OpenCodeSelectedElement } from "@vite-plugin-opencode-assistant/shared";
 import type { WidgetOptions } from "@vite-plugin-opencode-assistant/shared";
 
 import { useHotkey } from "./composables/useHotkey";
-import { useSSE } from "./composables/useSSE";
+import { useServerSSE } from "./composables/useServerSSE";
+import { useOpencodeSessionSSE } from "./composables/useOpencodeSessionSSE";
 import { useSessions } from "./composables/useSessions";
 import { useTheme } from "./composables/useTheme";
 import { useSelectedElements } from "./composables/useSelectedElements";
@@ -29,9 +30,16 @@ const {
   theme: initialTheme = "auto",
   open: autoOpen = false,
   hotkey = "ctrl+k",
+  proxyPort = 4098,
+  proxyHost = "localhost",
 } = props.config;
 
 const widgetTheme = initialTheme as OpenCodeWidgetTheme;
+
+// 构建 proxy base URL
+const proxyBaseUrl = computed(() => {
+  return `http://${proxyHost}:${proxyPort}`;
+});
 
 const showNotification = (msg: string, options?: { duration?: number; mode?: "widget" | "page"; }) => {
   widgetRef.value?.showNotification?.(msg, options);
@@ -42,11 +50,9 @@ const {
   chromeMcpFailed,
   chromeMcpErrorType,
   chromeMcpErrorMessage,
-  thinking,
   loadingText,
   updateStatusFromTask,
   setStarting,
-  setThinking,
 } = useServiceStatus();
 
 const {
@@ -70,13 +76,59 @@ const {
   createSession,
   deleteSession,
   selectSession,
-} = useSessions(showNotification);
+  updateSessionInfo,
+} = useSessions({ showNotification });
 
 const { updateContext } = useContext(serviceStatus, selectedElements);
+
+// Server SSE: 监听 Vite server 事件 (服务启动状态)
+const serverSSE = useServerSSE({
+  onStatusSync: (data) => {
+    if (data.isStarted !== undefined && data.isStarted && serviceStatus.value === "idle") {
+      setStarting();
+    }
+    if (data.task) {
+      updateStatusFromTask(data.task, data.errorType, data.errorMessage);
+    }
+    if (serviceStatus.value !== "idle") {
+      loadSessions();
+    }
+  },
+  onTaskUpdate: (data) => {
+    updateStatusFromTask(data.task, data.errorType, data.errorMessage);
+  },
+  onClearElements: () => clearElements(),
+  onConnected: () => updateContext(true),
+});
+
+// OpenCode Session SSE: 监听 OpenCode session thinking 状态和标题更新
+const opencodeSSE = useOpencodeSessionSSE({
+  proxyBaseUrl: proxyBaseUrl.value,
+  currentSessionId,
+  onConnected: () => {
+    console.log("[OpenCode] Session SSE connected");
+  },
+  onSessionUpdate: (session) => {
+    // 当 OpenCode 自动生成标题后，更新本地 session 列表
+    updateSessionInfo(session);
+  },
+});
+
+// 只要有一个会话处于 thinking 状态就设为 true
+const thinking = opencodeSSE.hasAnyThinking;
+const sessionStates = opencodeSSE.sessionStates;
 
 const showSessionListSkeleton = computed(() => serviceStatus.value === "starting");
 const computedLoading = computed(() => {
   return serviceStatus.value === "starting" || iframeLoading.value;
+});
+
+// 区分服务启动 loading 和 iframe 加载的文本
+const displayLoadingText = computed(() => {
+  if (serviceStatus.value === "starting") {
+    return loadingText.value;
+  }
+  return "加载会话...";
 });
 
 const retryWarmup = async () => {
@@ -108,25 +160,6 @@ const retryWarmup = async () => {
   }
 };
 
-const { setupSSE } = useSSE(
-  (data) => {
-    if (data.isStarted !== undefined && data.isStarted && serviceStatus.value === "idle") {
-      setStarting();
-    }
-    if (data.task) {
-      updateStatusFromTask(data.task, data.errorType, data.errorMessage);
-    }
-    if (serviceStatus.value !== "idle") {
-      loadSessions();
-    }
-  },
-  (data) => {
-    updateStatusFromTask(data.task, data.errorType, data.errorMessage);
-  },
-  () => clearElements(),
-  () => updateContext(true),
-);
-
 const ensureServicesStarted = async () => {
   if (serviceStatus.value !== "idle") return true;
   try {
@@ -134,7 +167,7 @@ const ensureServicesStarted = async () => {
     const data = await res.json();
     if (data.success) {
       setStarting();
-      setupSSE();
+      serverSSE.connect();
       return true;
     }
   } catch {
@@ -158,10 +191,20 @@ useHotkey("ctrl+p", (e) => {
   }
 });
 
+// 监听服务状态变化，启动相应的 SSE 连接
+watch(serviceStatus, (status, oldStatus) => {
+  if (status !== "idle" && oldStatus === "idle") {
+    // 只有从 idle 变为非 idle 时才连接
+    serverSSE.connect();
+    opencodeSSE.connect();
+  }
+});
+
 onMounted(() => {
   if (serviceStatus.value !== "idle") {
     loadSessions();
-    setupSSE();
+    serverSSE.connect();
+    opencodeSSE.connect();
     updateContext(true);
   }
   if (autoOpen && serviceStatus.value !== "idle") {
@@ -170,10 +213,8 @@ onMounted(() => {
     }, 1000);
   }
 
+  // 只监听 OPENCODE_READY (主题同步)
   const handleIframeMessage = (event: MessageEvent) => {
-    if (event.data?.type === "OPENCODE_THINKING_STATE") {
-      setThinking(event.data.thinking);
-    }
     if (event.data?.type === "OPENCODE_READY") {
       sendThemeToIframe();
     }
@@ -207,14 +248,6 @@ const handleSelectNode = (element: OpenCodeSelectedElement) => {
   widgetRef.value?.sendMessageToIframe("OPENCODE_INSERT_FILE_PART", { element: elementWithContext });
 
   showNotification(`节点已添加到对话框`, { mode: 'page' });
-
-  // const added = addElement(element);
-  // if (added) {
-  //   showNotification(`已选中元素 (${selectedElements.value.length}个)`);
-  //   updateContext(true);
-  // } else {
-  //   showNotification("该元素已选中");
-  // }
 };
 
 const handleClearSelected = () => {
@@ -262,6 +295,7 @@ const handleFrameLoaded = () => {
     :iframe-src="iframeSrc"
     :current-session-id="currentSessionId"
     :sessions="sessions"
+    :session-states="sessionStates"
     session-key="id"
     :hotkey-label="hotkey"
     :thinking="thinking"
@@ -280,7 +314,7 @@ const handleFrameLoaded = () => {
     @frame-loaded="handleFrameLoaded"
   >
     <template #loading>
-      <LoadingContent :loading-text="loadingText" />
+      <LoadingContent :loading-text="displayLoadingText" />
     </template>
     <template #error>
       <ChromeWarmupError

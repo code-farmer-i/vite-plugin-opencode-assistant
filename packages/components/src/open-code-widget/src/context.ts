@@ -3,6 +3,7 @@ import type {
   OpenCodeWidgetSessionItem,
   OpenCodeSelectedElementItem,
   OpenCodeRemoveSelectedPayload,
+  OpencodeSessionThinkingState,
 } from "./types";
 import type { FloatingBubbleOffset } from "./components/FloatingBubble/types";
 
@@ -29,6 +30,9 @@ export interface OpenCodeWidgetContext {
   minimized: Ref<boolean>;
   promptDockVisible: Ref<boolean>;
   bubbleOffset: Ref<FloatingBubbleOffset | undefined>;
+
+  // Session states for thinking indicator
+  sessionStates: Ref<Record<string, OpencodeSessionThinkingState>>;
 
   // Computed
   iframeSource: Ref<string>;

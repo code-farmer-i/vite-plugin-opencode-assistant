@@ -239,7 +239,7 @@ usePersistState({
       const margin = 10;
       const maxX = window.innerWidth - bubbleSize - margin;
       const maxY = window.innerHeight - bubbleSize - margin;
-      
+
       bubbleOffset.value = {
         x: Math.max(margin, Math.min(state.bubbleOffset.x, maxX)),
         y: Math.max(margin, Math.min(state.bubbleOffset.y, maxY)),
@@ -449,6 +449,7 @@ provideOpenCodeWidgetContext({
   minimized,
   promptDockVisible,
   bubbleOffset,
+  sessionStates: computed(() => props.sessionStates ?? {}),
   iframeSource,
   buttonActive,
   sessionListTitle,

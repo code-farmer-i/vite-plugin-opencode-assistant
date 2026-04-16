@@ -1,8 +1,15 @@
-import { ref, computed } from "vue";
+import { ref, computed, type Ref } from "vue";
 import { SESSIONS_API_PATH } from "@vite-plugin-opencode-assistant/shared";
 import type { OpenCodeWidgetSession, SessionInfo } from "@vite-plugin-opencode-assistant/shared";
 
-export function useSessions(showNotification: (msg: string) => void) {
+export interface UseSessionsOptions {
+  showNotification: (msg: string) => void;
+  /** Session 更新回调 (从 SSE 事件接收) */
+  onSessionUpdate?: Ref<((session: { id: string; title?: string; time?: { updated?: number } }) => void) | undefined>;
+}
+
+export function useSessions(options: UseSessionsOptions) {
+  const { showNotification } = options;
   const sessions = ref<OpenCodeWidgetSession[]>([]);
   const loadingSessionList = ref<boolean | undefined>(undefined);
   const currentSessionId = ref<string | null>(null);
@@ -34,6 +41,24 @@ export function useSessions(showNotification: (msg: string) => void) {
       console.error("[OpenCode] Failed to load sessions:", e);
     } finally {
       loadingSessionList.value = false;
+    }
+  };
+
+  /**
+   * 更新指定 session 的标题和时间
+   * 从 SSE session.updated 事件触发
+   */
+  const updateSessionInfo = (sessionUpdate: { id: string; title?: string; time?: { updated?: number } }) => {
+    const index = sessions.value.findIndex((s) => s.id === sessionUpdate.id);
+    if (index === -1) return;
+
+    const session = sessions.value[index];
+    if (sessionUpdate.title && sessionUpdate.title !== session.title) {
+      sessions.value[index] = {
+        ...session,
+        title: sessionUpdate.title,
+        updatedAt: sessionUpdate.time?.updated || Date.now(),
+      };
     }
   };
 
@@ -90,5 +115,6 @@ export function useSessions(showNotification: (msg: string) => void) {
     createSession,
     deleteSession,
     selectSession,
+    updateSessionInfo,
   };
 }

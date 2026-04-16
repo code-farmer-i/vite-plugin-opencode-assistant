@@ -169,6 +169,8 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
         theme: config.theme,
         open: config.open,
         hotkey: config.hotkey,
+        proxyPort: actualProxyPort,
+        proxyHost: config.hostname,
       });
 
       timer.end();

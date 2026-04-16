@@ -11,6 +11,7 @@ const {
   handleSelectSession,
   handleDeleteSession,
   sessionKey,
+  sessionStates,
 } = useOpenCodeWidgetContext();
 
 const isAnimating = ref(false);
@@ -29,6 +30,12 @@ const showSkeleton = computed(() => {
   if (showSessionListSkeleton.value) return true;
   return false;
 });
+
+// 判断指定 session 是否正在思考
+function isSessionThinking(sessionId: string): boolean {
+  if (!sessionStates?.value || !sessionId) return false;
+  return sessionStates.value[sessionId]?.thinking ?? false;
+}
 </script>
 
 <template>
@@ -77,13 +84,16 @@ const showSkeleton = computed(() => {
           v-for="item in sessions"
           :key="item[sessionKey]"
           class="opencode-session-item"
-          :class="{ active: item.active }"
+          :class="{ active: item.active, thinking: isSessionThinking(item.id) }"
           role="option"
           :aria-selected="item.active"
           @click="handleSelectSession(item)"
         >
           <div class="opencode-session-header">
-            <div class="opencode-session-title">{{ item.title }}</div>
+            <div class="opencode-session-title">
+              <span v-if="isSessionThinking(item.id)" class="opencode-thinking-loading" />
+              {{ item.title }}
+            </div>
             <button
               class="opencode-session-delete-btn"
               type="button"
@@ -331,6 +341,34 @@ const showSkeleton = computed(() => {
   text-align: center;
   color: var(--oc-text-placeholder);
   font-size: 13px;
+}
+
+/* Thinking loading icon - 黑白灰配色 */
+.opencode-thinking-loading {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  border: 2px solid var(--oc-border-secondary);
+  border-top-color: var(--oc-text-secondary);
+  border-radius: 50%;
+  animation: thinking-spin 0.8s linear infinite;
+  vertical-align: middle;
+}
+
+/* 激活状态下 loading 颜色 */
+.opencode-session-item.active .opencode-thinking-loading {
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: rgba(255, 255, 255, 0.9);
+}
+
+@keyframes thinking-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes skeleton-loading {
