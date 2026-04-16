@@ -127,30 +127,47 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     }
   });
 
+  // === 最小化状态样式 ===
+  const minimizeStyles = \`
+    .opencode-minimized [data-dock-surface="tray"]:not([data-slot="permission-footer"]) {
+      display: none !important;
+    }
+    .opencode-minimized [data-slot="session-turn-list"] {
+      padding-bottom: 10px !important;
+    }
+    .opencode-prompt-dock-hidden [data-component="session-prompt-dock"]:not(:has([data-kind="permission"])) {
+      display: none !important;
+    }
+  \`;
+
+  function injectMinimizeStyles() {
+    if (document.getElementById('opencode-minimize-styles')) return;
+    const style = document.createElement('style');
+    style.id = 'opencode-minimize-styles';
+    style.textContent = minimizeStyles;
+    document.head.appendChild(style);
+  }
+
   // === 最小化状态处理 ===
   let savedMinimizedState = null;
   let savedPromptDockVisibleState = null;
-  
+
   function handleMinimizeStateChange(minimized) {
     savedMinimizedState = minimized;
-    const dockSurface = document.querySelector('[data-dock-surface="tray"]');
-    const sessionTurnList = document.querySelector('[data-slot="session-turn-list"]');
-
-    if (dockSurface) {
-      dockSurface.style.display = minimized ? 'none' : '';
-    }
-
-    if (sessionTurnList) {
-      sessionTurnList.style.paddingBottom = minimized ? '10px' : '';
+    if (minimized) {
+      document.documentElement.classList.add('opencode-minimized');
+    } else {
+      document.documentElement.classList.remove('opencode-minimized');
     }
   }
 
   // === 对话框显示状态处理 ===
   function handlePromptDockVisibilityChange(visible) {
     savedPromptDockVisibleState = visible;
-    const promptDock = document.querySelector('[data-component="session-prompt-dock"]');
-    if (promptDock) {
-      promptDock.style.display = visible ? '' : 'none';
+    if (!visible) {
+      document.documentElement.classList.add('opencode-prompt-dock-hidden');
+    } else {
+      document.documentElement.classList.remove('opencode-prompt-dock-hidden');
     }
   }
   
@@ -306,6 +323,7 @@ function generateBridgeScript(options: ProxyServerOptions): string {
 
   // === 就绪通知 ===
   function init() {
+    injectMinimizeStyles();
     if (window.parent !== window) {
       window.parent.postMessage({ type: "OPENCODE_READY" }, "*");
     }
