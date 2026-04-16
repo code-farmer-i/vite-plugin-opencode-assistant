@@ -360,7 +360,7 @@ export function useInspector(options: UseInspectorOptions) {
     if (tooltip) (tooltip as HTMLElement).style.pointerEvents = "none";
 
     let elementToHighlight: Element | null = null;
-    let targetNode: Element | null = null;
+    let targetNode: Element | null;
     let fileInfo: FileInfo = { file: null, line: null, column: null };
 
     try {
