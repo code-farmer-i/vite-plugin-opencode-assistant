@@ -68,11 +68,20 @@ const closest = (arr: number[], target: number) => {
 
 const applyMagnetic = () => {
   if (props.magnetic === "x") {
-    const nextX = closest(
-      [boundary.value.left, boundary.value.right],
-      state.value.x
-    );
-    state.value.x = nextX;
+    // 如果已有吸边偏好，保持该方向
+    if (magneticSide.value === 'left') {
+      state.value.x = boundary.value.left;
+    } else if (magneticSide.value === 'right') {
+      state.value.x = boundary.value.right;
+    } else {
+      // 首次吸边，选择最近的边
+      const nextX = closest(
+        [boundary.value.left, boundary.value.right],
+        state.value.x
+      );
+      state.value.x = nextX;
+      magneticSide.value = nextX === boundary.value.left ? 'left' : 'right';
+    }
   }
   if (props.magnetic === "y") {
     const nextY = closest(
@@ -85,6 +94,9 @@ const applyMagnetic = () => {
 
 const dragging = ref(false);
 const initialized = ref(false);
+
+// 记录气泡当前吸在哪一边，resize 时保持这个偏好
+const magneticSide = ref<'left' | 'right' | null>(null);
 
 const rootStyle = computed(() => {
   const style: Record<string, string | number> = {};
@@ -130,7 +142,16 @@ const updateState = () => {
   };
 
   if (!dragging.value) {
-    applyMagnetic();
+    // resize 时如果有吸边偏好，保持该方向
+    if (props.magnetic === "x" && magneticSide.value) {
+      if (magneticSide.value === 'left') {
+        state.value.x = boundary.value.left;
+      } else {
+        state.value.x = boundary.value.right;
+      }
+    } else {
+      applyMagnetic();
+    }
 
     if (state.value.x !== oldX || state.value.y !== oldY) {
       const offset = { x: state.value.x, y: state.value.y };
@@ -237,6 +258,13 @@ const onTouchEnd = (e?: TouchEvent | MouseEvent) => {
   }
 
   requestAnimationFrame(() => {
+    // 拖拽结束时，根据当前位置决定吸边方向偏好
+    if (props.magnetic === "x" && !touch.isTap.value) {
+      const centerX = state.value.x + state.value.width / 2;
+      const windowCenterX = windowWidth.value / 2;
+      magneticSide.value = centerX < windowCenterX ? 'left' : 'right';
+    }
+
     applyMagnetic();
 
     if (!touch.isTap.value) {
