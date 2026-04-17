@@ -512,6 +512,10 @@ export function useInspector(options: UseInspectorOptions) {
 
     inspector.handleClick = function (e: MouseEvent) {
       if (options.selectMode.value) {
+        // 阻止事件冒泡和默认行为，避免触发元素原有的交互
+        e.preventDefault();
+        e.stopPropagation();
+
         let elementToSelect: Element | null = null;
         let fileInfo: FileInfo = { file: null, line: null, column: null };
 
