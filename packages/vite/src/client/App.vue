@@ -46,7 +46,7 @@ const proxyBaseUrl = computed(() => {
 
 const showNotification = (
   msg: string,
-  options?: { duration?: number; mode?: "widget" | "page" },
+  options?: { duration?: number; mode?: "widget" | "page"; },
 ) => {
   widgetRef.value?.showNotification?.(msg, options);
 };
@@ -89,7 +89,7 @@ const serverSSE = useServerSSE({
     if (data.task) {
       updateStatusFromTask(data.task, data.errorType, data.errorMessage);
     }
-    if (data.task === "ready") {
+    if (serviceStatus.value !== "idle") {
       loadSessions();
     }
   },
@@ -182,7 +182,7 @@ useHotkey(hotkey, (e) => {
 
 useHotkey("ctrl+p", (e) => {
   e.preventDefault();
-  const win = window as typeof window & { __VUE_INSPECTOR__?: unknown };
+  const win = window as typeof window & { __VUE_INSPECTOR__?: unknown; };
   if (win.__VUE_INSPECTOR__) {
     selectMode.value = !selectMode.value;
   } else {
@@ -272,7 +272,7 @@ const handleThemeChange = (val: OpenCodeWidgetTheme) => {
   theme.value = val;
 };
 
-const handleRemoveSelectedNode = ({ index }: { index: number }) => {
+const handleRemoveSelectedNode = ({ index }: { index: number; }) => {
   removeElement(index);
   updateContext(true);
 };

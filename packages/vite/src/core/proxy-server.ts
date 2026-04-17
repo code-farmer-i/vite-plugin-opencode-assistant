@@ -474,7 +474,7 @@ export function startProxyServer(
     server.listen(port, () => {
       const address = server.address();
       const actualPort = typeof address === "object" && address ? address.port : port;
-      log.info(`Proxy server started on port ${actualPort} -> ${targetUrl}`);
+      log.debug(`Proxy server started on port ${actualPort} -> ${targetUrl}`);
       resolve({ server, actualPort });
     });
   });

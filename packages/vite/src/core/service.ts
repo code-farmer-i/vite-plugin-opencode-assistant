@@ -8,7 +8,6 @@ import {
   createLogger,
   ChromeMcpWarmupError,
   ChromeMcpWarmupErrorType,
-  getProcessLogBuffer,
 } from "@vite-plugin-opencode-assistant/shared";
 import {
   checkOpenCodeInstalled,
@@ -57,7 +56,12 @@ export class OpenCodeService {
     });
   }
 
-  async start(corsOrigins?: string[], contextApiUrl?: string, logsApiUrl?: string, viteOrigin?: string): Promise<void> {
+  async start(
+    corsOrigins?: string[],
+    contextApiUrl?: string,
+    logsApiUrl?: string,
+    viteOrigin?: string,
+  ): Promise<void> {
     if (this.isStarted && this.webProcess) {
       log.debug("Services already started, skipping");
       return;
@@ -122,7 +126,7 @@ Please install OpenCode first:
       timer.checkpoint("Port allocated");
 
       this.workspaceRoot = findGitRoot(process.cwd());
-      log.info(`Using workspace root: ${this.workspaceRoot}`);
+      log.debug(`Using workspace root: ${this.workspaceRoot}`);
 
       this.sendTaskUpdate("preparing_runtime");
       const configDir = prepareOpenCodeRuntime(this.workspaceRoot);
@@ -149,7 +153,7 @@ Please install OpenCode first:
 
       timer.checkpoint("Web process started");
       const webUrl = `http://${this.config.hostname}:${this.actualWebPort}`;
-      log.info(`Waiting for OpenCode Web to become ready at ${webUrl}...`);
+      log.debug(`Waiting for OpenCode Web to become ready at ${webUrl}...`);
 
       this.sendTaskUpdate("waiting_web_ready");
       try {
