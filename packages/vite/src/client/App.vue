@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { OpenCodeWidget } from "@vite-plugin-opencode-assistant/components";
-import type { OpenCodeWidgetTheme, OpenCodeSelectedElement } from "@vite-plugin-opencode-assistant/shared";
+import type {
+  OpenCodeWidgetTheme,
+  OpenCodeSelectedElement,
+} from "@vite-plugin-opencode-assistant/shared";
 import type { WidgetOptions } from "@vite-plugin-opencode-assistant/shared";
 
 import { useHotkey } from "./composables/useHotkey";
@@ -41,7 +44,10 @@ const proxyBaseUrl = computed(() => {
   return `http://${proxyHost}:${proxyPort}`;
 });
 
-const showNotification = (msg: string, options?: { duration?: number; mode?: "widget" | "page"; }) => {
+const showNotification = (
+  msg: string,
+  options?: { duration?: number; mode?: "widget" | "page" },
+) => {
   widgetRef.value?.showNotification?.(msg, options);
 };
 
@@ -55,16 +61,9 @@ const {
   setStarting,
 } = useServiceStatus();
 
-const {
-  selectedElements,
-  removeElement,
-  clearElements,
-} = useSelectedElements();
+const { selectedElements, removeElement, clearElements } = useSelectedElements();
 
-const {
-  theme,
-  sendThemeToIframe,
-} = useTheme(widgetTheme, widgetRef);
+const { theme, sendThemeToIframe } = useTheme(widgetTheme, widgetRef);
 
 const {
   sessions,
@@ -90,7 +89,7 @@ const serverSSE = useServerSSE({
     if (data.task) {
       updateStatusFromTask(data.task, data.errorType, data.errorMessage);
     }
-    if (serviceStatus.value !== "idle") {
+    if (data.task === "ready") {
       loadSessions();
     }
   },
@@ -142,11 +141,11 @@ const retryWarmup = async () => {
       serviceStatus.value = "ready";
       showNotification("Chrome DevTools MCP 连接成功");
     } else {
-      if (data.errorType === 'AI_TIMEOUT') {
+      if (data.errorType === "AI_TIMEOUT") {
         showNotification("AI 响应超时，请检查 OpenCode AI 模型配置");
-      } else if (data.errorType === 'AI_RESPONSE_ERROR') {
+      } else if (data.errorType === "AI_RESPONSE_ERROR") {
         showNotification("AI 响应错误，请检查 OpenCode AI 模型配置");
-      } else if (data.errorType === 'CHROME_NOT_CONNECTED') {
+      } else if (data.errorType === "CHROME_NOT_CONNECTED") {
         showNotification("Chrome 远程调试未开启，请按照提示操作");
       } else {
         showNotification(data.error || "重试失败，请确认 Chrome 远程调试已开启");
@@ -183,7 +182,7 @@ useHotkey(hotkey, (e) => {
 
 useHotkey("ctrl+p", (e) => {
   e.preventDefault();
-  const win = window as typeof window & { __VUE_INSPECTOR__?: unknown; };
+  const win = window as typeof window & { __VUE_INSPECTOR__?: unknown };
   if (win.__VUE_INSPECTOR__) {
     selectMode.value = !selectMode.value;
   } else {
@@ -201,13 +200,13 @@ watch(serviceStatus, (status, oldStatus) => {
 });
 
 onMounted(() => {
-  if (serviceStatus.value !== "idle") {
+  if (serviceStatus.value === "ready") {
     loadSessions();
     serverSSE.connect();
     opencodeSSE.connect();
     updateContext(true);
   }
-  if (autoOpen && serviceStatus.value !== "idle") {
+  if (autoOpen && serviceStatus.value === "ready") {
     setTimeout(() => {
       open.value = true;
     }, 1000);
@@ -245,9 +244,11 @@ const handleSelectNode = (element: OpenCodeSelectedElement) => {
     previewPageUrl: window.location.href,
     previewPageTitle: document.title,
   };
-  widgetRef.value?.sendMessageToIframe("OPENCODE_INSERT_FILE_PART", { element: elementWithContext });
+  widgetRef.value?.sendMessageToIframe("OPENCODE_INSERT_FILE_PART", {
+    element: elementWithContext,
+  });
 
-  showNotification(`节点已添加到对话框`, { mode: 'page' });
+  showNotification(`节点已添加到对话框`, { mode: "page" });
 };
 
 const handleClearSelected = () => {
@@ -271,7 +272,7 @@ const handleThemeChange = (val: OpenCodeWidgetTheme) => {
   theme.value = val;
 };
 
-const handleRemoveSelectedNode = ({ index }: { index: number; }) => {
+const handleRemoveSelectedNode = ({ index }: { index: number }) => {
   removeElement(index);
   updateContext(true);
 };

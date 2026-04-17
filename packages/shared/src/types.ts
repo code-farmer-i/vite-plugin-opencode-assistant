@@ -136,6 +136,8 @@ export interface WebOptions {
   corsOrigins?: string[];
   /** 上下文 API URL */
   contextApiUrl?: string;
+  /** 进程日志 API URL */
+  logsApiUrl?: string;
 }
 
 /**

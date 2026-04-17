@@ -4,7 +4,7 @@ import fs from "fs";
 import { createRequire } from "module";
 import path from "path";
 import type { WebOptions } from "@vite-plugin-opencode-assistant/shared";
-import { createLogger } from "@vite-plugin-opencode-assistant/shared";
+import { createLogger, getProcessLogBuffer } from "@vite-plugin-opencode-assistant/shared";
 
 const require = createRequire(path.join(process.cwd(), "package.json"));
 const packageDir = resolvePackageDir();
@@ -21,14 +21,9 @@ export function prepareOpenCodeRuntime(cwd: string): string {
     fs.mkdirSync(pluginsDir, { recursive: true });
   }
 
-  const pluginSourcePath = resolvePluginSourcePath();
-  const pluginTargetPath = path.join(pluginsDir, "page-context.js");
-
-  if (!fs.existsSync(pluginSourcePath)) {
-    throw new Error(`Page context plugin not found: ${pluginSourcePath}`);
-  }
-
-  fs.copyFileSync(pluginSourcePath, pluginTargetPath);
+  // Copy all plugin files from source to target
+  const sourcePluginsDir = resolveSourcePluginsDir();
+  copyPluginFiles(sourcePluginsDir, pluginsDir);
 
   const mcpConfigPath = path.join(cacheDir, "opencode.json");
   fs.writeFileSync(
@@ -50,7 +45,7 @@ export function prepareOpenCodeRuntime(cwd: string): string {
 
   log.debug("OpenCode runtime ready", {
     cacheDir,
-    pluginTargetPath,
+    pluginsDir,
     mcpConfigPath,
   });
 
@@ -58,18 +53,25 @@ export function prepareOpenCodeRuntime(cwd: string): string {
 }
 
 export function startOpenCodeWeb(options: WebOptions): ResultPromise {
-  const { port, hostname, cwd, configDir, corsOrigins, contextApiUrl } = options;
+  const { port, hostname, cwd, configDir, corsOrigins, contextApiUrl, logsApiUrl } = options;
   const stateDir = createStateDirectory(cwd);
-  const pluginPath = path.join(stateDir, "plugins", "page-context.js");
+  const pluginsDir = path.join(stateDir, "plugins");
+
+  // Build plugin paths (comma-separated for OPENCODE_PLUGINS)
+  const pluginPaths = [
+    path.join(pluginsDir, "page-context.js"),
+    path.join(pluginsDir, "vite-logs.js"),
+  ].join(",");
 
   log.debug("Building process environment", {
     stateDir,
     configDir,
     contextApiUrl,
-    pluginPath,
+    logsApiUrl,
+    pluginPaths,
   });
 
-  const env = buildProcessEnv(stateDir, configDir, contextApiUrl, pluginPath);
+  const env = buildProcessEnv(stateDir, configDir, contextApiUrl, logsApiUrl, pluginPaths);
   const args = ["serve", "--port", String(port), "--hostname", hostname];
 
   if (corsOrigins && corsOrigins.length > 0) {
@@ -96,6 +98,7 @@ export function startOpenCodeWeb(options: WebOptions): ResultPromise {
     const output = data.toString().trim();
     if (output) {
       log.debug("[OpenCode stdout]", { output });
+      getProcessLogBuffer().addOpenCodeStdout(output);
     }
   });
 
@@ -103,6 +106,7 @@ export function startOpenCodeWeb(options: WebOptions): ResultPromise {
     const output = data.toString().trim();
     if (output) {
       log.warn("[OpenCode stderr]", { output });
+      getProcessLogBuffer().addOpenCodeStderr(output);
     }
   });
 
@@ -125,10 +129,10 @@ function resolvePackageDir(): string {
   return path.resolve(path.dirname(entryPath), "..");
 }
 
-function resolvePluginSourcePath(): string {
+function resolveSourcePluginsDir(): string {
   const candidatePaths = [
-    path.join(packageDir, "es", "plugins", "page-context.js"),
-    path.join(packageDir, "lib", "plugins", "page-context.js"),
+    path.join(packageDir, "es", "plugins"),
+    path.join(packageDir, "lib", "plugins"),
   ];
 
   for (const candidatePath of candidatePaths) {
@@ -140,11 +144,26 @@ function resolvePluginSourcePath(): string {
   return candidatePaths[0];
 }
 
+function copyPluginFiles(sourceDir: string, targetDir: string): void {
+  // Copy all .js files from source to target
+  const files = fs.readdirSync(sourceDir).filter((f) => f.endsWith(".js"));
+
+  for (const file of files) {
+    const sourcePath = path.join(sourceDir, file);
+    const targetPath = path.join(targetDir, file);
+    fs.copyFileSync(sourcePath, targetPath);
+    log.debug("Plugin file copied", { source: sourcePath, target: targetPath });
+  }
+
+  log.debug("All plugin files copied", { count: files.length, files });
+}
+
 function buildProcessEnv(
   stateDir: string,
   configDir?: string,
   contextApiUrl?: string,
-  pluginPath?: string,
+  logsApiUrl?: string,
+  pluginPaths?: string,
 ): Record<string, string> {
   const env: Record<string, string> = {
     ...(Object.fromEntries(
@@ -163,9 +182,14 @@ function buildProcessEnv(
     log.debug("Set OPENCODE_CONTEXT_API_URL", { contextApiUrl });
   }
 
-  if (pluginPath) {
-    env.OPENCODE_PLUGINS = pluginPath;
-    log.debug("Set OPENCODE_PLUGINS", { pluginPath });
+  if (logsApiUrl) {
+    env.OPENCODE_VITE_LOGS_API_URL = logsApiUrl;
+    log.debug("Set OPENCODE_VITE_LOGS_API_URL", { logsApiUrl });
+  }
+
+  if (pluginPaths) {
+    env.OPENCODE_PLUGINS = pluginPaths;
+    log.debug("Set OPENCODE_PLUGINS", { pluginPaths });
   }
 
   return env;

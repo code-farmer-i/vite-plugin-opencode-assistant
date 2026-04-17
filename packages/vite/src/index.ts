@@ -8,9 +8,10 @@ import {
   DEFAULT_PROXY_PORT,
   createLogger,
   setVerbose,
+  initProcessLogCapture,
 } from "@vite-plugin-opencode-assistant/shared";
 
-import { setupMiddlewares } from "./endpoints/index.js";
+import { setupMiddlewares, LOGS_API_PATH } from "./endpoints/index.js";
 import { injectWidget } from "./core/injector.js";
 import { OpenCodeAPI } from "./core/api.js";
 import { OpenCodeService } from "./core/service.js";
@@ -36,6 +37,9 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
   const config = { ...DEFAULT_CONFIG, ...options } as Required<OpenCodeOptions>;
 
   setVerbose(config.verbose);
+
+  // 初始化进程日志捕获
+  initProcessLogCapture({ maxSize: 500 });
 
   const log = createLogger("Plugin");
 
@@ -130,16 +134,18 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
 
         viteOrigin = `http://${viteHost}:${vitePort}`;
         const contextApiUrl = `http://${viteHost}:${vitePort}${CONTEXT_API_PATH}`;
+        const logsApiUrl = `http://${viteHost}:${vitePort}${LOGS_API_PATH}`;
 
         log.debug("Vite server ready", {
           vitePort,
           viteHost,
           viteOrigin,
           contextApiUrl,
+          logsApiUrl,
         });
 
         try {
-          await service.start([viteOrigin], contextApiUrl, viteOrigin);
+          await service.start([viteOrigin], contextApiUrl, logsApiUrl, viteOrigin);
         } catch (e) {
           log.error("Failed to start services", { error: e });
         }
