@@ -49,26 +49,6 @@ const IGNORE_ATTRIBUTE = "data-v-inspector-ignore";
 const KEY_PROPS_DATA = "__v_inspector";
 const KEY_DATA = "data-v-inspector";
 
-function throttle<T extends (...args: never[]) => void>(fn: T, delay: number): T {
-  let lastCall = 0;
-  let rafId: number | null = null;
-
-  return ((...args: never[]) => {
-    const now = performance.now();
-
-    if (now - lastCall >= delay) {
-      lastCall = now;
-      fn(...args);
-    } else if (!rafId) {
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        lastCall = performance.now();
-        fn(...args);
-      });
-    }
-  }) as T;
-}
-
 function getDirectText(element: Element): string {
   let text = "";
   for (let i = 0; i < element.childNodes.length; i++) {
@@ -223,7 +203,8 @@ function shouldIgnoreElement(el: Element): boolean {
 }
 
 function getDataFromElement(el: Element): string | undefined {
-  const vnodeData = (el as unknown as { __vnode?: { props?: Record<string, unknown> } }).__vnode?.props?.[KEY_PROPS_DATA];
+  const vnodeData = (el as unknown as { __vnode?: { props?: Record<string, unknown> } }).__vnode
+    ?.props?.[KEY_PROPS_DATA];
   if (vnodeData) return vnodeData as string;
   const attr = el.getAttribute(KEY_DATA);
   return attr ?? undefined;
@@ -249,10 +230,7 @@ function findInspectorFileInfo(element: Element): FileInfo | null {
   return null;
 }
 
-function mergeFileInfo(
-  inspectorFileInfo: FileInfo | null,
-  vueFileInfo: FileInfo | null
-): FileInfo {
+function mergeFileInfo(inspectorFileInfo: FileInfo | null, vueFileInfo: FileInfo | null): FileInfo {
   if (!inspectorFileInfo?.file && !vueFileInfo?.file) {
     return { file: null, line: null, column: null };
   }
@@ -439,7 +417,7 @@ export function useInspector(options: UseInspectorOptions) {
     }
   }
 
-  const handleMouseMove = throttle(handleMouseMoveCore, 16);
+  const handleMouseMove = handleMouseMoveCore;
 
   function setupInspectorHook() {
     const inspector = window.__VUE_INSPECTOR__;
