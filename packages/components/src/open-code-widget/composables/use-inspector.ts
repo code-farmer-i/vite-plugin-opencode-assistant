@@ -28,6 +28,27 @@ interface UseInspectorOptions {
   onExitSelectMode: () => void;
 }
 
+interface FileInfo {
+  file: string | null;
+  line: number | null;
+  column: number | null;
+}
+
+// 需要忽略的选择器列表
+const IGNORE_SELECTORS = [
+  "#vue-inspector-container",
+  ".opencode-widget",
+  ".opencode-element-highlight",
+  ".opencode-element-tooltip",
+  ".opencode-select-mode-hint",
+  ".floating-bubble",
+];
+
+const IGNORE_ATTRIBUTE = "data-v-inspector-ignore";
+
+const KEY_PROPS_DATA = "__v_inspector";
+const KEY_DATA = "data-v-inspector";
+
 function throttle<T extends (...args: never[]) => void>(fn: T, delay: number): T {
   let lastCall = 0;
   let rafId: number | null = null;
@@ -118,75 +139,27 @@ function isStateClass(className: string): boolean {
   return false;
 }
 
-function filterStateClasses(classes: string[]): string[] {
-  return classes.filter((cls) => !isStateClass(cls));
-}
-
 function getElementDescription(element: Element): string {
-  try {
-    const selector = getCssSelector(element, {
-      selectors: ["id", "class", "tag", "nthchild"],
-      combineWithinSelector: true,
-      combineBetweenSelectors: true,
-      maxCombinations: 100,
-      maxCandidates: 100,
-      blacklist: [
-        (selectorValue: string) => {
-          const idMatch = selectorValue.match(/^#(.+)$/);
-          if (idMatch) {
-            return isDynamicId(idMatch[1]);
-          }
-          const classMatch = selectorValue.match(/^\.([a-zA-Z_-][\w-]*)$/);
-          if (classMatch) {
-            return isStateClass(classMatch[1]);
-          }
-          return false;
-        },
-      ],
-    });
-    return selector;
-  } catch {
-    const tag = element.tagName.toLowerCase();
-    const parts = [tag];
-
-    const id = element.id;
-    if (id && !isDynamicId(id)) parts.push(`#${id}`);
-
-    const className = element.className;
-    if (typeof className === "string") {
-      const classes = filterStateClasses(className.trim().split(/\s+/).filter(Boolean)).slice(0, 2);
-      if (classes.length > 0) parts.push(`.${classes.join(".")}`);
-    } else {
-      const svgClass = (className as SVGAnimatedString).baseVal;
-      if (svgClass) {
-        const classes = filterStateClasses(svgClass.trim().split(/\s+/).filter(Boolean)).slice(
-          0,
-          2,
-        );
-        if (classes.length > 0) parts.push(`.${classes.join(".")}`);
-      }
-    }
-
-    const name = element.getAttribute("name");
-    if (name) parts.push(`[name="${name}"]`);
-
-    const placeholder = element.getAttribute("placeholder");
-    if (placeholder) parts.push(`[placeholder="${placeholder.substring(0, 20)}"]`);
-
-    const src = element.getAttribute("src");
-    if (src) parts.push(`[src]`);
-
-    const href = element.getAttribute("href");
-    if (href && href !== "#") parts.push(`[href]`);
-
-    return parts.join("");
-  }
-}
-
-interface FileInfo {
-  file: string | null;
-  line: number | null;
-  column: number | null;
+  return getCssSelector(element, {
+    selectors: ["id", "class", "tag", "nthchild"],
+    combineWithinSelector: true,
+    combineBetweenSelectors: true,
+    maxCombinations: 100,
+    maxCandidates: 100,
+    blacklist: [
+      (selectorValue: string) => {
+        const idMatch = selectorValue.match(/^#(.+)$/);
+        if (idMatch) {
+          return isDynamicId(idMatch[1]);
+        }
+        const classMatch = selectorValue.match(/^\.([a-zA-Z_-][\w-]*)$/);
+        if (classMatch) {
+          return isStateClass(classMatch[1]);
+        }
+        return false;
+      },
+    ],
+  });
 }
 
 interface Vue3ComponentInstance {
@@ -210,20 +183,6 @@ interface Vue2ComponentInstance {
     _componentTag?: string;
   };
   $parent?: Vue2ComponentInstance;
-}
-
-function getFileInfoFromAttributes(element: Element): FileInfo | null {
-  const file = element.getAttribute("data-v-inspector-file");
-  if (file) {
-    const line = element.getAttribute("data-v-inspector-line");
-    const column = element.getAttribute("data-v-inspector-column");
-    return {
-      file,
-      line: line ? parseInt(line, 10) : null,
-      column: column ? parseInt(column, 10) : null,
-    };
-  }
-  return null;
 }
 
 function getFileInfoFromVueInstance(element: Element): FileInfo | null {
@@ -255,75 +214,96 @@ function getFileInfoFromVueInstance(element: Element): FileInfo | null {
   return null;
 }
 
-function findFileInfo(element: Element, inspector: VueInspector): FileInfo {
+function shouldIgnoreElement(el: Element): boolean {
+  if (el.hasAttribute(IGNORE_ATTRIBUTE)) return true;
+  for (const selector of IGNORE_SELECTORS) {
+    if (el.closest(selector)) return true;
+  }
+  return false;
+}
+
+function getDataFromElement(el: Element): string | undefined {
+  const vnodeData = (el as unknown as { __vnode?: { props?: Record<string, unknown> } }).__vnode?.props?.[KEY_PROPS_DATA];
+  if (vnodeData) return vnodeData as string;
+  const attr = el.getAttribute(KEY_DATA);
+  return attr ?? undefined;
+}
+
+function findInspectorFileInfo(element: Element): FileInfo | null {
   let current: Element | null = element;
-  let fallbackFileInfo: FileInfo | null = null;
-
   while (current) {
-    const attrInfo = getFileInfoFromAttributes(current);
-    if (attrInfo && attrInfo.line !== null) {
-      return attrInfo;
+    const data = getDataFromElement(current);
+    if (data) {
+      const splitRE = /(.+):([\d]+):([\d]+)$/;
+      const match = data.match(splitRE);
+      if (match) {
+        return {
+          file: match[1],
+          line: parseInt(match[2], 10),
+          column: parseInt(match[3], 10),
+        };
+      }
     }
-    if (attrInfo && !fallbackFileInfo) {
-      fallbackFileInfo = attrInfo;
+    current = current.parentElement;
+  }
+  return null;
+}
+
+function mergeFileInfo(
+  inspectorFileInfo: FileInfo | null,
+  vueFileInfo: FileInfo | null
+): FileInfo {
+  if (!inspectorFileInfo?.file && !vueFileInfo?.file) {
+    return { file: null, line: null, column: null };
+  }
+
+  const isNodeModules = (path: string) => path.includes("node_modules");
+
+  if (inspectorFileInfo?.file && vueFileInfo?.file) {
+    if (!isNodeModules(inspectorFileInfo.file)) {
+      return inspectorFileInfo;
+    } else if (!isNodeModules(vueFileInfo.file)) {
+      return vueFileInfo;
+    } else {
+      return inspectorFileInfo;
     }
+  } else if (inspectorFileInfo?.file) {
+    return inspectorFileInfo;
+  } else {
+    return vueFileInfo!;
+  }
+}
 
-    const fakeEvent = {
-      clientX: 0,
-      clientY: 0,
-      target: current,
-      currentTarget: current,
-    } as unknown as MouseEvent;
+function getTargetElement(e: MouseEvent): Element | null {
+  if (!e.target || !(e.target instanceof Element)) return null;
+  const el = e.target as Element;
+  if (shouldIgnoreElement(el)) return null;
+  return el;
+}
 
-    const { params } = inspector.getTargetNode(fakeEvent);
+function getFileInfo(e: MouseEvent, element: Element | null): FileInfo {
+  const inspector = window.__VUE_INSPECTOR__;
 
-    if (params && params.file) {
-      const info: FileInfo = {
+  let inspectorFileInfo: FileInfo | null = null;
+
+  if (inspector) {
+    const { targetNode, params } = inspector.getTargetNode(e);
+    if (targetNode && params && params.file) {
+      inspectorFileInfo = {
         file: params.file,
         line: params.line ?? null,
         column: params.column ?? null,
       };
-      if (info.line !== null) {
-        return info;
-      }
-      if (!fallbackFileInfo) {
-        fallbackFileInfo = info;
-      }
-    }
-
-    const vueInfo = getFileInfoFromVueInstance(current);
-    if (vueInfo && !fallbackFileInfo) {
-      fallbackFileInfo = vueInfo;
-    }
-
-    current = current.parentElement;
-  }
-
-  return fallbackFileInfo || { file: null, line: null, column: null };
-}
-
-/**
- * 获取鼠标位置下最精确的 DOM 元素（在指定边界内）
- * 使用 document.elementsFromPoint 获取所有层叠元素，找到最深层且在边界内的元素
- */
-function getPreciseElementAtPoint(x: number, y: number, boundary: Element | null): Element | null {
-  const elements = document.elementsFromPoint(x, y);
-
-  for (const el of elements) {
-    if (el.closest("#vue-inspector-container")) continue;
-    if (el.closest(".opencode-widget")) continue;
-    if (el.hasAttribute("data-v-inspector-ignore")) continue;
-
-    if (boundary) {
-      if (boundary.contains(el) || el === boundary) {
-        return el;
-      }
-    } else {
-      return el;
     }
   }
 
-  return null;
+  if (element && !inspectorFileInfo) {
+    inspectorFileInfo = findInspectorFileInfo(element);
+  }
+
+  const vueFileInfo = element ? getFileInfoFromVueInstance(element) : null;
+
+  return mergeFileInfo(inspectorFileInfo, vueFileInfo);
 }
 
 export function useInspector(options: UseInspectorOptions) {
@@ -341,100 +321,60 @@ export function useInspector(options: UseInspectorOptions) {
 
   const INSPECTOR_CHECK_INTERVAL = 500;
   let inspectorCheckTimer: number | null = null;
-  let currentHighlightElement: Element | null = null;
-  let currentFileInfo: FileInfo = { file: null, line: null, column: null };
   let currentPrimary = "#3b82f6";
   let currentPrimaryBg = "rgba(59, 130, 246, 0.1)";
-  let currentDescription = "";
-  let currentFileInfoText = "";
+
+  function setPointerEventsNone(elements: (Element | null)[]) {
+    elements.forEach((el) => {
+      if (el) (el as HTMLElement).style.pointerEvents = "none";
+    });
+  }
+
+  function setPointerEventsAuto(elements: (Element | null)[]) {
+    elements.forEach((el) => {
+      if (el) (el as HTMLElement).style.pointerEvents = "";
+    });
+  }
 
   function handleMouseMoveCore(e: MouseEvent) {
     if (!options.selectMode.value) return;
 
-    const inspector = window.__VUE_INSPECTOR__;
-
     const highlight = document.querySelector(".opencode-element-highlight");
     const tooltip = document.querySelector(".opencode-element-tooltip");
+    const selectHint = document.querySelector(".opencode-select-mode-hint");
+    const floatingBubble = document.querySelector(".floating-bubble");
 
-    if (highlight) (highlight as HTMLElement).style.pointerEvents = "none";
-    if (tooltip) (tooltip as HTMLElement).style.pointerEvents = "none";
+    const uiElements = [highlight, tooltip, selectHint, floatingBubble];
+    setPointerEventsNone(uiElements);
 
-    let elementToHighlight: Element | null = null;
-    let targetNode: Element | null;
-    let fileInfo: FileInfo = { file: null, line: null, column: null };
+    const elementToHighlight = getTargetElement(e);
+    const fileInfo = getFileInfo(e, elementToHighlight);
 
-    try {
-      if (inspector) {
-        const result = inspector.getTargetNode(e);
-        targetNode = result.targetNode;
-        const params = result.params;
-
-        if (targetNode) {
-          const preciseElement = getPreciseElementAtPoint(e.clientX, e.clientY, targetNode);
-          elementToHighlight = preciseElement || targetNode;
-
-          if (params && params.file) {
-            fileInfo = {
-              file: params.file,
-              line: params.line ?? null,
-              column: params.column ?? null,
-            };
-          } else {
-            fileInfo = findFileInfo(targetNode, inspector);
-          }
-        }
-      }
-
-      if (!elementToHighlight) {
-        elementToHighlight = getPreciseElementAtPoint(e.clientX, e.clientY, null);
-      }
-
-      if (elementToHighlight && !fileInfo.file) {
-        fileInfo = getFileInfoFromVueInstance(elementToHighlight) || fileInfo;
-      }
-    } finally {
-      if (highlight) (highlight as HTMLElement).style.pointerEvents = "";
-      if (tooltip) (tooltip as HTMLElement).style.pointerEvents = "";
-    }
+    setPointerEventsAuto(uiElements);
 
     if (elementToHighlight) {
-      const elementChanged = currentHighlightElement !== elementToHighlight;
-
-      if (elementChanged) {
-        currentHighlightElement = elementToHighlight;
-        currentFileInfo = fileInfo;
-
-        const widget = document.querySelector(".opencode-widget");
-        if (widget) {
-          const style = getComputedStyle(widget);
-          currentPrimary = style.getPropertyValue("--oc-primary").trim() || currentPrimary;
-          currentPrimaryBg = style.getPropertyValue("--oc-primary-bg").trim() || currentPrimaryBg;
-        }
-
-        currentDescription = getElementDescription(elementToHighlight);
-      } else if (!currentFileInfo.file && fileInfo.file) {
-        currentFileInfo = fileInfo;
+      const widget = document.querySelector(".opencode-widget");
+      if (widget) {
+        const style = getComputedStyle(widget);
+        currentPrimary = style.getPropertyValue("--oc-primary").trim() || currentPrimary;
+        currentPrimaryBg = style.getPropertyValue("--oc-primary-bg").trim() || currentPrimaryBg;
       }
 
-      const fileName = currentFileInfo.file ? currentFileInfo.file.split("/").pop() : "";
+      const description = getElementDescription(elementToHighlight);
+      const fileName = fileInfo.file ? fileInfo.file.split("/").pop() : "";
       let lineInfo = "";
-      if (currentFileInfo.line) {
-        lineInfo = `:${currentFileInfo.line}`;
-        if (currentFileInfo.column) {
-          lineInfo += `:${currentFileInfo.column}`;
+      if (fileInfo.line) {
+        lineInfo = `:${fileInfo.line}`;
+        if (fileInfo.column) {
+          lineInfo += `:${fileInfo.column}`;
         }
       }
-      const newFileInfoText = fileName ? `${fileName}${lineInfo}` : "";
-      const fileInfoChanged = currentFileInfoText !== newFileInfoText;
+      const fileInfoText = fileName ? `${fileName}${lineInfo}` : "";
 
-      if (elementChanged || fileInfoChanged) {
-        currentFileInfoText = newFileInfoText;
-
-        tooltipContent.value = {
-          description: currentDescription,
-          fileInfo: currentFileInfoText,
-        };
-      }
+      tooltipContent.value = {
+        description,
+        fileInfo: fileInfoText,
+      };
 
       const rect = elementToHighlight.getBoundingClientRect();
 
@@ -461,15 +401,24 @@ export function useInspector(options: UseInspectorOptions) {
 
       const tooltipHeight = 50;
       const tooltipWidth = 200;
+      const margin = 10;
 
       let tooltipTop = rect.top - tooltipHeight - 8;
       let tooltipLeft = rect.left;
 
-      if (tooltipTop < 10) {
+      if (tooltipTop < margin) {
         tooltipTop = rect.bottom + 8;
       }
-      if (tooltipLeft + tooltipWidth > window.innerWidth - 10) {
-        tooltipLeft = window.innerWidth - tooltipWidth - 10;
+
+      if (tooltipTop + tooltipHeight > window.innerHeight - margin) {
+        tooltipTop = Math.max(margin, rect.top - tooltipHeight - 8);
+      }
+
+      if (tooltipLeft < margin) {
+        tooltipLeft = margin;
+      }
+      if (tooltipLeft + tooltipWidth > window.innerWidth - margin) {
+        tooltipLeft = window.innerWidth - tooltipWidth - margin;
       }
 
       const newTooltipTop = `${tooltipTop}px`;
@@ -482,23 +431,11 @@ export function useInspector(options: UseInspectorOptions) {
         };
       }
 
-      if (!highlightVisible.value) {
-        highlightVisible.value = true;
-      }
-      if (!tooltipVisible.value) {
-        tooltipVisible.value = true;
-      }
+      highlightVisible.value = true;
+      tooltipVisible.value = true;
     } else {
-      currentHighlightElement = null;
-      currentDescription = "";
-      currentFileInfoText = "";
-      currentFileInfo = { file: null, line: null, column: null };
-      if (highlightVisible.value) {
-        highlightVisible.value = false;
-      }
-      if (tooltipVisible.value) {
-        tooltipVisible.value = false;
-      }
+      highlightVisible.value = false;
+      tooltipVisible.value = false;
     }
   }
 
@@ -512,37 +449,11 @@ export function useInspector(options: UseInspectorOptions) {
 
     inspector.handleClick = function (e: MouseEvent) {
       if (options.selectMode.value) {
-        // 阻止事件冒泡和默认行为，避免触发元素原有的交互
         e.preventDefault();
         e.stopPropagation();
 
-        let elementToSelect: Element | null = null;
-        let fileInfo: FileInfo = { file: null, line: null, column: null };
-
-        const { targetNode, params } = inspector.getTargetNode(e);
-
-        if (targetNode) {
-          const preciseElement = getPreciseElementAtPoint(e.clientX, e.clientY, targetNode);
-          elementToSelect = preciseElement || targetNode;
-
-          if (params && params.file) {
-            fileInfo = {
-              file: params.file,
-              line: params.line ?? null,
-              column: params.column ?? null,
-            };
-          } else if (elementToSelect) {
-            fileInfo = findFileInfo(elementToSelect, inspector);
-          }
-        }
-
-        if (!elementToSelect) {
-          elementToSelect = getPreciseElementAtPoint(e.clientX, e.clientY, null);
-        }
-
-        if (elementToSelect && !fileInfo.file) {
-          fileInfo = getFileInfoFromVueInstance(elementToSelect) || fileInfo;
-        }
+        const elementToSelect = getTargetElement(e);
+        const fileInfo = getFileInfo(e, elementToSelect);
 
         if (elementToSelect) {
           const innerText = getDirectText(elementToSelect);
@@ -589,10 +500,6 @@ export function useInspector(options: UseInspectorOptions) {
       }
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("keydown", handleKeydown, true);
-      currentHighlightElement = null;
-      currentDescription = "";
-      currentFileInfoText = "";
-      currentFileInfo = { file: null, line: null, column: null };
       highlightVisible.value = false;
       tooltipVisible.value = false;
     }
