@@ -22,7 +22,8 @@
       "Bash(gh pr *)",
       "Bash(pnpm --filter @vite-plugin-opencode-assistant/components exec vue-tsc --noEmit -p /Volumes/development/projects/vite-plugin-opencode-assistant/packages/components/tsconfig.json)",
       "Bash(pnpm --filter @vite-plugin-opencode-assistant/components exec vue-tsc --noEmit)",
-      "Bash(ls -la /Volumes/development/projects/vite-plugin-opencode-assistant/node_modules/.pnpm/vite-plugin-opencode-assistant*/node_modules/@vite-plugin-opencode-assistant/opencode/es/plugins/)"
+      "Bash(ls -la /Volumes/development/projects/vite-plugin-opencode-assistant/node_modules/.pnpm/vite-plugin-opencode-assistant*/node_modules/@vite-plugin-opencode-assistant/opencode/es/plugins/)",
+      "Bash(git config *)"
     ]
   }
 }
