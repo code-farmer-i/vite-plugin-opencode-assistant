@@ -143,7 +143,7 @@ defineExpose({
 
 .opencode-button.thinking {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  animation: thinking-glow 1.5s ease-in-out infinite, thinking-pulse 1.5s ease-in-out infinite;
+  animation: thinking-glow 2s ease-in-out infinite, thinking-pulse 2s ease-in-out infinite;
   box-shadow:
     0 0 20px rgba(102, 126, 234, 0.6),
     0 0 40px rgba(118, 75, 162, 0.4),
@@ -215,7 +215,7 @@ defineExpose({
   }
 
   50% {
-    transform: scale(0.85);
+    transform: scale(0.92);
   }
 }
 
