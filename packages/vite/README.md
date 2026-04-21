@@ -79,7 +79,6 @@ export default defineConfig({
       webPort: 5097, // OpenCode Web 服务端口
       proxyPort: 6097, // 代理服务端口
       hostname: "127.0.0.1", // 服务绑定地址
-      position: "bottom-right", // 悬浮按钮位置
       theme: "auto", // 主题: light | dark | auto
       open: false, // 是否自动展开面板
       autoReload: true, // 是否启用自动重载提示
