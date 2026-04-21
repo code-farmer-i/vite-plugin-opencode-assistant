@@ -4,14 +4,16 @@
 
 ## 它能做什么
 
-- **悬浮 AI 面板** - 在页面右下角注入悬浮按钮，点击展开 OpenCode 对话界面
+- **悬浮 AI 面板** - 在页面右下角注入悬浮按钮，支持拖拽定位和边缘磁吸
 - **自动启动服务** - 自动启动本地 OpenCode Web 服务，无需手动操作
-- **智能会话管理** - 自动复用当前项目的会话，或创建新会话
+- **智能会话管理** - 自动复用当前项目的会话，支持创建、切换、删除会话
+- **实时状态显示** - 会话列表显示思考状态指示器，了解 AI 当前工作状态
 - **页面上下文同步** - 自动同步当前页面 URL、标题给 AI，SPA 路由切换时实时更新
 - **元素选择器** - 通过快捷键在页面上点选元素，将组件源码位置信息传给 AI
 - **主题同步** - 挂件主题与 OpenCode Web 主题实时同步
 - **代理服务** - 内置代理服务器解决 iframe 跨域限制，确保 OpenCode Web 功能完整
 - **Chrome DevTools 预热** - 启动时自动预热浏览器工具链，减少首次使用等待
+- **日志查看** - 提供日志接口，方便 Agent 获取开发服务器输出
 
 ## 效果演示
 
@@ -205,38 +207,18 @@ npm run dev
 
 **注意**：元素选择依赖 Vue Inspector，如果页面中没有可用的 Inspector，会提示无法使用该功能。
 
-## 浏览器端 API
-
-挂件在全局暴露 `window.OpenCodeWidget` 对象：
-
-```js
-// 打开面板
-window.OpenCodeWidget.open();
-
-// 关闭面板
-window.OpenCodeWidget.close();
-
-// 切换面板
-window.OpenCodeWidget.toggle();
-
-// 显示通知
-window.OpenCodeWidget.showNotification("代码已更新！");
-
-// 手动同步上下文
-window.OpenCodeWidget.updateContext();
-```
-
 ## 内部接口
 
 插件在 Vite 开发服务器上注册以下内部接口：
 
-| 路径                      | 说明                               |
-| ------------------------- | ---------------------------------- |
-| `/__opencode_widget__.js` | 浏览器端挂件脚本                   |
-| `/__opencode_start__`     | 服务启动状态与会话地址             |
-| `/__opencode_context__`   | 页面上下文读写                     |
-| `/__opencode_sessions__`  | 会话查询、创建、删除               |
-| `/__opencode_events__`    | SSE 事件流（会话就绪、节点清空等） |
+| 路径                      | 说明                                       |
+| ------------------------- | ------------------------------------------ |
+| `/__opencode_widget__.js` | 浏览器端挂件脚本                           |
+| `/__opencode_start__`     | 服务启动状态与会话地址                     |
+| `/__opencode_context__`   | 页面上下文读写                             |
+| `/__opencode_sessions__`  | 会话查询、创建、删除                       |
+| `/__opencode_events__`    | SSE 事件流（会话就绪、节点清空等）         |
+| `/__opencode_logs__`      | 日志查询（OpenCode 进程输出、Vite 日志等） |
 
 ## 常见问题
 
