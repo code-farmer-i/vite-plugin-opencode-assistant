@@ -138,6 +138,9 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     .opencode-prompt-dock-hidden [data-component="session-prompt-dock"]:not(:has([data-kind="permission"])) {
       display: none !important;
     }
+    button[data-slot="dropdown-menu-trigger"][icon="dot-grid"] {
+      display: none !important;
+    }
   \`;
 
   function injectMinimizeStyles() {
