@@ -81,7 +81,6 @@ export default defineConfig({
       hostname: "127.0.0.1", // 服务绑定地址
       theme: "auto", // 主题: light | dark | auto
       open: false, // 是否自动展开面板
-      autoReload: true, // 是否启用自动重载提示
       verbose: false, // 是否输出详细日志
       hotkey: "ctrl+k", // 切换面板的快捷键
       warmupChromeMcp: true, // 是否预热 Chrome DevTools MCP
@@ -112,21 +111,19 @@ npm run dev
 
 ## 配置项
 
-| 配置项            | 类型      | 默认值           | 说明                                                                       |
-| ----------------- | --------- | ---------------- | -------------------------------------------------------------------------- |
-| `enabled`         | `boolean` | `true`           | 是否启用插件                                                               |
-| `webPort`         | `number`  | `5097`           | OpenCode Web 服务端口，被占用时自动向后寻找可用端口                        |
-| `proxyPort`       | `number`  | `6097`           | 代理服务端口，用于解决 iframe 跨域限制                                     |
-| `hostname`        | `string`  | `"127.0.0.1"`    | 服务绑定地址                                                               |
-| `position`        | `string`  | `"bottom-right"` | 悬浮按钮位置：`bottom-right` \| `bottom-left` \| `top-right` \| `top-left` |
-| `theme`           | `string`  | `"auto"`         | 挂件主题：`light` \| `dark` \| `auto`（跟随系统）                          |
-| `open`            | `boolean` | `false`          | 页面加载后是否自动展开面板                                                 |
-| `autoReload`      | `boolean` | `true`           | 是否显示自动重载提示                                                       |
-| `verbose`         | `boolean` | `false`          | 是否输出详细调试日志                                                       |
-| `hotkey`          | `string`  | `"ctrl+k"`       | 切换面板的快捷键，macOS 支持 `cmd+k`                                       |
-| `warmupChromeMcp` | `boolean` | `true`           | 启动后是否预热 Chrome DevTools MCP                                         |
-| `language`        | `string`  | -                | OpenCode 界面语言，如 `zh`、`en`、`ja` 等                                  |
-| `settings`        | `object`  | -                | OpenCode 内部设置，详见下方说明                                            |
+| 配置项            | 类型      | 默认值        | 说明                                                |
+| ----------------- | --------- | ------------- | --------------------------------------------------- |
+| `enabled`         | `boolean` | `true`        | 是否启用插件                                        |
+| `webPort`         | `number`  | `5097`        | OpenCode Web 服务端口，被占用时自动向后寻找可用端口 |
+| `proxyPort`       | `number`  | `6097`        | 代理服务端口，用于解决 iframe 跨域限制              |
+| `hostname`        | `string`  | `"127.0.0.1"` | 服务绑定地址                                        |
+| `theme`           | `string`  | `"auto"`      | 挂件主题：`light` \| `dark` \| `auto`（跟随系统）   |
+| `open`            | `boolean` | `false`       | 页面加载后是否自动展开面板                          |
+| `verbose`         | `boolean` | `false`       | 是否输出详细调试日志                                |
+| `hotkey`          | `string`  | `"ctrl+k"`    | 切换面板的快捷键，macOS 支持 `cmd+k`                |
+| `warmupChromeMcp` | `boolean` | `true`        | 启动后是否预热 Chrome DevTools MCP                  |
+| `language`        | `string`  | -             | OpenCode 界面语言，如 `zh`、`en`、`ja` 等           |
+| `settings`        | `object`  | -             | OpenCode 内部设置，详见下方说明                     |
 
 ### OpenCode 设置
 

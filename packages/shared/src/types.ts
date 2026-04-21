@@ -102,8 +102,6 @@ export interface OpenCodeOptions {
   theme?: "light" | "dark" | "auto";
   /** 是否自动打开面板，默认 false */
   open?: boolean;
-  /** 是否自动重载，默认 true */
-  autoReload?: boolean;
   /** 是否输出详细日志，默认 false */
   verbose?: boolean;
   /** 快捷键配置，默认 'ctrl+k' */

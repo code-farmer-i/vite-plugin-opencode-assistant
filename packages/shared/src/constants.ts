@@ -140,7 +140,6 @@ export const DEFAULT_CONFIG = {
   hostname: DEFAULT_HOSTNAME,
   theme: "auto" as const,
   open: false,
-  autoReload: true,
   verbose: false,
   hotkey: "ctrl+k",
   warmupChromeMcp: true,
