@@ -427,6 +427,11 @@ export function useInspector(options: UseInspectorOptions) {
 
     inspector.handleClick = function (e: MouseEvent) {
       if (options.selectMode.value) {
+        const targetEl = e.target instanceof Element ? e.target : null;
+        if (targetEl && targetEl.closest(".opencode-widget")) {
+          return originalHandleClick.call(inspector, e);
+        }
+
         e.preventDefault();
         e.stopPropagation();
 
