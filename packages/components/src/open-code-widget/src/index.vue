@@ -1056,9 +1056,10 @@ provideOpenCodeWidgetContext({
 body.has-opencode-split {
   padding-right: var(--opencode-split-width, 500px);
   transition: padding-right 0.3s ease;
+  min-width: auto;
 }
 
-body.has-opencode-split *:not(.opencode-chat) {
+body.has-opencode-split *:not(.opencode-chat):not(.opencode-chat *) {
   max-width: calc(100vw - var(--opencode-split-width, 500px)) !important;
 }
 </style>
