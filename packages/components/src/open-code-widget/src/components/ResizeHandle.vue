@@ -7,7 +7,7 @@ defineOptions({
 
 const props = withDefaults(
   defineProps<{
-    width: number;
+    width?: number;
     minWidth?: number;
     maxWidth?: number;
   }>(),
