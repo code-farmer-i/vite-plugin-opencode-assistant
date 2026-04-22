@@ -225,10 +225,10 @@ onMounted(() => {
     }
     if (event.data?.type === "OPENCODE_KEYDOWN") {
       if (event.data.key === "Escape" && selectMode.value) {
-        selectMode.value = false;
+        handleSelectModeChange(false);
       }
       if (event.data.ctrlKey && event.data.key.toLowerCase() === "p" && selectMode.value) {
-        selectMode.value = false;
+        handleSelectModeChange(false);
       }
     }
   };
