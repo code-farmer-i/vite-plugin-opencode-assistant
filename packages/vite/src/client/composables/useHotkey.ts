@@ -14,7 +14,7 @@ export function parseHotkey(hotkeyStr: string): HotkeyConfig {
   const key = parts.pop();
 
   return {
-    ctrl: parts.includes("ctrl") || parts.includes("cmd") || parts.includes("meta"),
+    ctrl: parts.includes("ctrl") || parts.includes("meta"),
     shift: parts.includes("shift"),
     alt: parts.includes("alt"),
     key: key || "k",
@@ -30,10 +30,7 @@ export function matchHotkey(e: KeyboardEvent, hotkeyConfig: HotkeyConfig): boole
   return ctrlMatch && shiftMatch && altMatch && keyMatch;
 }
 
-export function useHotkey(
-  hotkeyStr: string,
-  callback: (event: KeyboardEvent) => void,
-) {
+export function useHotkey(hotkeyStr: string, callback: (event: KeyboardEvent) => void) {
   const hotkeyConfig = parseHotkey(hotkeyStr);
 
   const handleKeydown = (e: KeyboardEvent) => {

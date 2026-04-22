@@ -184,14 +184,18 @@ useHotkey(hotkey, (e) => {
   handleToggle(!open.value);
 });
 
-useHotkey("ctrl+p", (e) => {
-  e.preventDefault();
+const toggleSelectMode = () => {
   const win = window as typeof window & { __VUE_INSPECTOR__?: unknown; };
   if (win.__VUE_INSPECTOR__) {
-    selectMode.value = !selectMode.value;
+    handleSelectModeChange(!selectMode.value);
   } else {
     showNotification("Vue Inspector 未加载，无法使用元素选择功能");
   }
+};
+
+useHotkey("ctrl+p", (e) => {
+  e.preventDefault();
+  toggleSelectMode();
 });
 
 // 监听服务状态变化，启动相应的 SSE 连接
@@ -227,8 +231,8 @@ onMounted(() => {
       if (event.data.key === "Escape" && selectMode.value) {
         handleSelectModeChange(false);
       }
-      if (event.data.ctrlKey && event.data.key.toLowerCase() === "p" && selectMode.value) {
-        handleSelectModeChange(false);
+      if (event.data.ctrlKey && event.data.key.toLowerCase() === "p") {
+        toggleSelectMode();
       }
     }
   };
