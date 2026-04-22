@@ -127,6 +127,22 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     }
   });
 
+  // === 键盘事件转发（用于退出选择模式） ===
+  window.addEventListener("keydown", function(event) {
+    if (event.key === "Escape" || (event.ctrlKey && event.key.toLowerCase() === "p")) {
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: "OPENCODE_KEYDOWN",
+          key: event.key,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          shiftKey: event.shiftKey,
+          altKey: event.altKey
+        }, "*");
+      }
+    }
+  }, true);
+
   // === 最小化状态样式 ===
   const minimizeStyles = \`
     .opencode-minimized [data-dock-surface="tray"]:not([data-slot="permission-footer"]) {

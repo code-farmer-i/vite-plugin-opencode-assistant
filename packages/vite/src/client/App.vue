@@ -218,10 +218,18 @@ onMounted(() => {
     }, 1000);
   }
 
-  // 只监听 OPENCODE_READY (主题同步)
+  // 监听 iframe 消息（主题同步和键盘事件）
   const handleIframeMessage = (event: MessageEvent) => {
     if (event.data?.type === "OPENCODE_READY") {
       sendThemeToIframe();
+    }
+    if (event.data?.type === "OPENCODE_KEYDOWN") {
+      if (event.data.key === "Escape" && selectMode.value) {
+        selectMode.value = false;
+      }
+      if (event.data.ctrlKey && event.data.key.toLowerCase() === "p" && selectMode.value) {
+        selectMode.value = false;
+      }
     }
   };
   window.addEventListener("message", handleIframeMessage);
