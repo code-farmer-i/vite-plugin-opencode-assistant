@@ -92,10 +92,7 @@ export class OpenCodeAPI {
         const sessions = await this.createHttpRequest<SessionInfo[]>({
           hostname: this.hostname,
           port: this.getPort(),
-          path: "/session",
-          headers: {
-            "x-opencode-directory": encodeURIComponent(projectDir),
-          },
+          path: `/session?directory=${encodeURIComponent(projectDir)}`,
         });
         const sessionsWithUrl = sessions.map((s) => ({
           ...s,
@@ -145,7 +142,6 @@ export class OpenCodeAPI {
             method: "POST",
             headers: {
               ...(requestBody ? { "Content-Type": "application/json" } : {}),
-              "x-opencode-directory": encodeURIComponent(projectDir),
             },
           },
           requestBody,
