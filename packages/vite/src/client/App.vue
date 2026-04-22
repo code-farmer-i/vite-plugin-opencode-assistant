@@ -273,6 +273,10 @@ const handleClearSelected = () => {
 
 const handleSelectModeChange = (val: boolean) => {
   selectMode.value = val;
+  const isSplit = widgetRef.value?.isSplitMode;
+  if (val && !isSplit && open.value) {
+    open.value = false;
+  }
   if (!val && !open.value) {
     open.value = true;
   }

@@ -111,12 +111,6 @@ const handleFrameLoaded = () => {
   syncStateToIframe();
 };
 
-defineExpose({
-  showNotification,
-  showConfirmDialog,
-  sendMessageToIframe,
-});
-
 watch(
   () => props.sessionListCollapsed,
   (val: boolean) => {
@@ -518,6 +512,13 @@ provideOpenCodeWidgetContext({
   handleClearSelectedNodes,
   handleFrameLoaded,
   handleBubbleOffsetChange,
+});
+
+defineExpose({
+  showNotification,
+  showConfirmDialog,
+  sendMessageToIframe,
+  isSplitMode,
 });
 </script>
 
