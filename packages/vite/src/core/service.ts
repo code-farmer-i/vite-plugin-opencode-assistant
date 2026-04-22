@@ -206,7 +206,7 @@ Please install OpenCode first:
       } catch (err) {
         const nodeErr = err as NodeJS.ErrnoException;
         if (nodeErr.code === "EADDRINUSE") {
-          log.warn(`Proxy port ${this.actualProxyPort} became unavailable, trying next port...`);
+          log.debug(`Proxy port ${this.actualProxyPort} became unavailable, trying next port...`);
           const nextPort = await findAvailablePort(this.actualProxyPort + 1, this.config.hostname);
           const result = await startProxyServer(webUrl, nextPort, {
             theme: this.config.theme,
@@ -216,7 +216,7 @@ Please install OpenCode first:
           this.proxyServer = result.server;
           this.actualProxyPort = result.actualPort;
           this.onProxyPortAllocated(this.actualProxyPort);
-          log.info(`Proxy server started on fallback port ${this.actualProxyPort}`);
+          log.debug(`Proxy server started on fallback port ${this.actualProxyPort}`);
         } else {
           throw err;
         }
