@@ -290,6 +290,9 @@ usePersistState({
     } else if (minimized.value) {
       promptDockVisible.value = false;
     }
+    if (state.splitPanelWidth !== undefined && state.splitPanelWidth !== props.splitPanelWidth) {
+      handleResize(state.splitPanelWidth);
+    }
     nextTick(() => {
       syncStateToIframe();
       setTimeout(() => {
