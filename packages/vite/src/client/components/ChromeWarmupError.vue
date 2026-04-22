@@ -31,7 +31,7 @@ const emit = defineEmits<{
         />
       </svg>
     </div>
-    
+
     <!-- Chrome 远程调试未开启 -->
     <template v-if="errorType === ChromeMcpWarmupErrorType.CHROME_NOT_CONNECTED">
       <div class="opencode-chrome-warmup-failed-title">Chrome DevTools MCP 连接失败</div>
@@ -48,7 +48,7 @@ const emit = defineEmits<{
         </ol>
       </div>
     </template>
-    
+
     <!-- AI 响应超时 -->
     <template v-else-if="errorType === ChromeMcpWarmupErrorType.AI_TIMEOUT">
       <div class="opencode-chrome-warmup-failed-title">AI 响应超时</div>
@@ -62,7 +62,7 @@ const emit = defineEmits<{
         <p style="margin-top: 12px; font-weight: 500;">请检查 OpenCode 配置文件中的 AI 模型设置</p>
       </div>
     </template>
-    
+
     <!-- AI 响应错误 -->
     <template v-else-if="errorType === ChromeMcpWarmupErrorType.AI_RESPONSE_ERROR">
       <div class="opencode-chrome-warmup-failed-title">AI 响应错误</div>
@@ -74,7 +74,7 @@ const emit = defineEmits<{
         <p style="margin-top: 12px;">请检查 OpenCode AI 模型配置是否正确</p>
       </div>
     </template>
-    
+
     <!-- 其他错误 -->
     <template v-else>
       <div class="opencode-chrome-warmup-failed-title">Chrome DevTools MCP 连接失败</div>
@@ -83,7 +83,7 @@ const emit = defineEmits<{
         <p v-else>连接失败，请重试</p>
       </div>
     </template>
-    
+
     <div class="opencode-chrome-warmup-failed-actions">
       <button
         class="opencode-chrome-warmup-failed-btn primary"

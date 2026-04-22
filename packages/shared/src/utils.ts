@@ -33,6 +33,9 @@ export function sleep(ms: number): Promise<void> {
  * @returns Base64 编码的字符串
  */
 export function base64Encode(str: string): string {
+  if (!str) {
+    throw new Error("base64Encode: input string is required");
+  }
   if (typeof Buffer !== "undefined") {
     return Buffer.from(str).toString("base64");
   }

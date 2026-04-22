@@ -92,9 +92,6 @@ const serverSSE = useServerSSE({
     if (data.task) {
       updateStatusFromTask(data.task, data.errorType, data.errorMessage);
     }
-    if (serviceStatus.value !== "idle") {
-      loadSessions();
-    }
   },
   onTaskUpdate: (data) => {
     updateStatusFromTask(data.task, data.errorType, data.errorMessage);
@@ -141,9 +138,13 @@ const retryWarmup = async () => {
     const data = await res.json();
     if (data.success) {
       chromeMcpFailed.value = false;
+      chromeMcpErrorType.value = undefined;
+      chromeMcpErrorMessage.value = undefined;
       serviceStatus.value = "ready";
       showNotification("Chrome DevTools MCP 连接成功");
     } else {
+      chromeMcpErrorType.value = data.errorType;
+      chromeMcpErrorMessage.value = data.error;
       if (data.errorType === "AI_TIMEOUT") {
         showNotification("AI 响应超时，请检查 OpenCode AI 模型配置");
       } else if (data.errorType === "AI_RESPONSE_ERROR") {
@@ -196,9 +197,11 @@ useHotkey("ctrl+p", (e) => {
 // 监听服务状态变化，启动相应的 SSE 连接
 watch(serviceStatus, (status, oldStatus) => {
   if (status !== "idle" && oldStatus === "idle") {
-    // 只有从 idle 变为非 idle 时才连接
     serverSSE.connect();
     opencodeSSE.connect();
+  }
+  if (status === "ready" && oldStatus !== "ready") {
+    loadSessions();
   }
 });
 

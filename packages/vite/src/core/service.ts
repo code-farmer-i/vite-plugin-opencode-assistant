@@ -245,12 +245,13 @@ Please install OpenCode first:
 
       this.sendTaskUpdate("creating_session");
 
+      this.isStarted = true;
+
       if (warmupFailed) {
         this.sendTaskUpdate("chrome_mcp_failed", {
           errorType: this.chromeMcpWarmupErrorType,
           errorMessage: this.chromeMcpWarmupErrorMessage,
         });
-        this.isStarted = true;
       } else {
         this.sendTaskUpdate("ready");
       }

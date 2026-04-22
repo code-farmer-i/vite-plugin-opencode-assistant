@@ -96,7 +96,9 @@ export class OpenCodeAPI {
         });
         const sessionsWithUrl = sessions.map((s) => ({
           ...s,
-          url: `http://${this.hostname}:${this.getProxyPort()}/${base64Encode(s.directory)}/session/${s.id}`,
+          url: s.directory
+            ? `http://${this.hostname}:${this.getProxyPort()}/${base64Encode(s.directory)}/session/${s.id}`
+            : "",
         }));
         timer.end(`Found ${sessions.length} sessions`);
         return sessionsWithUrl;
