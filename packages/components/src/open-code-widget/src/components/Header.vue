@@ -12,6 +12,7 @@ const {
   resolvedTheme,
   minimized,
   promptDockVisible,
+  mode,
   handleToggleSessionList,
   handleToggleSelectMode,
   handleToggleTheme,
@@ -19,6 +20,8 @@ const {
   handleToggleMinimize,
   handleTogglePromptDock,
 } = useOpenCodeWidgetContext();
+
+const isSplitMode = computed(() => mode.value === "split");
 
 const themeIconTitle = computed(() => {
   const themeLabels = {
@@ -227,6 +230,7 @@ const themeIconLabel = computed(() => {
 
     <div class="opencode-chat-header-actions">
       <button
+        v-if="!isSplitMode"
         class="opencode-header-btn prompt-dock"
         type="button"
         :title="promptDockVisible ? '隐藏对话框' : '显示对话框'"
@@ -249,6 +253,7 @@ const themeIconLabel = computed(() => {
         </slot>
       </button>
       <button
+        v-if="!isSplitMode"
         class="opencode-header-btn minimize"
         type="button"
         :title="minimized ? '展开' : '最小化'"
@@ -284,6 +289,7 @@ const themeIconLabel = computed(() => {
         </slot>
       </button>
       <button
+        v-if="!isSplitMode"
         class="opencode-header-btn close"
         type="button"
         title="关闭"

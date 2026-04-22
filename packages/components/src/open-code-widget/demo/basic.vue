@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from "vue";
 
-import type { OpenCodeSelectedElement } from "../src/types";
+import type { OpenCodeSelectedElement, DisplayMode, SplitModeOptions } from "../src/types";
 
 const open = ref(false);
 const loading = ref(true);
@@ -9,12 +9,21 @@ const selectMode = ref(false);
 const theme = ref<"light" | "dark" | "auto">("auto");
 const currentSessionId = ref<string | null>(null);
 const sessionListCollapsed = ref(true);
-const sessions = ref<{ id: string; title: string; updatedAt: number }[]>([]);
+const sessions = ref<{ id: string; title: string; updatedAt: number; }[]>([]);
 const selectedElements = ref<OpenCodeSelectedElement[]>([]);
 const thinking = ref(false);
+const displayMode = ref<DisplayMode>("bubble");
+const splitPanelWidth = ref(500);
+const splitMode = ref<SplitModeOptions>({
+  width: 500,
+  minWidth: 400,
+  maxWidth: 800,
+  resizable: true,
+  shrinkPage: true,
+  defaultOpen: true,
+});
 
 onMounted(() => {
-  // 模拟异步加载数据
   setTimeout(() => {
     sessions.value = [
       { id: "1", title: "如何使用 Vue 3 的 Composition API？", updatedAt: Date.now() },
@@ -45,18 +54,16 @@ const handleToggleSelectMode = (val: boolean) => {
   selectMode.value = val;
 };
 
-const handleSelectSession = (session: { id: string }) => {
+const handleSelectSession = (session: { id: string; }) => {
   loading.value = true;
-  // 模拟异步加载会话内容
   setTimeout(() => {
     currentSessionId.value = session.id;
     loading.value = false;
   }, 500);
 };
 
-const handleDeleteSession = (session: { id: string }) => {
+const handleDeleteSession = (session: { id: string; }) => {
   loading.value = true;
-  // 模拟异步删除会话
   setTimeout(() => {
     sessions.value = sessions.value.filter((s) => s.id !== session.id);
     if (currentSessionId.value === session.id && sessions.value.length > 0) {
@@ -68,7 +75,6 @@ const handleDeleteSession = (session: { id: string }) => {
 
 const handleCreateSession = () => {
   loading.value = true;
-  // 模拟异步创建会话
   setTimeout(() => {
     const id = Date.now().toString();
     sessions.value.unshift({
@@ -82,7 +88,6 @@ const handleCreateSession = () => {
 };
 
 const handleClickSelectedNode = (element: OpenCodeSelectedElement) => {
-  // If element is not already in the list, add it
   const exists = selectedElements.value.find(
     (e) =>
       e.filePath === element.filePath && e.line === element.line && e.column === element.column,
@@ -119,14 +124,30 @@ const handleToggleThinking = () => {
   thinking.value = !thinking.value;
 };
 
-// 监听主题变化
+const handleToggleDisplayMode = () => {
+  const modes: DisplayMode[] = ["bubble", "split", "auto"];
+  const currentIndex = modes.indexOf(displayMode.value);
+  displayMode.value = modes[(currentIndex + 1) % modes.length];
+};
+
+const handleSplitPanelWidthChange = (val: number) => {
+  splitPanelWidth.value = val;
+};
+
 watch(theme, (newVal) => {
   console.log("主题切换为:", newVal);
+});
+
+watch(displayMode, (newVal) => {
+  console.log("展示模式切换为:", newVal);
 });
 </script>
 
 <template>
-  <div class="demo-container" :class="[theme === 'dark' ? 'demo-dark' : '']">
+  <div
+    class="demo-container"
+    :class="[theme === 'dark' ? 'demo-dark' : '']"
+  >
     <div class="controls">
       <div class="control-group">
         <h4>基本操作</h4>
@@ -144,6 +165,19 @@ watch(theme, (newVal) => {
         </button>
         <button @click="handleToggleThinking">
           切换思考状态 (当前: {{ thinking ? "思考中" : "空闲" }})
+        </button>
+      </div>
+
+      <div class="control-group">
+        <h4>展示模式</h4>
+        <button @click="handleToggleDisplayMode">
+          切换展示模式 (当前: {{ displayMode }})
+        </button>
+        <button @click="splitPanelWidth = splitPanelWidth - 50">
+          减小面板宽度 (当前: {{ splitPanelWidth }}px)
+        </button>
+        <button @click="splitPanelWidth = splitPanelWidth + 50">
+          增大面板宽度 (当前: {{ splitPanelWidth }}px)
         </button>
       </div>
 
@@ -177,6 +211,9 @@ watch(theme, (newVal) => {
         :selected-elements="selectedElements"
         :show-empty-state="sessions.length === 0"
         :thinking="thinking"
+        :display-mode="displayMode"
+        :split-mode="splitMode"
+        :split-panel-width="splitPanelWidth"
         title="Trae AI"
         iframe-src="about:blank"
         @update:open="handleUpdateOpen"
@@ -188,6 +225,7 @@ watch(theme, (newVal) => {
         @remove-selected-node="handleRemoveSelectedNode"
         @clear-selected-nodes="handleClearSelectedNodes"
         @empty-action="handleEmptyAction"
+        @update:split-panel-width="handleSplitPanelWidthChange"
       />
     </div>
 
@@ -195,9 +233,11 @@ watch(theme, (newVal) => {
       <h3>场景演示说明</h3>
       <ul>
         <li><strong>基本操作:</strong> 测试挂件的打开/关闭、选择模式、主题切换、加载状态</li>
+        <li><strong>展示模式:</strong> 切换气泡模式(bubble)、分屏模式(split)、自动模式(auto)</li>
         <li><strong>会话管理:</strong> 测试会话列表的折叠/展开、创建新会话、清空已选节点</li>
         <li><strong>状态演示:</strong> 测试空状态和正常状态的切换</li>
         <li><strong>拖拽功能:</strong> 气泡按钮支持自由拖拽，松手后自动磁吸到屏幕边缘</li>
+        <li><strong>分屏模式:</strong> 面板固定在右侧，支持拖拽调整宽度，主页面自动收缩</li>
       </ul>
     </div>
   </div>

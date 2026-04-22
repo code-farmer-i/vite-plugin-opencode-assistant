@@ -30,6 +30,7 @@ export interface OpenCodeWidgetContext {
   minimized: Ref<boolean>;
   promptDockVisible: Ref<boolean>;
   bubbleOffset: Ref<FloatingBubbleOffset | undefined>;
+  mode: Ref<"bubble" | "split">;
 
   // Session states for thinking indicator
   sessionStates: Ref<Record<string, OpencodeSessionThinkingState>>;

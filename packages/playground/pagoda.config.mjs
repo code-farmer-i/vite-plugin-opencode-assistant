@@ -27,6 +27,7 @@ export default defineConfig({
           config.plugins = config.plugins || [];
           config.plugins.push(
             ...opencode({
+              displayMode: "split",
               // warmupChromeMcp: false,
               // verbose: true,
             }),

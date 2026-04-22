@@ -35,9 +35,12 @@ const {
   hotkey = "ctrl+k",
   proxyPort = 4098,
   proxyHost = "localhost",
+  displayMode = "bubble",
+  splitMode,
 } = props.config;
 
 const widgetTheme = initialTheme as OpenCodeWidgetTheme;
+const splitPanelWidth = ref(splitMode?.width ?? 500);
 
 // 构建 proxy base URL
 const proxyBaseUrl = computed(() => {
@@ -272,6 +275,10 @@ const handleThemeChange = (val: OpenCodeWidgetTheme) => {
   theme.value = val;
 };
 
+const handleSplitPanelWidthChange = (val: number) => {
+  splitPanelWidth.value = val;
+};
+
 const handleRemoveSelectedNode = ({ index }: { index: number; }) => {
   removeElement(index);
   updateContext(true);
@@ -300,10 +307,14 @@ const handleFrameLoaded = () => {
     session-key="id"
     :hotkey-label="hotkey"
     :thinking="thinking"
+    :display-mode="displayMode"
+    :split-mode="splitMode"
+    :split-panel-width="splitPanelWidth"
     @update:open="handleToggle"
     @update:select-mode="handleSelectModeChange"
     @update:session-list-collapsed="handleSessionListCollapsedChange"
     @update:theme="handleThemeChange"
+    @update:split-panel-width="handleSplitPanelWidthChange"
     @toggle-theme="handleThemeChange"
     @create-session="createSession"
     @delete-session="deleteSession"

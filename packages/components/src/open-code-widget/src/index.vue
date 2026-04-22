@@ -1,16 +1,14 @@
 <script setup lang="ts">
 import { useSlots, toRef, ref, watch, computed, nextTick, onMounted, onUnmounted } from "vue";
-import Frame from "./components/Frame.vue";
-import Header from "./components/Header.vue";
+import ChatPanel from "./components/ChatPanel.vue";
 import SelectHint from "./components/SelectHint.vue";
-import SelectedNodes from "./components/SelectedNodes.vue";
-import SessionList from "./components/SessionList.vue";
 import Trigger from "./components/Trigger.vue";
 import { useSelection } from "../composables/use-selection";
 import { useSession } from "../composables/use-session";
 import { useWidget } from "../composables/use-widget";
 import { useInspector } from "../composables/use-inspector";
 import { usePersistState } from "../composables/use-persist-state";
+import { useSplitMode } from "../composables/use-split";
 import type { OpenCodeWidgetEmits, OpenCodeWidgetProps } from "./types";
 import { provideOpenCodeWidgetContext } from "./context";
 import type { FloatingBubbleOffset } from "./components/FloatingBubble/types";
@@ -41,6 +39,9 @@ const props = withDefaults(defineProps<OpenCodeWidgetProps>(), {
   emptyStateText: "当前项目暂无会话",
   emptyStateActionText: "立即创建",
   thinking: false,
+  displayMode: "bubble",
+  splitMode: undefined,
+  splitPanelWidth: 500,
 });
 
 const emit = defineEmits<OpenCodeWidgetEmits>();
@@ -84,7 +85,7 @@ const handleDialogCancel = () => {
   if (dialogResolve) dialogResolve(false);
 };
 
-const frameRef = ref<InstanceType<typeof Frame> | null>(null);
+const frameRef = ref<InstanceType<typeof ChatPanel> | null>(null);
 const triggerRef = ref<InstanceType<typeof Trigger> | null>(null);
 
 const sendMessageToIframe = (type: string, data?: Record<string, unknown>) => {
@@ -96,6 +97,7 @@ const minimized = ref(false);
 const promptDockVisible = ref(true);
 const isRestoring = ref(true);
 const iframeLoaded = ref(false);
+const splitPanelWidth = ref(props.splitPanelWidth);
 
 const syncStateToIframe = () => {
   if (!iframeLoaded.value) return;
@@ -119,6 +121,13 @@ watch(
   () => props.sessionListCollapsed,
   (val: boolean) => {
     localSessionListCollapsed.value = val;
+  },
+);
+
+watch(
+  () => props.splitPanelWidth,
+  (val: number) => {
+    splitPanelWidth.value = val;
   },
 );
 
@@ -219,6 +228,28 @@ const { highlightVisible, highlightStyle, tooltipVisible, tooltipStyle, tooltipC
 
 const bubbleOffset = ref<FloatingBubbleOffset | undefined>(undefined);
 
+const {
+  effectiveMode,
+  isSplitMode,
+  panelWidth,
+  splitConfig,
+  handleResize,
+  handleToggle: handleSplitToggle,
+} = useSplitMode({
+  displayMode: toRef(props, "displayMode"),
+  splitMode: toRef(props, "splitMode"),
+  open: toRef(props, "open"),
+  onOpenChange: (nextOpen) => {
+    emit("update:open", nextOpen);
+    emit("toggle", nextOpen);
+  },
+  onWidthChange: (width) => {
+    splitPanelWidth.value = width;
+    emit("update:splitPanelWidth", width);
+    emit("split-panel-width-change", width);
+  },
+});
+
 usePersistState({
   open: toRef(props, "open"),
   minimized,
@@ -226,6 +257,7 @@ usePersistState({
   bubbleOffset,
   theme: toRef(props, "theme"),
   sessionListCollapsed: localSessionListCollapsed,
+  splitPanelWidth,
   onRestore: (state) => {
     if (state.open !== undefined && state.open !== props.open) {
       emit("update:open", state.open);
@@ -393,6 +425,14 @@ const handleBubbleOffsetChange = (offset: FloatingBubbleOffset | undefined) => {
   bubbleOffset.value = offset;
 };
 
+const handleResizeStart = () => {
+  isDragging.value = true;
+};
+
+const handleResizeEnd = () => {
+  isDragging.value = false;
+};
+
 const chatAnimationOrigin = computed(() => {
   const quadrant = bubbleQuadrant.value;
   switch (quadrant) {
@@ -449,6 +489,7 @@ provideOpenCodeWidgetContext({
   minimized,
   promptDockVisible,
   bubbleOffset,
+  mode: effectiveMode,
   sessionStates: computed(() => props.sessionStates ?? {}),
   iframeSource,
   buttonActive,
@@ -480,6 +521,7 @@ provideOpenCodeWidgetContext({
 <template>
   <div :class="containerClasses">
     <Trigger
+      v-if="!isSplitMode"
       ref="triggerRef"
       @drag-start="handleDragStart"
       @drag-end="handleDragEnd"
@@ -492,85 +534,84 @@ provideOpenCodeWidgetContext({
       </template>
     </Trigger>
 
-    <div
-      v-show="!selectMode"
-      class="opencode-chat"
-      :class="{ open, minimized, dragging: isDragging, 'no-transition': isRestoring }"
-      :style="chatPositionStyle"
+    <ChatPanel
+      ref="frameRef"
+      :mode="effectiveMode"
+      :open="open"
+      :minimized="minimized"
+      :position-style="chatPositionStyle"
+      :animation-origin="chatAnimationOrigin"
+      :panel-width="panelWidth"
+      :resizable="splitConfig.resizable"
+      :min-width="splitConfig.minWidth"
+      :max-width="splitConfig.maxWidth"
+      :no-transition="isRestoring"
+      :dragging="isDragging"
+      :notification-visible="notificationVisible"
+      :notification-message="notificationMessage"
+      :notification-mode="notificationMode"
+      :thinking="thinking"
+      :resolved-theme="resolvedTheme"
+      @resize="handleResize"
+      @resize-start="handleResizeStart"
+      @resize-end="handleResizeEnd"
+      @toggle="handleSplitToggle"
     >
-      <Header>
-        <template
-          v-if="slots['session-toggle-icon']"
-          #session-toggle-icon
-        >
-          <slot name="session-toggle-icon" />
-        </template>
-
-        <template
-          v-if="slots['select-icon']"
-          #select-icon
-        >
-          <slot name="select-icon" />
-        </template>
-
-        <template
-          v-if="slots['close-icon']"
-          #close-icon
-        >
-          <slot name="close-icon" />
-        </template>
-      </Header>
-
-      <div
-        v-if="notificationVisible && notificationMode === 'widget'"
-        class="opencode-notification"
-        role="alert"
+      <template
+        v-if="slots['session-toggle-icon']"
+        #session-toggle-icon
       >
-        {{ notificationMessage }}
-      </div>
+        <slot name="session-toggle-icon" />
+      </template>
 
-      <div class="opencode-chat-content">
-        <SessionList>
-          <template #empty>
-            <slot name="sessions-empty">
-              <div class="opencode-session-empty">暂无会话</div>
-            </slot>
-          </template>
-        </SessionList>
+      <template
+        v-if="slots['select-icon']"
+        #select-icon
+      >
+        <slot name="select-icon" />
+      </template>
 
-        <Frame ref="frameRef">
-          <template
-            v-if="slots['empty-state']"
-            #empty-state
-          >
-            <slot name="empty-state" />
-          </template>
+      <template
+        v-if="slots['close-icon']"
+        #close-icon
+      >
+        <slot name="close-icon" />
+      </template>
 
-          <template
-            v-if="slots.loading"
-            #loading
-          >
-            <slot name="loading" />
-          </template>
+      <template #sessions-empty>
+        <slot name="sessions-empty">
+          <div class="opencode-session-empty">暂无会话</div>
+        </slot>
+      </template>
 
-          <template
-            v-if="slots.error"
-            #error
-          >
-            <slot name="error" />
-          </template>
+      <template
+        v-if="slots['empty-state']"
+        #empty-state
+      >
+        <slot name="empty-state" />
+      </template>
 
-          <template
-            v-if="slots.content"
-            #content
-          >
-            <slot name="content" />
-          </template>
-        </Frame>
+      <template
+        v-if="slots.loading"
+        #loading
+      >
+        <slot name="loading" />
+      </template>
 
-        <SelectedNodes />
-      </div>
-    </div>
+      <template
+        v-if="slots.error"
+        #error
+      >
+        <slot name="error" />
+      </template>
+
+      <template
+        v-if="slots.content"
+        #content
+      >
+        <slot name="content" />
+      </template>
+    </ChatPanel>
 
     <SelectHint />
 
@@ -1010,5 +1051,14 @@ provideOpenCodeWidgetContext({
     width: calc(100vw - 40px);
     height: calc(100vh - 100px);
   }
+}
+
+body.has-opencode-split {
+  padding-right: var(--opencode-split-width, 500px);
+  transition: padding-right 0.3s ease;
+}
+
+body.has-opencode-split *:not(.opencode-chat) {
+  max-width: calc(100vw - var(--opencode-split-width, 500px)) !important;
 }
 </style>

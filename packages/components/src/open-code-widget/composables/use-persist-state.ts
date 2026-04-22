@@ -9,6 +9,7 @@ export interface WidgetPersistState {
   bubbleOffset?: FloatingBubbleOffset;
   theme: OpenCodeWidgetTheme;
   sessionListCollapsed: boolean;
+  splitPanelWidth?: number;
 }
 
 const STORAGE_KEY = "opencode-widget-state";
@@ -42,6 +43,7 @@ export interface UsePersistStateOptions {
   bubbleOffset: Ref<FloatingBubbleOffset | undefined>;
   theme: Ref<OpenCodeWidgetTheme>;
   sessionListCollapsed: Ref<boolean>;
+  splitPanelWidth?: Ref<number>;
   onRestore?: (state: Partial<WidgetPersistState>) => void;
 }
 
@@ -61,17 +63,31 @@ export function usePersistState(options: UsePersistStateOptions) {
     bubbleOffset: options.bubbleOffset.value,
     theme: options.theme.value,
     sessionListCollapsed: options.sessionListCollapsed.value,
+    splitPanelWidth: options.splitPanelWidth?.value,
   });
 
   const persistState = () => {
     saveState(getCurrentState());
   };
 
+  const watchers: Ref<unknown>[] = [
+    options.open,
+    options.minimized,
+    options.promptDockVisible,
+    options.bubbleOffset,
+    options.theme,
+    options.sessionListCollapsed,
+  ];
+
+  if (options.splitPanelWidth) {
+    watchers.push(options.splitPanelWidth);
+  }
+
   onMounted(() => {
     restoreState();
 
     watch(
-      [options.open, options.minimized, options.promptDockVisible, options.bubbleOffset, options.theme, options.sessionListCollapsed],
+      watchers,
       () => {
         persistState();
       },

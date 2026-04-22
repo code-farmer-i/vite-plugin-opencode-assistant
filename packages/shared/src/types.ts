@@ -85,6 +85,29 @@ export interface OpenCodeSettings {
 }
 
 /**
+ * 展示模式类型
+ */
+export type DisplayMode = "bubble" | "split" | "auto";
+
+/**
+ * 分屏模式配置
+ */
+export interface SplitModeOptions {
+  /** 面板宽度，默认 500 */
+  width?: number;
+  /** 最小宽度，默认 400 */
+  minWidth?: number;
+  /** 最大宽度，默认 800 */
+  maxWidth?: number;
+  /** 是否可调整宽度，默认 true */
+  resizable?: boolean;
+  /** 是否收缩主页面，默认 true */
+  shrinkPage?: boolean;
+  /** 默认是否展开，默认 true */
+  defaultOpen?: boolean;
+}
+
+/**
  * OpenCode Vite 插件配置选项
  */
 export interface OpenCodeOptions {
@@ -108,6 +131,10 @@ export interface OpenCodeOptions {
   hotkey?: string;
   /** 服务启动后是否立即预热 Chrome MCP，默认 true */
   warmupChromeMcp?: boolean;
+  /** 展示模式，默认 'bubble' */
+  displayMode?: DisplayMode;
+  /** 分屏模式配置 */
+  splitMode?: SplitModeOptions;
 
   // === OpenCode 内部配置 ===
   /** OpenCode 界面语言，默认跟随浏览器语言 */
@@ -152,6 +179,10 @@ export interface WidgetOptions {
   proxyPort?: number;
   /** OpenCode 代理服务主机名 */
   proxyHost?: string;
+  /** 展示模式 */
+  displayMode?: DisplayMode;
+  /** 分屏模式配置 */
+  splitMode?: SplitModeOptions;
 }
 
 /**
@@ -366,6 +397,12 @@ export interface OpenCodeWidgetProps {
   thinking?: boolean;
   /** 所有 session 的状态映射 */
   sessionStates?: Record<string, OpencodeSessionThinkingState>;
+  /** 展示模式 */
+  displayMode?: DisplayMode;
+  /** 分屏模式配置 */
+  splitMode?: SplitModeOptions;
+  /** 分屏面板宽度（运行时状态） */
+  splitPanelWidth?: number;
 }
 
 /**
@@ -379,6 +416,7 @@ export type OpenCodeWidgetEmits = {
   (e: "update:selectedElements", value: OpenCodeSelectedElement[]): void;
   (e: "update:theme", value: OpenCodeWidgetTheme): void;
   (e: "update:thinking", value: boolean): void;
+  (e: "update:splitPanelWidth", value: number): void;
   (e: "toggle", value: boolean): void;
   (e: "close"): void;
   (e: "toggle-session-list", value: boolean): void;
@@ -393,6 +431,7 @@ export type OpenCodeWidgetEmits = {
   (e: "empty-action"): void;
   (e: "frame-loaded"): void;
   (e: "thinking-change", value: boolean): void;
+  (e: "split-panel-width-change", value: number): void;
 };
 
 // ==================== Chrome MCP 错误类型 ====================

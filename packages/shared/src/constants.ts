@@ -143,6 +143,17 @@ export const DEFAULT_CONFIG = {
   verbose: false,
   hotkey: "ctrl+k",
   warmupChromeMcp: true,
+  displayMode: "bubble" as const,
+  splitMode: undefined as
+    | {
+        width?: number;
+        minWidth?: number;
+        maxWidth?: number;
+        resizable?: boolean;
+        shrinkPage?: boolean;
+        defaultOpen?: boolean;
+      }
+    | undefined,
   // OpenCode 内部配置默认值
   language: undefined as OpenCodeLanguage | undefined,
   settings: undefined as OpenCodeSettings | undefined,

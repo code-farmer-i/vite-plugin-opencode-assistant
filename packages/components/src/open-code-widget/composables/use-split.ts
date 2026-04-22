@@ -1,0 +1,109 @@
+import { ref, computed, watch, onMounted, onUnmounted, type Ref } from "vue";
+import type { DisplayMode, SplitModeOptions } from "@vite-plugin-opencode-assistant/shared";
+
+export interface UseSplitModeOptions {
+  displayMode: Ref<DisplayMode>;
+  splitMode: Ref<SplitModeOptions | undefined>;
+  open: Ref<boolean>;
+  onOpenChange?: (open: boolean) => void;
+  onWidthChange?: (width: number) => void;
+}
+
+const AUTO_MODE_THRESHOLD = 1440;
+
+export function useSplitMode(options: UseSplitModeOptions) {
+  const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 0);
+
+  const splitConfig = computed(() => {
+    const config = options.splitMode.value || {};
+    return {
+      width: config.width ?? 500,
+      minWidth: config.minWidth ?? 400,
+      maxWidth: config.maxWidth ?? 800,
+      resizable: config.resizable ?? true,
+      shrinkPage: config.shrinkPage ?? true,
+      defaultOpen: config.defaultOpen ?? true,
+    };
+  });
+
+  const panelWidth = ref(splitConfig.value.width);
+
+  const effectiveMode = computed((): "bubble" | "split" => {
+    if (options.displayMode.value === "bubble") {
+      return "bubble";
+    }
+    if (options.displayMode.value === "split") {
+      return "split";
+    }
+    return windowWidth.value >= AUTO_MODE_THRESHOLD ? "split" : "bubble";
+  });
+
+  const isSplitMode = computed(() => effectiveMode.value === "split");
+
+  const handleResize = (width: number) => {
+    panelWidth.value = width;
+    options.onWidthChange?.(width);
+  };
+
+  const handleToggle = () => {
+    const nextOpen = !options.open.value;
+    options.onOpenChange?.(nextOpen);
+  };
+
+  const handleWindowResize = () => {
+    if (typeof window !== "undefined") {
+      windowWidth.value = window.innerWidth;
+    }
+  };
+
+  const updateBodyClass = () => {
+    if (typeof document === "undefined") return;
+
+    const shouldShrink = isSplitMode.value && options.open.value && splitConfig.value.shrinkPage;
+
+    if (shouldShrink) {
+      document.body.classList.add("has-opencode-split");
+      document.body.style.setProperty("--opencode-split-width", `${panelWidth.value}px`);
+    } else {
+      document.body.classList.remove("has-opencode-split");
+      document.body.style.removeProperty("--opencode-split-width");
+    }
+  };
+
+  watch([isSplitMode, options.open, panelWidth], updateBodyClass, { immediate: true });
+
+  watch(splitConfig, (config) => {
+    if (panelWidth.value < config.minWidth) {
+      panelWidth.value = config.minWidth;
+    }
+    if (panelWidth.value > config.maxWidth) {
+      panelWidth.value = config.maxWidth;
+    }
+  });
+
+  onMounted(() => {
+    if (typeof window !== "undefined") {
+      window.addEventListener("resize", handleWindowResize);
+      if (isSplitMode.value && splitConfig.value.defaultOpen && !options.open.value) {
+        options.onOpenChange?.(true);
+      }
+    }
+  });
+
+  onUnmounted(() => {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("resize", handleWindowResize);
+      document.body.classList.remove("has-opencode-split");
+      document.body.style.removeProperty("--opencode-split-width");
+    }
+  });
+
+  return {
+    effectiveMode,
+    isSplitMode,
+    panelWidth,
+    splitConfig,
+    handleResize,
+    handleToggle,
+  };
+}

@@ -177,6 +177,8 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
         hotkey: config.hotkey,
         proxyPort: actualProxyPort,
         proxyHost: config.hostname,
+        displayMode: config.displayMode,
+        splitMode: config.splitMode,
       });
 
       timer.end();
