@@ -28,9 +28,11 @@ export function setupSseEndpoint(server: ViteDevServer, ctx: EndpointContext) {
     }
     if (ctx.currentTask) {
       statusPayload.task = ctx.currentTask.task;
-      if (ctx.currentTask.data) {
-        Object.assign(statusPayload, ctx.currentTask.data);
-      }
+      Object.keys(ctx.currentTask).forEach((key) => {
+        if (key !== "task") {
+          statusPayload[key] = ctx.currentTask![key as keyof typeof ctx.currentTask];
+        }
+      });
     }
 
     res.write(`data: ${JSON.stringify(statusPayload)}\n\n`);
