@@ -1062,8 +1062,4 @@ body.has-opencode-split {
   transition: padding-right 0.3s ease;
   min-width: auto;
 }
-
-body.has-opencode-split *:not(.opencode-chat):not(.opencode-chat *) {
-  max-width: calc(100vw - var(--opencode-split-width, 500px)) !important;
-}
 </style>
