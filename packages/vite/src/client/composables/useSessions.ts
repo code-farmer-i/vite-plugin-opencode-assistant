@@ -27,7 +27,12 @@ export function useSessions(options: UseSessionsOptions) {
       const response = await fetch(SESSIONS_API_PATH);
       const data: SessionInfo[] = await response.json();
       sessions.value = data
-        .filter((s) => s.title !== "__chrome_mcp_warmup__")
+        .filter((s) => {
+          if (s.title === "__chrome_mcp_warmup__") return false;
+          if (s.parentID) return false;
+          if (s.time?.archived) return false;
+          return true;
+        })
         .map((s) => ({
           ...s,
           updatedAt: s.time?.updated || Date.now(),

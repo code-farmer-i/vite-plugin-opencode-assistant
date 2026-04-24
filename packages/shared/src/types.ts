@@ -203,6 +203,8 @@ export interface SessionInfo {
   version: string;
   /** 会话 URL */
   url?: string;
+  /** 父会话 ID（subagent 会话才有） */
+  parentID?: string;
   /** 代码变更统计 */
   summary: {
     /** 新增行数 */
@@ -218,6 +220,8 @@ export interface SessionInfo {
     created: number;
     /** 更新时间戳 */
     updated: number;
+    /** 归档时间戳（已归档会话才有） */
+    archived?: number;
   };
 }
 
