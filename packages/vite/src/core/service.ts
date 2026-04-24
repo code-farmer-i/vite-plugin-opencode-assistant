@@ -1,5 +1,6 @@
 import type { ResultPromise } from "execa";
 import type http from "http";
+import type { ModelInfo } from "@vite-plugin-opencode-assistant/shared";
 import { prepareOpenCodeRuntime, startOpenCodeWeb } from "@vite-plugin-opencode-assistant/opencode";
 import type { OpenCodeOptions, ServiceStartupTask } from "@vite-plugin-opencode-assistant/shared";
 import {
@@ -261,10 +262,19 @@ Please install OpenCode first:
     return this.startPromise;
   }
 
+  async getAvailableModels(): Promise<ModelInfo[]> {
+    return this.api.getAvailableModels();
+  }
+
   async retryWarmupChromeMcp(
     viteOrigin?: string,
+    selectedModel?: { providerID: string; modelID: string },
   ): Promise<{ success: boolean; errorType?: string; errorMessage?: string }> {
-    const result = await this.api.retryWarmupChromeMcp(this.workspaceRoot!, viteOrigin);
+    const result = await this.api.retryWarmupChromeMcp(
+      this.workspaceRoot!,
+      viteOrigin,
+      selectedModel,
+    );
     if (result.success) {
       this.chromeMcpWarmupFailed = false;
       this.sendTaskUpdate("ready");

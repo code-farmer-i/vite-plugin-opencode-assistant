@@ -4,6 +4,7 @@ import { OpenCodeWidget } from "@vite-plugin-opencode-assistant/components";
 import type {
   OpenCodeWidgetTheme,
   OpenCodeSelectedElement,
+  ModelInfo,
 } from "@vite-plugin-opencode-assistant/shared";
 import type { WidgetOptions } from "@vite-plugin-opencode-assistant/shared";
 
@@ -28,6 +29,7 @@ const sessionListCollapsed = ref(true);
 const loading = ref(false);
 const widgetRef = ref<InstanceType<typeof OpenCodeWidget> | null>(null);
 const retryingWarmup = ref(false);
+const availableModels = ref<ModelInfo[]>([]);
 
 const {
   theme: initialTheme = "auto",
@@ -130,11 +132,15 @@ const displayLoadingText = computed(() => {
   return "加载会话...";
 });
 
-const retryWarmup = async () => {
+const retryWarmup = async (selectedModel?: { providerID: string; modelID: string; }) => {
   retryingWarmup.value = true;
 
   try {
-    const res = await fetch("/__opencode_warmup__", { method: "POST" });
+    const res = await fetch("/__opencode_warmup__", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: selectedModel ? JSON.stringify(selectedModel) : "",
+    });
     const data = await res.json();
     if (data.success) {
       chromeMcpFailed.value = false;
@@ -160,6 +166,19 @@ const retryWarmup = async () => {
     showNotification("重试失败，请稍后再试");
   } finally {
     retryingWarmup.value = false;
+  }
+};
+
+const fetchAvailableModels = async () => {
+  try {
+    const res = await fetch("/__opencode_warmup__", { method: "GET" });
+    const data = await res.json();
+    if (data.success && data.models) {
+      availableModels.value = data.models;
+    }
+  } catch (e) {
+    console.error("[OpenCode] Failed to fetch available models:", e);
+    availableModels.value = [];
   }
 };
 
@@ -206,6 +225,13 @@ watch(serviceStatus, (status, oldStatus) => {
   }
   if (status === "ready" && oldStatus !== "ready") {
     loadSessions();
+  }
+});
+
+// 当 Chrome MCP 预热失败时，获取可用模型列表
+watch(chromeMcpFailed, (failed) => {
+  if (failed) {
+    fetchAvailableModels();
   }
 });
 
@@ -353,6 +379,7 @@ const handleFrameLoaded = () => {
         :retrying="retryingWarmup"
         :error-type="chromeMcpErrorType"
         :error-message="chromeMcpErrorMessage"
+        :models="availableModels"
         @retry="retryWarmup"
       />
     </template>

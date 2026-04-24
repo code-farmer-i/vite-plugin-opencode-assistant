@@ -2,6 +2,7 @@ import type {
   PageContext,
   SessionInfo,
   ServiceStartupTask,
+  ModelInfo,
 } from "@vite-plugin-opencode-assistant/shared";
 import type http from "http";
 
@@ -17,7 +18,8 @@ export interface EndpointContext {
   deleteSession: (id: string) => Promise<void>;
   resolveWidgetPath: () => string;
   resolveWidgetStylePath: () => string;
-  retryWarmupChromeMcp: () => Promise<{
+  getAvailableModels: () => Promise<ModelInfo[]>;
+  retryWarmupChromeMcp: (selectedModel?: { providerID: string; modelID: string }) => Promise<{
     success: boolean;
     errorType?: string;
     errorMessage?: string;

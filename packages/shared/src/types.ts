@@ -438,6 +438,16 @@ export type OpenCodeWidgetEmits = {
   (e: "split-panel-width-change", value: number): void;
 };
 
+// ==================== 模型信息类型 ====================
+
+export interface ModelInfo {
+  providerID: string;
+  modelID: string;
+  name?: string;
+  inputCost: number;
+  releaseDate: string;
+}
+
 // ==================== Chrome MCP 错误类型 ====================
 
 /**

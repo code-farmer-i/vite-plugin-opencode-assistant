@@ -105,7 +105,9 @@ function createOpenCodePlugin(options: OpenCodeOptions = {}): Plugin {
         deleteSession: (id) => api.deleteSession(id),
         resolveWidgetPath,
         resolveWidgetStylePath,
-        retryWarmupChromeMcp: () => service.retryWarmupChromeMcp(getViteOrigin()),
+        getAvailableModels: () => service.getAvailableModels(),
+        retryWarmupChromeMcp: (selectedModel) =>
+          service.retryWarmupChromeMcp(getViteOrigin(), selectedModel),
       });
 
       server.httpServer?.on("listening", async () => {

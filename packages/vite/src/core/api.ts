@@ -1,5 +1,5 @@
 import http from "http";
-import type { SessionInfo } from "@vite-plugin-opencode-assistant/shared";
+import type { SessionInfo, ModelInfo } from "@vite-plugin-opencode-assistant/shared";
 import {
   PerformanceTimer,
   createLogger,
@@ -17,30 +17,12 @@ import {
 const log = createLogger("API");
 
 export class OpenCodeAPI {
-  private failedFreeModels: Set<string> = new Set();
-
   constructor(
     private hostname: string,
     private getPort: () => number,
     private getProxyPort: () => number,
     private warmupChromeMcpConfig: boolean = false,
   ) {}
-
-  markModelAsFailed(providerID: string, modelID: string): void {
-    const key = `${providerID}:${modelID}`;
-    this.failedFreeModels.add(key);
-    log.debug("Marked model as failed", {
-      providerID,
-      modelID,
-      key,
-      failedCount: this.failedFreeModels.size,
-    });
-  }
-
-  clearFailedModels(): void {
-    this.failedFreeModels.clear();
-    log.debug("Cleared failed models cache");
-  }
 
   private createHttpRequest<T>(
     options: http.RequestOptions,
@@ -172,7 +154,7 @@ export class OpenCodeAPI {
     throw lastError;
   }
 
-  async getCheapestModel(): Promise<{ providerID: string; modelID: string } | null> {
+  async getAvailableModels(): Promise<ModelInfo[]> {
     try {
       const response = await this.createHttpRequest<{
         all: Array<{
@@ -182,7 +164,6 @@ export class OpenCodeAPI {
             {
               name?: string;
               cost?: { input: number; output: number };
-              // xxxx-xx-xx
               release_date: string;
             }
           >;
@@ -197,19 +178,9 @@ export class OpenCodeAPI {
 
       const connectedProviders = new Set(response.connected);
 
-      interface ModelInfo {
-        providerID: string;
-        modelID: string;
-        name?: string;
-        inputCost: number;
-        releaseDate: string;
-      }
-
       const allModels: ModelInfo[] = [];
 
       for (const provider of response.all) {
-        if (provider.id === "opencode") continue;
-
         if (!connectedProviders.has(provider.id)) {
           log.debug("Skipping not connected provider", { providerID: provider.id });
           continue;
@@ -228,37 +199,15 @@ export class OpenCodeAPI {
 
       allModels.sort((a, b) => a.inputCost - b.inputCost);
 
-      const availableModel = allModels.find(
-        (model) => !this.failedFreeModels.has(`${model.providerID}:${model.modelID}`),
-      );
-
-      if (!availableModel) {
-        log.debug("All models have failed", {
-          totalModels: allModels.length,
-          failedModels: this.failedFreeModels.size,
-          connectedProviders: response.connected,
-        });
-        return null;
-      }
-
-      log.debug("Found cheapest available model for warmup", {
-        providerID: availableModel.providerID,
-        modelID: availableModel.modelID,
-        name: availableModel.name,
-        inputCost: availableModel.inputCost,
-        releaseDate: availableModel.releaseDate,
-        totalModels: allModels.length,
-        failedModels: this.failedFreeModels.size,
+      log.debug("Found available models for warmup", {
+        count: allModels.length,
         connectedProviders: response.connected,
       });
 
-      return {
-        providerID: availableModel.providerID,
-        modelID: availableModel.modelID,
-      };
+      return allModels;
     } catch (error) {
-      log.warn("Failed to get cheapest model", { error });
-      return null;
+      log.warn("Failed to get available models", { error });
+      return [];
     }
   }
 
@@ -338,10 +287,10 @@ export class OpenCodeAPI {
     projectDir: string,
     operation: "warmup" | "retry",
     viteOrigin?: string,
+    selectedModel?: { providerID: string; modelID: string },
   ): Promise<{ success: boolean; error?: ChromeMcpWarmupError }> {
     const timer = log.timer(`${operation}WarmupChromeMcp`, { viteOrigin, operation });
     let warmupSessionId: string | null = null;
-    let freeModel: { providerID: string; modelID: string } | null = null;
 
     const chromeAvailable = await checkChromeDevToolsAvailable();
     if (!chromeAvailable) {
@@ -368,14 +317,26 @@ export class OpenCodeAPI {
       );
       warmupSessionId = warmupSession.id;
 
-      freeModel = await this.getCheapestModel();
-      if (freeModel) {
-        log.debug(`Using cheapest model for ${operation} warmup`, {
-          providerID: freeModel.providerID,
-          modelID: freeModel.modelID,
-        });
+      let modelToUse = selectedModel;
+      if (!modelToUse) {
+        const models = await this.getAvailableModels();
+        if (models.length > 0) {
+          modelToUse = {
+            providerID: models[0].providerID,
+            modelID: models[0].modelID,
+          };
+          log.debug(`Using cheapest model for ${operation} warmup`, {
+            providerID: modelToUse.providerID,
+            modelID: modelToUse.modelID,
+          });
+        } else {
+          log.debug(`No model available for ${operation}, using default model`);
+        }
       } else {
-        log.debug(`No model available for ${operation}, using default model`);
+        log.debug(`Using selected model for ${operation} warmup`, {
+          providerID: modelToUse.providerID,
+          modelID: modelToUse.modelID,
+        });
       }
 
       const WARMUP_TIMEOUT = 60000;
@@ -395,10 +356,10 @@ export class OpenCodeAPI {
               text: "Test if the chrome-devtools_list_pages tool is available. If available, reply with: ready. If not available, explain why.",
             },
           ],
-          ...(freeModel && {
+          ...(modelToUse && {
             model: {
-              providerID: freeModel.providerID,
-              modelID: freeModel.modelID,
+              providerID: modelToUse.providerID,
+              modelID: modelToUse.modelID,
             },
           }),
         }),
@@ -433,37 +394,12 @@ export class OpenCodeAPI {
           timer.end("Session creation failed");
         }
 
-        if (
-          freeModel &&
-          (e.type === ChromeMcpWarmupErrorType.AI_RESPONSE_ERROR ||
-            e.type === ChromeMcpWarmupErrorType.AI_TIMEOUT)
-        ) {
-          this.markModelAsFailed(freeModel.providerID, freeModel.modelID);
-          log.debug(`Marked model as failed due to ${operation} ChromeMcpWarmupError`, {
-            providerID: freeModel.providerID,
-            modelID: freeModel.modelID,
-            errorType: e.type,
-          });
-        }
-
         log.warn(`Chrome MCP ${operation} warmup failed: ${e.type}`, {
           message: e.message,
           details: e.details,
-          ...(freeModel && {
-            model: `${freeModel.providerID}/${freeModel.modelID}`,
-          }),
         });
         timer.end(`Chrome MCP ${operation} warmup failed: ${e.type}`);
         return { success: false, error: e };
-      }
-
-      if (freeModel) {
-        this.markModelAsFailed(freeModel.providerID, freeModel.modelID);
-        log.debug(`Marked model as failed due to ${operation} warmup error`, {
-          providerID: freeModel.providerID,
-          modelID: freeModel.modelID,
-          error: e instanceof Error ? e.message : String(e),
-        });
       }
 
       const errorMessage = e instanceof Error ? e.message : String(e);
@@ -476,9 +412,6 @@ export class OpenCodeAPI {
         );
         log.warn(`Chrome MCP ${operation} warmup timeout`, {
           error: errorMessage,
-          ...(freeModel && {
-            model: `${freeModel.providerID}/${freeModel.modelID}`,
-          }),
         });
         timer.end(`Chrome MCP ${operation} warmup timeout`);
         return { success: false, error };
@@ -491,9 +424,6 @@ export class OpenCodeAPI {
       );
       log.warn(`Chrome MCP ${operation} warmup failed with unknown error`, {
         error: errorMessage,
-        ...(freeModel && {
-          model: `${freeModel.providerID}/${freeModel.modelID}`,
-        }),
       });
       timer.end(`Chrome MCP ${operation} warmup failed`);
       return { success: false, error };
@@ -514,7 +444,17 @@ export class OpenCodeAPI {
   async warmupChromeMcp(projectDir: string, viteOrigin?: string): Promise<void> {
     if (!this.warmupChromeMcpConfig) return;
 
-    const result = await this.executeWarmupChromeMcp(projectDir, "warmup", viteOrigin);
+    const models = await this.getAvailableModels();
+    const cheapestModel = models[0];
+
+    const result = await this.executeWarmupChromeMcp(
+      projectDir,
+      "warmup",
+      viteOrigin,
+      cheapestModel
+        ? { providerID: cheapestModel.providerID, modelID: cheapestModel.modelID }
+        : undefined,
+    );
     if (!result.success) {
       throw result.error;
     }
@@ -523,8 +463,9 @@ export class OpenCodeAPI {
   async retryWarmupChromeMcp(
     projectDir: string,
     viteOrigin?: string,
+    selectedModel?: { providerID: string; modelID: string },
   ): Promise<{ success: boolean; error?: ChromeMcpWarmupError }> {
-    return this.executeWarmupChromeMcp(projectDir, "retry", viteOrigin);
+    return this.executeWarmupChromeMcp(projectDir, "retry", viteOrigin, selectedModel);
   }
 
   async getOrCreateSession(projectDir: string): Promise<string> {
