@@ -120,6 +120,7 @@ const panelClasses = computed(() => [
       :width="panelWidth"
       :min-width="minWidth"
       :max-width="maxWidth"
+      :position="splitPosition"
       @resize="handleResize"
       @resize-start="handleResizeStart"
       @resize-end="handleResizeEnd"

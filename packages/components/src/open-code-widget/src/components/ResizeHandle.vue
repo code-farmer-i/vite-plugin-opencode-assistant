@@ -10,11 +10,13 @@ const props = withDefaults(
     width?: number;
     minWidth?: number;
     maxWidth?: number;
+    position?: "left" | "right";
   }>(),
   {
     width: 500,
     minWidth: 400,
     maxWidth: 800,
+    position: "right",
   }
 );
 
@@ -42,7 +44,13 @@ const handleMouseDown = (e: MouseEvent) => {
 const handleMouseMove = (e: MouseEvent) => {
   if (!isResizing.value) return;
 
-  const deltaX = startX.value - e.clientX;
+  let deltaX: number;
+  if (props.position === "right") {
+    deltaX = startX.value - e.clientX;
+  } else {
+    deltaX = e.clientX - startX.value;
+  }
+
   const newWidth = Math.max(props.minWidth, Math.min(props.maxWidth, startWidth.value + deltaX));
 
   emit("resize", newWidth);
@@ -69,7 +77,7 @@ onUnmounted(() => {
 <template>
   <div
     class="opencode-resize-handle"
-    :class="{ resizing: isResizing }"
+    :class="{ resizing: isResizing, 'handle-left': position === 'left' }"
     @mousedown="handleMouseDown"
     @dblclick="handleDoubleClick"
   />
@@ -86,6 +94,11 @@ onUnmounted(() => {
   background: transparent;
   z-index: 10;
   transition: background 0.2s ease;
+}
+
+.opencode-resize-handle.handle-left {
+  left: auto;
+  right: 0;
 }
 
 .opencode-resize-handle:hover {
@@ -108,6 +121,11 @@ onUnmounted(() => {
   border-radius: 1px;
   opacity: 0;
   transition: opacity 0.2s ease;
+}
+
+.opencode-resize-handle.handle-left::after {
+  left: auto;
+  right: 2px;
 }
 
 .opencode-resize-handle:hover::after,
