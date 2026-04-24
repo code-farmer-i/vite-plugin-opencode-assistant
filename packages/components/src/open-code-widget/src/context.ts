@@ -4,6 +4,7 @@ import type {
   OpenCodeSelectedElementItem,
   OpenCodeRemoveSelectedPayload,
   OpencodeSessionThinkingState,
+  DisplayMode,
 } from "./types";
 import type { FloatingBubbleOffset } from "./components/FloatingBubble/types";
 
@@ -31,6 +32,8 @@ export interface OpenCodeWidgetContext {
   promptDockVisible: Ref<boolean>;
   bubbleOffset: Ref<FloatingBubbleOffset | undefined>;
   mode: Ref<"bubble" | "split">;
+  displayMode: Ref<DisplayMode>;
+  splitPosition: Ref<"left" | "right">;
 
   // Session states for thinking indicator
   sessionStates: Ref<Record<string, OpencodeSessionThinkingState>>;
@@ -51,6 +54,8 @@ export interface OpenCodeWidgetContext {
   handleTogglePromptDock: () => void;
   handleToggleSessionList: () => void;
   handleToggleTheme: () => void;
+  handleToggleDisplayMode: () => void;
+  handleToggleSplitPosition: () => void;
   handleEmptyAction: () => void;
   handleCreateSession: () => void;
   handleSelectSession: (item: OpenCodeWidgetSessionItem) => void;

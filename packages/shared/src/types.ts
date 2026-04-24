@@ -105,6 +105,8 @@ export interface SplitModeOptions {
   shrinkPage?: boolean;
   /** 默认是否展开，默认 true */
   defaultOpen?: boolean;
+  /** 面板位置，默认 'right' */
+  position?: "left" | "right";
 }
 
 /**

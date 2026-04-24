@@ -1,6 +1,6 @@
 import { watch, onMounted, type Ref } from "vue";
 import type { FloatingBubbleOffset } from "../src/components/FloatingBubble/types";
-import type { OpenCodeWidgetTheme } from "../src/types";
+import type { OpenCodeWidgetTheme, DisplayMode } from "../src/types";
 
 export interface WidgetPersistState {
   open: boolean;
@@ -10,6 +10,8 @@ export interface WidgetPersistState {
   theme: OpenCodeWidgetTheme;
   sessionListCollapsed: boolean;
   splitPanelWidth?: number;
+  displayMode?: DisplayMode;
+  splitPosition?: "left" | "right";
 }
 
 const STORAGE_KEY = "opencode-widget-state";
@@ -44,6 +46,8 @@ export interface UsePersistStateOptions {
   theme: Ref<OpenCodeWidgetTheme>;
   sessionListCollapsed: Ref<boolean>;
   splitPanelWidth?: Ref<number>;
+  displayMode?: Ref<DisplayMode>;
+  splitPosition?: Ref<"left" | "right">;
   onRestore?: (state: Partial<WidgetPersistState>) => void;
 }
 
@@ -64,6 +68,8 @@ export function usePersistState(options: UsePersistStateOptions) {
     theme: options.theme.value,
     sessionListCollapsed: options.sessionListCollapsed.value,
     splitPanelWidth: options.splitPanelWidth?.value,
+    displayMode: options.displayMode?.value,
+    splitPosition: options.splitPosition?.value,
   });
 
   const persistState = () => {
@@ -81,6 +87,14 @@ export function usePersistState(options: UsePersistStateOptions) {
 
   if (options.splitPanelWidth) {
     watchers.push(options.splitPanelWidth);
+  }
+
+  if (options.displayMode) {
+    watchers.push(options.displayMode);
+  }
+
+  if (options.splitPosition) {
+    watchers.push(options.splitPosition);
   }
 
   onMounted(() => {

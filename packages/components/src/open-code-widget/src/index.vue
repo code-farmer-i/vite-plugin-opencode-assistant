@@ -93,6 +93,10 @@ const sendMessageToIframe = (type: string, data?: Record<string, unknown>) => {
 };
 
 const localSessionListCollapsed = ref(props.sessionListCollapsed);
+const localDisplayMode = ref(props.displayMode);
+const localSplitPosition = ref<"left" | "right">(
+  props.splitMode?.position ?? "right"
+);
 const minimized = ref(false);
 const promptDockVisible = ref(true);
 const isRestoring = ref(true);
@@ -124,6 +128,20 @@ watch(
     splitPanelWidth.value = val;
   },
 );
+
+watch(
+  () => props.displayMode,
+  (val) => {
+    localDisplayMode.value = val;
+  },
+);
+
+const handleToggleDisplayMode = () => {
+  const modes: ("bubble" | "split" | "auto")[] = ["bubble", "split", "auto"];
+  const currentIndex = modes.indexOf(localDisplayMode.value);
+  const nextIndex = (currentIndex + 1) % modes.length;
+  localDisplayMode.value = modes[nextIndex];
+};
 
 const {
   buttonActive,
@@ -227,12 +245,15 @@ const {
   isSplitMode,
   panelWidth,
   splitConfig,
+  splitPosition,
   handleResize,
   handleToggle: handleSplitToggle,
+  handleTogglePosition,
 } = useSplitMode({
-  displayMode: toRef(props, "displayMode"),
+  displayMode: localDisplayMode,
   splitMode: toRef(props, "splitMode"),
   open: toRef(props, "open"),
+  splitPosition: localSplitPosition,
   onOpenChange: (nextOpen) => {
     emit("update:open", nextOpen);
     emit("toggle", nextOpen);
@@ -241,6 +262,9 @@ const {
     splitPanelWidth.value = width;
     emit("update:splitPanelWidth", width);
     emit("split-panel-width-change", width);
+  },
+  onPositionChange: (position) => {
+    localSplitPosition.value = position;
   },
 });
 
@@ -252,6 +276,8 @@ usePersistState({
   theme: toRef(props, "theme"),
   sessionListCollapsed: localSessionListCollapsed,
   splitPanelWidth,
+  displayMode: localDisplayMode,
+  splitPosition: localSplitPosition,
   onRestore: (state) => {
     if (state.open !== undefined && state.open !== props.open) {
       emit("update:open", state.open);
@@ -286,6 +312,12 @@ usePersistState({
     }
     if (state.splitPanelWidth !== undefined && state.splitPanelWidth !== props.splitPanelWidth) {
       handleResize(state.splitPanelWidth);
+    }
+    if (state.displayMode !== undefined && state.displayMode !== props.displayMode) {
+      localDisplayMode.value = state.displayMode;
+    }
+    if (state.splitPosition !== undefined) {
+      localSplitPosition.value = state.splitPosition;
     }
     nextTick(() => {
       syncStateToIframe();
@@ -487,6 +519,8 @@ provideOpenCodeWidgetContext({
   promptDockVisible,
   bubbleOffset,
   mode: effectiveMode,
+  displayMode: localDisplayMode,
+  splitPosition,
   sessionStates: computed(() => props.sessionStates ?? {}),
   iframeSource,
   buttonActive,
@@ -501,6 +535,8 @@ provideOpenCodeWidgetContext({
   handleTogglePromptDock,
   handleToggleSessionList,
   handleToggleTheme,
+  handleToggleDisplayMode,
+  handleToggleSplitPosition: handleTogglePosition,
   handleEmptyAction,
   handleCreateSession,
   handleSelectSession,
@@ -556,6 +592,7 @@ defineExpose({
       :notification-mode="notificationMode"
       :thinking="thinking"
       :resolved-theme="resolvedTheme"
+      :split-position="splitPosition"
       @resize="handleResize"
       @resize-start="handleResizeStart"
       @resize-end="handleResizeEnd"
@@ -819,8 +856,8 @@ defineExpose({
 }
 
 .opencode-chat.minimized {
-  width: 300px;
-  height: 300px;
+  width: 320px;
+  height: 320px;
 }
 
 .opencode-chat.minimized .opencode-iframe-container {
@@ -1058,8 +1095,15 @@ defineExpose({
 }
 
 body.has-opencode-split {
-  padding-right: var(--opencode-split-width, 500px);
-  transition: padding-right 0.3s ease;
+  transition: padding 0.3s ease;
   min-width: auto;
+}
+
+body.has-opencode-split-right {
+  padding-right: var(--opencode-split-width, 500px);
+}
+
+body.has-opencode-split-left {
+  padding-left: var(--opencode-split-width, 500px);
 }
 </style>

@@ -13,9 +13,13 @@ const {
   minimized,
   promptDockVisible,
   mode,
+  displayMode,
+  splitPosition,
   handleToggleSessionList,
   handleToggleSelectMode,
   handleToggleTheme,
+  handleToggleDisplayMode,
+  handleToggleSplitPosition,
   handleClose,
   handleToggleMinimize,
   handleTogglePromptDock,
@@ -39,6 +43,40 @@ const themeIconLabel = computed(() => {
     dark: "暗色主题",
   };
   return `切换主题 - 当前: ${themeLabels[theme.value as keyof typeof themeLabels]}`;
+});
+
+const displayModeIconTitle = computed(() => {
+  const displayModeLabels = {
+    bubble: "气泡模式",
+    split: "分屏模式",
+    auto: "自动模式",
+  };
+  return `展示模式: ${displayModeLabels[displayMode.value]}`;
+});
+
+const displayModeIconLabel = computed(() => {
+  const displayModeLabels = {
+    bubble: "气泡模式",
+    split: "分屏模式",
+    auto: "自动模式",
+  };
+  const modes = ["bubble", "split", "auto"];
+  const currentIndex = modes.indexOf(displayMode.value);
+  const nextMode = modes[(currentIndex + 1) % modes.length];
+  return `切换展示模式 - 下一个: ${displayModeLabels[nextMode as keyof typeof displayModeLabels]}`;
+});
+
+const splitPositionIconTitle = computed(() => {
+  const positionLabels = {
+    left: "左侧",
+    right: "右侧",
+  };
+  return `分栏位置: ${positionLabels[splitPosition.value]}`;
+});
+
+const splitPositionIconLabel = computed(() => {
+  const nextPosition = splitPosition.value === "right" ? "左侧" : "右侧";
+  return `切换分栏位置 - 下一个: ${nextPosition}`;
 });
 </script>
 
@@ -224,11 +262,176 @@ const themeIconLabel = computed(() => {
           </svg>
         </slot>
       </button>
+
+      <button
+        class="opencode-header-btn display-mode-btn"
+        type="button"
+        :title="displayModeIconTitle"
+        :aria-label="displayModeIconLabel"
+        @click="handleToggleDisplayMode"
+      >
+        <slot name="display-mode-icon">
+          <svg
+            v-if="displayMode === 'bubble'"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="10"
+            />
+            <path
+              d="M8 14s1.5 2 4 2 4-2 4-2"
+              stroke-linecap="round"
+            />
+            <line
+              x1="9"
+              y1="9"
+              x2="9.01"
+              y2="9"
+              stroke-linecap="round"
+            />
+            <line
+              x1="15"
+              y1="9"
+              x2="15.01"
+              y2="9"
+              stroke-linecap="round"
+            />
+          </svg>
+          <svg
+            v-else-if="displayMode === 'split'"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <rect
+              x="3"
+              y="3"
+              width="18"
+              height="18"
+              rx="2"
+            />
+            <line
+              x1="12"
+              y1="3"
+              x2="12"
+              y2="21"
+            />
+          </svg>
+          <svg
+            v-else
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <rect
+              x="3"
+              y="3"
+              width="8"
+              height="8"
+              rx="1"
+            />
+            <rect
+              x="15"
+              y="3"
+              width="6"
+              height="8"
+              rx="1"
+            />
+            <rect
+              x="3"
+              y="15"
+              width="8"
+              height="6"
+              rx="1"
+            />
+            <circle
+              cx="18"
+              cy="18"
+              r="3"
+            />
+          </svg>
+        </slot>
+      </button>
     </div>
 
     <span class="opencode-chat-header-title">{{ title }}</span>
 
     <div class="opencode-chat-header-actions">
+      <button
+        v-if="isSplitMode"
+        class="opencode-header-btn split-position-btn"
+        type="button"
+        :title="splitPositionIconTitle"
+        :aria-label="splitPositionIconLabel"
+        @click="handleToggleSplitPosition"
+      >
+        <slot name="split-position-icon">
+          <svg
+            v-if="splitPosition === 'right'"
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <rect
+              x="3"
+              y="3"
+              width="18"
+              height="18"
+              rx="2"
+            />
+            <line
+              x1="15"
+              y1="3"
+              x2="15"
+              y2="21"
+            />
+          </svg>
+          <svg
+            v-else
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <rect
+              x="3"
+              y="3"
+              width="18"
+              height="18"
+              rx="2"
+            />
+            <line
+              x1="9"
+              y1="3"
+              x2="9"
+              y2="21"
+            />
+          </svg>
+        </slot>
+      </button>
       <button
         v-if="!isSplitMode"
         class="opencode-header-btn prompt-dock"

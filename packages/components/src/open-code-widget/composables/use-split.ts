@@ -5,14 +5,18 @@ export interface UseSplitModeOptions {
   displayMode: Ref<DisplayMode>;
   splitMode: Ref<SplitModeOptions | undefined>;
   open: Ref<boolean>;
+  splitPosition?: Ref<"left" | "right">;
   onOpenChange?: (open: boolean) => void;
   onWidthChange?: (width: number) => void;
+  onPositionChange?: (position: "left" | "right") => void;
 }
 
 const AUTO_MODE_THRESHOLD = 1440;
 
 export function useSplitMode(options: UseSplitModeOptions) {
   const windowWidth = ref(typeof window !== "undefined" ? window.innerWidth : 0);
+
+  const localSplitPosition = ref(options.splitPosition?.value ?? "right");
 
   const splitConfig = computed(() => {
     const config = options.splitMode.value || {};
@@ -23,6 +27,7 @@ export function useSplitMode(options: UseSplitModeOptions) {
       resizable: config.resizable ?? true,
       shrinkPage: config.shrinkPage ?? true,
       defaultOpen: config.defaultOpen ?? true,
+      position: config.position ?? localSplitPosition.value,
     };
   });
 
@@ -40,6 +45,8 @@ export function useSplitMode(options: UseSplitModeOptions) {
 
   const isSplitMode = computed(() => effectiveMode.value === "split");
 
+  const splitPosition = computed(() => splitConfig.value.position);
+
   const handleResize = (width: number) => {
     panelWidth.value = width;
     options.onWidthChange?.(width);
@@ -48,6 +55,12 @@ export function useSplitMode(options: UseSplitModeOptions) {
   const handleToggle = () => {
     const nextOpen = !options.open.value;
     options.onOpenChange?.(nextOpen);
+  };
+
+  const handleTogglePosition = () => {
+    const nextPosition = localSplitPosition.value === "right" ? "left" : "right";
+    localSplitPosition.value = nextPosition;
+    options.onPositionChange?.(nextPosition);
   };
 
   const handleWindowResize = () => {
@@ -64,13 +77,22 @@ export function useSplitMode(options: UseSplitModeOptions) {
     if (shouldShrink) {
       document.body.classList.add("has-opencode-split");
       document.body.style.setProperty("--opencode-split-width", `${panelWidth.value}px`);
+      if (splitPosition.value === "left") {
+        document.body.classList.add("has-opencode-split-left");
+        document.body.classList.remove("has-opencode-split-right");
+      } else {
+        document.body.classList.add("has-opencode-split-right");
+        document.body.classList.remove("has-opencode-split-left");
+      }
     } else {
       document.body.classList.remove("has-opencode-split");
+      document.body.classList.remove("has-opencode-split-left");
+      document.body.classList.remove("has-opencode-split-right");
       document.body.style.removeProperty("--opencode-split-width");
     }
   };
 
-  watch([isSplitMode, options.open, panelWidth], updateBodyClass, { immediate: true });
+  watch([isSplitMode, options.open, panelWidth, splitPosition], updateBodyClass, { immediate: true });
 
   watch(splitConfig, (config) => {
     if (panelWidth.value < config.minWidth) {
@@ -80,6 +102,15 @@ export function useSplitMode(options: UseSplitModeOptions) {
       panelWidth.value = config.maxWidth;
     }
   });
+
+  watch(
+    () => options.splitPosition?.value,
+    (val) => {
+      if (val && val !== localSplitPosition.value) {
+        localSplitPosition.value = val;
+      }
+    },
+  );
 
   onMounted(() => {
     if (typeof window !== "undefined") {
@@ -94,6 +125,8 @@ export function useSplitMode(options: UseSplitModeOptions) {
     if (typeof window !== "undefined") {
       window.removeEventListener("resize", handleWindowResize);
       document.body.classList.remove("has-opencode-split");
+      document.body.classList.remove("has-opencode-split-left");
+      document.body.classList.remove("has-opencode-split-right");
       document.body.style.removeProperty("--opencode-split-width");
     }
   });
@@ -103,7 +136,9 @@ export function useSplitMode(options: UseSplitModeOptions) {
     isSplitMode,
     panelWidth,
     splitConfig,
+    splitPosition,
     handleResize,
     handleToggle,
+    handleTogglePosition,
   };
 }

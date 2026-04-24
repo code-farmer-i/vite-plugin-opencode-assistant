@@ -28,6 +28,7 @@ const props = withDefaults(
     notificationMode?: "widget" | "page";
     thinking?: boolean;
     resolvedTheme?: "light" | "dark";
+    splitPosition?: "left" | "right";
   }>(),
   {
     mode: "bubble",
@@ -46,6 +47,7 @@ const props = withDefaults(
     notificationMode: "widget",
     thinking: false,
     resolvedTheme: "light",
+    splitPosition: "right",
   }
 );
 
@@ -102,6 +104,8 @@ const panelClasses = computed(() => [
     dragging: props.dragging,
     "no-transition": props.noTransition,
     "split-mode": props.mode === "split",
+    "split-left": props.mode === "split" && props.splitPosition === "left",
+    "split-right": props.mode === "split" && props.splitPosition === "right",
   },
 ]);
 </script>
@@ -124,14 +128,14 @@ const panelClasses = computed(() => [
     <button
       v-if="mode === 'split'"
       type="button"
-      :class="['opencode-split-toggle-btn', { open: props.open, thinking: props.thinking, 'opencode-theme-dark': resolvedTheme === 'dark' }]"
+      :class="['opencode-split-toggle-btn', { open: props.open, thinking: props.thinking, 'opencode-theme-dark': resolvedTheme === 'dark', 'split-left': splitPosition === 'left' }]"
       :aria-expanded="open"
       aria-label="切换面板"
       @click="handleToggle"
     >
       <span class="opencode-split-toggle-icon">
         <svg
-          v-if="open"
+          v-if="open && splitPosition === 'right'"
           viewBox="0 0 24 24"
           width="16"
           height="16"
@@ -146,7 +150,7 @@ const panelClasses = computed(() => [
           />
         </svg>
         <svg
-          v-else
+          v-if="!open && splitPosition === 'right'"
           viewBox="0 0 24 24"
           width="16"
           height="16"
@@ -156,6 +160,36 @@ const panelClasses = computed(() => [
         >
           <path
             d="M15 18l-6-6 6-6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <svg
+          v-if="open && splitPosition === 'left'"
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M15 18l-6-6 6-6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <svg
+          v-if="!open && splitPosition === 'left'"
+          viewBox="0 0 24 24"
+          width="16"
+          height="16"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            d="M9 18l6-6-6-6"
             stroke-linecap="round"
             stroke-linejoin="round"
           />
@@ -258,19 +292,28 @@ const panelClasses = computed(() => [
 
 .opencode-chat.split-mode {
   position: fixed;
-  right: 0;
   top: 0;
   bottom: 0;
   height: 100vh;
   max-height: 100vh;
   border-radius: 0;
-  border-left: 1px solid var(--oc-border-primary);
   box-shadow: var(--oc-shadow-lg);
-  transform: translateX(100%);
   overflow: visible;
   opacity: 1;
   visibility: visible;
   transition: transform 0.3s ease;
+}
+
+.opencode-chat.split-mode.split-right {
+  right: 0;
+  border-left: 1px solid var(--oc-border-primary);
+  transform: translateX(100%);
+}
+
+.opencode-chat.split-mode.split-left {
+  left: 0;
+  border-right: 1px solid var(--oc-border-primary);
+  transform: translateX(-100%);
 }
 
 .opencode-chat.split-mode .opencode-chat-content {
@@ -307,12 +350,12 @@ const panelClasses = computed(() => [
   transition: none !important;
 }
 
-.opencode-chat.minimized {
-  width: 300px;
-  height: 300px;
+.opencode-chat.minimized:not(.split-mode) {
+  width: 320px;
+  height: 320px;
 }
 
-.opencode-chat.minimized .opencode-iframe-container {
+.opencode-chat.minimized:not(.split-mode) .opencode-iframe-container {
   margin-top: -146px;
 }
 
@@ -376,9 +419,20 @@ const panelClasses = computed(() => [
   transform-origin: right center;
 }
 
+.opencode-split-toggle-btn.split-left {
+  left: auto;
+  right: -21px;
+  border-radius: 0 8px 8px 0;
+  transform-origin: left center;
+}
+
 .opencode-split-toggle-btn:hover {
   transform: translateY(-50%) scale(1.1);
   box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+}
+
+.opencode-split-toggle-btn.split-left:hover {
+  transform: translateY(-50%) scale(1.1);
 }
 
 .opencode-split-toggle-btn.opencode-theme-dark {
@@ -397,6 +451,12 @@ const panelClasses = computed(() => [
   border-radius: 8px 0 0 8px;
   background: linear-gradient(135deg, #8b9cf5 0%, #9d6bc7 100%);
   z-index: -1;
+}
+
+.opencode-split-toggle-btn.opencode-theme-dark.split-left::before {
+  left: 0;
+  right: -2px;
+  border-radius: 0 8px 8px 0;
 }
 
 .opencode-split-toggle-btn.opencode-theme-dark:hover {
@@ -425,6 +485,12 @@ const panelClasses = computed(() => [
   z-index: -1;
 }
 
+.opencode-split-toggle-btn.thinking.split-left::before {
+  left: 0;
+  right: -2px;
+  border-radius: 0 8px 8px 0;
+}
+
 .opencode-split-toggle-btn.thinking::after {
   content: "";
   position: absolute;
@@ -442,6 +508,12 @@ const panelClasses = computed(() => [
   z-index: -2;
   animation: split-thinking-rotate 2s linear infinite reverse;
   filter: blur(8px);
+}
+
+.opencode-split-toggle-btn.thinking.split-left::after {
+  left: -1px;
+  right: -3px;
+  border-radius: 0 8px 8px 0;
 }
 
 @keyframes split-thinking-glow {
