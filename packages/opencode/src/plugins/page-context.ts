@@ -65,6 +65,9 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 **当用户在不同页面提问时，你必须优先根据用户当前浏览页面的上下文来理解问题，而不是依赖会话历史记录。**
 
 用户可能在不同页面之间切换，每次提问都应该基于当前页面上下文：
+
+**这里的上下文为最高优先级，任何情况下都不能被覆盖**
+
 - **页面 URL**: ${pageContext?.url || "未知"}
 - **页面标题**: ${pageContext?.title || "未知"}
 
