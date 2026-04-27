@@ -1,14 +1,14 @@
 import type { ViteDevServer } from "vite";
-import type { EndpointContext } from "./types.js";
-import { setupWidgetEndpoints } from "./widget.js";
-import { setupContextEndpoint } from "./context.js";
-import { setupStartEndpoint } from "./start.js";
-import { setupSseEndpoint } from "./sse.js";
-import { setupSessionsEndpoint } from "./sessions.js";
-import { setupWarmupEndpoint } from "./warmup.js";
-import { setupLogsEndpoint, LOGS_API_PATH } from "./logs.js";
+import type { EndpointContext } from "./types";
+import { setupWidgetEndpoints } from "./widget";
+import { setupContextEndpoint } from "./context";
+import { setupStartEndpoint } from "./start";
+import { setupSseEndpoint } from "./sse";
+import { setupSessionsEndpoint } from "./sessions";
+import { setupWarmupEndpoint } from "./warmup";
+import { setupLogsEndpoint, LOGS_API_PATH } from "./logs";
 
-export * from "./types.js";
+export * from "./types";
 export { LOGS_API_PATH };
 
 export function setupMiddlewares(server: ViteDevServer, ctx: EndpointContext) {

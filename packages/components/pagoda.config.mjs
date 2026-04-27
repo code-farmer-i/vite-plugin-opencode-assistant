@@ -6,6 +6,10 @@ export default defineConfig({
     mode: "components",
     packageManager: "pnpm",
     umd: false,
+    extensions: {
+      esm: ".mjs",
+      cjs: ".cjs",
+    },
   },
   site: {
     title: "OpenCode Widget Components",

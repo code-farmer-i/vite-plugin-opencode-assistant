@@ -1,10 +1,10 @@
 {
   "name": "@vite-plugin-opencode-assistant/components",
-  "version": "1.0.50",
+  "version": "1.0.51",
   "description": "Reusable OpenCode widget components built with Pagoda CLI",
   "type": "module",
-  "main": "lib/index.js",
-  "module": "es/index.js",
+  "main": "lib/index.cjs",
+  "module": "es/index.mjs",
   "types": "es/index.d.ts",
   "files": [
     "es",
@@ -13,8 +13,8 @@
   "exports": {
     ".": {
       "types": "./es/index.d.ts",
-      "import": "./es/index.js",
-      "require": "./lib/index.js"
+      "import": "./es/index.mjs",
+      "require": "./lib/index.cjs"
     },
     "./style.css": "./lib/index.css"
   },

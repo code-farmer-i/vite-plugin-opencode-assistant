@@ -1,4 +1,4 @@
-import { LOG_PREFIX } from "./constants.js";
+import { LOG_PREFIX } from "./constants";
 
 export enum LogLevel {
   DEBUG = 0,

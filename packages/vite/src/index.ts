@@ -11,11 +11,11 @@ import {
   initProcessLogCapture,
 } from "@vite-plugin-opencode-assistant/shared";
 
-import { setupMiddlewares, LOGS_API_PATH } from "./endpoints/index.js";
-import { injectWidget } from "./core/injector.js";
-import { OpenCodeAPI } from "./core/api.js";
-import { OpenCodeService } from "./core/service.js";
-import { resolveWidgetPath, resolveWidgetStylePath } from "./utils/paths.js";
+import { setupMiddlewares, LOGS_API_PATH } from "./endpoints/index";
+import { injectWidget } from "./core/injector";
+import { OpenCodeAPI } from "./core/api";
+import { OpenCodeService } from "./core/service";
+import { resolveWidgetPath, resolveWidgetStylePath } from "./utils/paths";
 
 export default function opencodePlugin(options: OpenCodeOptions = {}): Plugin[] {
   const plugins: Plugin[] = [];

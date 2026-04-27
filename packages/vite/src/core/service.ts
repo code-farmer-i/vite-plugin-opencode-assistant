@@ -16,9 +16,9 @@ import {
   findGitRoot,
   killOrphanOpenCodeProcesses,
   waitForServer,
-} from "../utils/system.js";
-import type { OpenCodeAPI } from "./api.js";
-import { startProxyServer } from "./proxy-server.js";
+} from "../utils/system";
+import type { OpenCodeAPI } from "./api";
+import { startProxyServer } from "./proxy-server";
 
 const log = createLogger("Service");
 

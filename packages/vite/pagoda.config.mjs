@@ -8,5 +8,9 @@ export default defineConfig({
     platform: "node",
     umd: false,
     packageManager: "pnpm",
+    extensions: {
+      esm: ".mjs",
+      cjs: ".cjs",
+    },
   },
 });

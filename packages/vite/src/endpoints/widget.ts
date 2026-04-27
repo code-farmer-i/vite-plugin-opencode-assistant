@@ -2,7 +2,7 @@ import type { ViteDevServer } from "vite";
 import fs from "fs";
 import { WIDGET_SCRIPT_PATH } from "@vite-plugin-opencode-assistant/shared";
 import { RequestContext } from "@vite-plugin-opencode-assistant/shared";
-import type { EndpointContext } from "./types.js";
+import type { EndpointContext } from "./types";
 
 export function setupWidgetEndpoints(server: ViteDevServer, ctx: EndpointContext) {
   server.middlewares.use(WIDGET_SCRIPT_PATH, async (_req, res) => {

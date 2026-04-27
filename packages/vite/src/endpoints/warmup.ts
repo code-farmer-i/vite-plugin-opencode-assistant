@@ -1,6 +1,6 @@
 import type { ViteDevServer } from "vite";
 import { createLogger } from "@vite-plugin-opencode-assistant/shared";
-import type { EndpointContext } from "./types.js";
+import type { EndpointContext } from "./types";
 
 const log = createLogger("Endpoints:Warmup");
 

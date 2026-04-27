@@ -3,7 +3,7 @@
  */
 
 import net from "net";
-import { CHROME_DEVTOOLS_PORT, CHROME_DEVTOOLS_CHECK_TIMEOUT } from "./constants.js";
+import { CHROME_DEVTOOLS_PORT, CHROME_DEVTOOLS_CHECK_TIMEOUT } from "./constants";
 
 /**
  * 截断字符串到指定长度

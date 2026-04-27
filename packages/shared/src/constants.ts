@@ -2,7 +2,7 @@
  * @fileoverview OpenCode 插件常量定义
  */
 
-import type { OpenCodeLanguage, OpenCodeSettings } from "./types.js";
+import type { OpenCodeLanguage, OpenCodeSettings } from "./types";
 
 /** ==================== 网络相关 ==================== */
 
