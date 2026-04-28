@@ -244,6 +244,10 @@ function getDataFromElement(el: Element): string | undefined {
 function findInspectorFileInfo(element: Element): FileInfo | null {
   let current: Element | null = element;
   while (current) {
+    if (shouldIgnoreElement(current)) {
+      current = current.parentElement;
+      continue;
+    }
     const data = getDataFromElement(current);
     if (data) {
       const splitRE = /(.+):([\d]+):([\d]+)$/;
@@ -291,22 +295,9 @@ function getTargetElement(e: MouseEvent): Element | null {
 }
 
 function getFileInfo(e: MouseEvent, element: Element | null): FileInfo {
-  const inspector = window.__VUE_INSPECTOR__;
-
   let inspectorFileInfo: FileInfo | null = null;
 
-  if (inspector) {
-    const { targetNode, params } = inspector.getTargetNode(e);
-    if (targetNode && params && params.file) {
-      inspectorFileInfo = {
-        file: params.file,
-        line: params.line ?? null,
-        column: params.column ?? null,
-      };
-    }
-  }
-
-  if (element && !inspectorFileInfo) {
+  if (element) {
     inspectorFileInfo = findInspectorFileInfo(element);
   }
 
