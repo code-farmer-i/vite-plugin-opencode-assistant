@@ -119,10 +119,6 @@ export interface LogFileConfig {
   path: string;
   /** 工具描述，告诉 Agent 何时使用此工具查看日志 */
   description: string;
-  /** 是否监控已存在的文件内容，默认 false（只监控新增内容） */
-  watchExisting?: boolean;
-  /** 日志缓冲区最大条数，默认 200 */
-  maxBufferSize?: number;
 }
 
 /**

@@ -2,7 +2,7 @@ import fs from "fs";
 import path from "path";
 import { createLogger } from "./logger";
 
-const log = createLogger("FileLogWatcher");
+const log = createLogger("FileLogReader");
 
 export interface FileLogEntry {
   level: "info" | "warn" | "error";
@@ -11,243 +11,206 @@ export interface FileLogEntry {
   source: string;
 }
 
-export interface FileLogBufferOptions {
+export interface LogFileOptions {
   name: string;
   filePath: string;
-  maxBufferSize?: number;
-  watchExisting?: boolean;
 }
 
-class FileLogBuffer {
-  private buffer: FileLogEntry[] = [];
-  private maxSize: number;
-  private name: string;
-  private filePath: string;
-  private lastPosition: number = 0;
-  private watcher: fs.FSWatcher | null = null;
-  private enabled: boolean = false;
+function detectLogLevel(line: string): "info" | "warn" | "error" {
+  const lowerLine = line.toLowerCase();
 
-  constructor(options: FileLogBufferOptions) {
-    this.name = options.name;
-    this.filePath = options.filePath;
-    this.maxSize = options.maxBufferSize ?? 200;
-    this.enabled = true;
+  if (lowerLine.includes("error") || lowerLine.includes("err") || lowerLine.includes("fatal")) {
+    return "error";
   }
 
-  start(projectRoot?: string): void {
-    const resolvedPath = this.resolvePath(projectRoot);
+  if (lowerLine.includes("warn") || lowerLine.includes("warning")) {
+    return "warn";
+  }
 
-    if (!fs.existsSync(resolvedPath)) {
-      log.debug(`Log file does not exist: ${resolvedPath}`);
-      return;
-    }
+  return "info";
+}
 
-    const stat = fs.statSync(resolvedPath);
-    this.lastPosition = stat.size;
+function parseLogTimestamp(line: string): string | null {
+  const timestampPatterns = [
+    /(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z?)/,
+    /(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/,
+    /(\[([^\]]+)\])/,
+  ];
 
-    this.watcher = fs.watch(resolvedPath, (eventType) => {
-      if (eventType === "change") {
-        this.readNewLogs(resolvedPath);
+  for (const pattern of timestampPatterns) {
+    const match = line.match(pattern);
+    if (match) {
+      const timestampStr = match[1];
+      const date = new Date(timestampStr);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
       }
-    });
-
-    this.watcher.on("error", (err) => {
-      log.error(`Error watching file ${resolvedPath}`, { error: err });
-    });
-
-    log.info(`Started watching log file: ${resolvedPath}`);
-  }
-
-  stop(): void {
-    if (this.watcher) {
-      this.watcher.close();
-      this.watcher = null;
-      log.debug(`Stopped watching log file: ${this.filePath}`);
     }
   }
 
-  private resolvePath(projectRoot?: string): string {
-    if (path.isAbsolute(this.filePath)) {
-      return this.filePath;
-    }
+  return null;
+}
 
-    if (projectRoot) {
-      return path.resolve(projectRoot, this.filePath);
-    }
+export async function readLogFile(
+  options: LogFileOptions & {
+    projectRoot?: string;
+    level?: ("info" | "warn" | "error") | ("info" | "warn" | "error")[];
+    limit?: number;
+    since?: string;
+  },
+): Promise<FileLogEntry[]> {
+  const { name, filePath, projectRoot, level, limit, since } = options;
 
-    return path.resolve(process.cwd(), this.filePath);
+  const resolvedPath = resolvePath(filePath, projectRoot);
+
+  if (!fs.existsSync(resolvedPath)) {
+    log.debug(`Log file does not exist: ${resolvedPath}`);
+    return [];
   }
 
-  private readNewLogs(filePath: string): void {
-    try {
-      const stat = fs.statSync(filePath);
+  try {
+    const content = await fs.promises.readFile(resolvedPath, "utf-8");
+    const lines = content.split("\n").filter((line) => line.trim());
 
-      if (stat.size <= this.lastPosition) {
-        return;
-      }
-
-      const fd = fs.openSync(filePath, "r");
-      const buffer = Buffer.alloc(stat.size - this.lastPosition);
-      fs.readSync(fd, buffer, 0, buffer.length, this.lastPosition);
-      fs.closeSync(fd);
-
-      this.lastPosition = stat.size;
-
-      const content = buffer.toString("utf-8").trim();
-      if (content) {
-        this.processLogContent(content);
-      }
-    } catch (err) {
-      log.error(`Error reading log file ${filePath}`, { error: err });
-    }
-  }
-
-  private processLogContent(content: string): void {
-    const lines = content.split("\n");
+    const entries: FileLogEntry[] = [];
+    const sinceDate = since ? new Date(since) : null;
 
     for (const line of lines) {
-      if (!line.trim()) continue;
-
-      this.addEntry({
-        level: this.detectLogLevel(line),
+      const entry: FileLogEntry = {
+        level: detectLogLevel(line),
         message: line,
-        timestamp: new Date().toISOString(),
-        source: `file:${this.name}`,
-      });
-    }
-  }
+        timestamp: parseLogTimestamp(line) || new Date().toISOString(),
+        source: `file:${name}`,
+      };
 
-  private detectLogLevel(line: string): "info" | "warn" | "error" {
-    const lowerLine = line.toLowerCase();
+      if (sinceDate && new Date(entry.timestamp) < sinceDate) {
+        continue;
+      }
 
-    if (lowerLine.includes("error") || lowerLine.includes("err") || lowerLine.includes("fatal")) {
-      return "error";
-    }
+      if (level) {
+        const levels = Array.isArray(level) ? level : [level];
+        if (!levels.includes(entry.level)) {
+          continue;
+        }
+      }
 
-    if (lowerLine.includes("warn") || lowerLine.includes("warning")) {
-      return "warn";
-    }
-
-    return "info";
-  }
-
-  addEntry(entry: FileLogEntry): void {
-    if (!this.enabled) return;
-
-    if (this.buffer.length >= this.maxSize) {
-      this.buffer.shift();
+      entries.push(entry);
     }
 
-    this.buffer.push(entry);
-  }
-
-  getLogs(
-    options: {
-      level?: FileLogEntry["level"] | FileLogEntry["level"][];
-      limit?: number;
-      since?: string;
-    } = {},
-  ): FileLogEntry[] {
-    let logs = [...this.buffer];
-
-    if (options.level) {
-      const levels = Array.isArray(options.level) ? options.level : [options.level];
-      logs = logs.filter((log) => levels.includes(log.level));
+    if (limit && limit > 0) {
+      return entries.slice(-limit);
     }
 
-    if (options.since) {
-      const sinceDate = new Date(options.since);
-      logs = logs.filter((log) => new Date(log.timestamp) >= sinceDate);
-    }
-
-    if (options.limit && options.limit > 0) {
-      logs = logs.slice(-options.limit);
-    }
-
-    return logs;
-  }
-
-  clear(): void {
-    this.buffer = [];
-  }
-
-  size(): number {
-    return this.buffer.length;
-  }
-
-  setEnabled(enabled: boolean): void {
-    this.enabled = enabled;
-  }
-
-  isEnabled(): boolean {
-    return this.enabled;
-  }
-
-  getName(): string {
-    return this.name;
-  }
-
-  getFilePath(): string {
-    return this.filePath;
+    return entries;
+  } catch (err) {
+    log.error(`Error reading log file ${resolvedPath}`, { error: err });
+    return [];
   }
 }
 
-export class ServiceLogWatcher {
-  private buffers: Map<string, FileLogBuffer> = new Map();
-  private projectRoot: string | null = null;
+export async function readLogFileTail(
+  options: LogFileOptions & {
+    projectRoot?: string;
+    lines?: number;
+    limit?: number;
+    level?: ("info" | "warn" | "error") | ("info" | "warn" | "error")[];
+    since?: string;
+  },
+): Promise<FileLogEntry[]> {
+  const { name, filePath, projectRoot, lines = 200, limit, level, since } = options;
 
-  setProjectRoot(root: string): void {
-    this.projectRoot = root;
+  const resolvedPath = resolvePath(filePath, projectRoot);
+
+  if (!fs.existsSync(resolvedPath)) {
+    log.debug(`Log file does not exist: ${resolvedPath}`);
+    return [];
   }
 
-  addLogFile(options: FileLogBufferOptions): void {
-    if (this.buffers.has(options.name)) {
-      log.warn(`Log file "${options.name}" already exists, skipping`);
-      return;
+  try {
+    const stat = fs.statSync(resolvedPath);
+    const fd = fs.openSync(resolvedPath, "r");
+
+    const chunkSize = 16 * 1024;
+    let position = stat.size;
+    let buffer = Buffer.alloc(0);
+    const lineCount = 0;
+
+    while (position > 0 && lineCount <= lines) {
+      const readSize = Math.min(chunkSize, position);
+      position -= readSize;
+
+      const chunk = Buffer.alloc(readSize);
+      fs.readSync(fd, chunk, 0, readSize, position);
+
+      buffer = Buffer.concat([chunk, buffer]);
+
+      const newLineCount = buffer.filter((byte) => byte === 10).length;
+      if (newLineCount >= lines) {
+        const linesArray = buffer.toString("utf-8").split("\n");
+        const excessLines = newLineCount - lines;
+        let charsToRemove = 0;
+        let count = 0;
+        for (let i = 0; i < linesArray.length; i++) {
+          count += linesArray[i].length + 1;
+          if (count > excessLines) {
+            charsToRemove = linesArray.slice(0, i + 1).join("\n").length + 1;
+            break;
+          }
+        }
+        buffer = buffer.slice(charsToRemove);
+        break;
+      }
     }
 
-    const buffer = new FileLogBuffer(options);
-    buffer.start(this.projectRoot ?? undefined);
-    this.buffers.set(options.name, buffer);
+    fs.closeSync(fd);
 
-    log.info(`Added log file watcher: ${options.name} -> ${options.filePath}`);
-  }
+    const content = buffer.toString("utf-8").trim();
+    const logLines = content.split("\n").filter((line) => line.trim());
 
-  removeLogFile(name: string): void {
-    const buffer = this.buffers.get(name);
-    if (buffer) {
-      buffer.stop();
-      this.buffers.delete(name);
-      log.info(`Removed log file watcher: ${name}`);
+    const entries: FileLogEntry[] = [];
+    const sinceDate = since ? new Date(since) : null;
+
+    for (const line of logLines) {
+      const entry: FileLogEntry = {
+        level: detectLogLevel(line),
+        message: line,
+        timestamp: parseLogTimestamp(line) || new Date().toISOString(),
+        source: `file:${name}`,
+      };
+
+      if (sinceDate && new Date(entry.timestamp) < sinceDate) {
+        continue;
+      }
+
+      if (level) {
+        const levels = Array.isArray(level) ? level : [level];
+        if (!levels.includes(entry.level)) {
+          continue;
+        }
+      }
+
+      entries.push(entry);
     }
-  }
 
-  getBuffer(name: string): FileLogBuffer | undefined {
-    return this.buffers.get(name);
-  }
-
-  getAllBuffers(): Map<string, FileLogBuffer> {
-    return this.buffers;
-  }
-
-  stopAll(): void {
-    for (const [name, buffer] of this.buffers) {
-      buffer.stop();
-      log.debug(`Stopped log file watcher: ${name}`);
+    if (limit && limit > 0) {
+      return entries.slice(-limit);
     }
-    this.buffers.clear();
-  }
 
-  getLogFileNames(): string[] {
-    return Array.from(this.buffers.keys());
+    return entries;
+  } catch (err) {
+    log.error(`Error reading log file ${resolvedPath}`, { error: err });
+    return [];
   }
 }
 
-let globalWatcher: ServiceLogWatcher | null = null;
-
-export function getServiceLogWatcher(): ServiceLogWatcher {
-  if (!globalWatcher) {
-    globalWatcher = new ServiceLogWatcher();
+function resolvePath(filePath: string, projectRoot?: string): string {
+  if (path.isAbsolute(filePath)) {
+    return filePath;
   }
-  return globalWatcher;
+
+  if (projectRoot) {
+    return path.resolve(projectRoot, filePath);
+  }
+
+  return path.resolve(process.cwd(), filePath);
 }

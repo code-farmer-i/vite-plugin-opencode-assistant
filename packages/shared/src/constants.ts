@@ -163,8 +163,6 @@ export const DEFAULT_CONFIG = {
         name: string;
         path: string;
         description: string;
-        watchExisting?: boolean;
-        maxBufferSize?: number;
       }>
     | undefined,
 };

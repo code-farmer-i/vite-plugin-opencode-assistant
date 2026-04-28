@@ -1,7 +1,7 @@
 import type { Hooks } from "@opencode-ai/plugin";
 import { tool } from "@opencode-ai/plugin";
 import type { LogFileConfig, FileLogEntry } from "@vite-plugin-opencode-assistant/shared";
-import { createLogger, getServiceLogWatcher } from "@vite-plugin-opencode-assistant/shared";
+import { readLogFileTail, createLogger } from "@vite-plugin-opencode-assistant/shared";
 
 const log = createLogger("ServiceLogsPlugin");
 
@@ -30,19 +30,6 @@ export const ServiceLogsPlugin = async (): Promise<Hooks> => {
     return {};
   }
 
-  const watcher = getServiceLogWatcher();
-  watcher.setProjectRoot(process.cwd());
-
-  for (const logFileConfig of logFiles) {
-    watcher.addLogFile({
-      name: logFileConfig.name,
-      filePath: logFileConfig.path,
-      maxBufferSize: logFileConfig.maxBufferSize,
-      watchExisting: logFileConfig.watchExisting,
-    });
-    log.debug(`Added log file watcher: ${logFileConfig.name} -> ${logFileConfig.path}`);
-  }
-
   const tools: Record<string, ReturnType<typeof tool>> = {};
 
   for (const logFileConfig of logFiles) {
@@ -55,7 +42,7 @@ ${logFileConfig.description}
 
 **日志内容**：
 - 来自日志文件 ${logFileConfig.path} 的实时日志
-- 最多保留 ${logFileConfig.maxBufferSize ?? 200} 条日志`;
+- 默认返回最近 200 行日志`;
 
     const getLogsTool = tool({
       description,
@@ -88,29 +75,28 @@ ${logFileConfig.description}
           directory: context.directory,
         });
 
-        const buffer = watcher.getBuffer(logFileConfig.name);
-
-        if (!buffer) {
-          return `日志文件 "${logFileConfig.name}" 未找到。请检查配置。`;
-        }
-
-        const logs = buffer.getLogs({
+        const entries = await readLogFileTail({
+          name: logFileConfig.name,
+          filePath: logFileConfig.path,
+          projectRoot: process.cwd(),
+          lines: limit ? Math.max(limit, 200) : 200,
           level: level
             ? (level.split(",").map((l) => l.trim()) as ("info" | "warn" | "error")[])
             : undefined,
-          limit,
           since,
         });
 
-        if (logs.length === 0) {
-          return `当前没有符合条件的日志（缓冲区共 ${buffer.size()} 条）。
+        const filteredEntries = entries.slice(0, limit ?? 50);
+
+        if (filteredEntries.length === 0) {
+          return `当前没有符合条件的日志。
 
 建议：
 - 不指定参数获取所有日志
 - 使用 level=error,warn 获取错误和警告`;
         }
 
-        const formattedLogs = logs
+        const formattedLogs = filteredEntries
           .map((entry: FileLogEntry) => {
             const time = new Date(entry.timestamp).toLocaleTimeString();
             const levelIcon = entry.level === "error" ? "❌" : entry.level === "warn" ? "⚠️" : "ℹ️";
@@ -118,7 +104,7 @@ ${logFileConfig.description}
           })
           .join("\n");
 
-        return `${logFileConfig.name} 日志（${logs.length}/${buffer.size()} 条）：
+        return `${logFileConfig.name} 日志（${filteredEntries.length} 条）：
 
 ${formattedLogs}`;
       },
