@@ -206,6 +206,37 @@ function getDataFromElement(el: Element): string | undefined {
   const vnodeData = (el as unknown as { __vnode?: { props?: Record<string, unknown> } }).__vnode
     ?.props?.[KEY_PROPS_DATA];
   if (vnodeData) return vnodeData as string;
+
+  const ctxVNode = (
+    el as unknown as {
+      __vnode?: { ctx?: { vnode?: { el?: Element; props?: Record<string, unknown> } } };
+    }
+  ).__vnode?.ctx?.vnode;
+  if (ctxVNode?.el === el) {
+    const ctxData = ctxVNode.props?.[KEY_PROPS_DATA];
+    if (ctxData) return ctxData as string;
+  }
+
+  const vueInstance = (
+    el as unknown as {
+      __vueParentComponent?: {
+        parent?: {
+          vnode?: { el?: Element; props?: Record<string, unknown> };
+          parent?: unknown;
+        };
+      };
+    }
+  ).__vueParentComponent;
+
+  let currentParent = vueInstance?.parent;
+  while (currentParent) {
+    if (currentParent.vnode?.el === el) {
+      const parentData = currentParent.vnode.props?.[KEY_PROPS_DATA];
+      if (parentData) return parentData as string;
+    }
+    currentParent = currentParent.parent as typeof currentParent;
+  }
+
   const attr = el.getAttribute(KEY_DATA);
   return attr ?? undefined;
 }
