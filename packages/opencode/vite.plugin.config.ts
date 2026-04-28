@@ -14,6 +14,7 @@ export default defineConfig({
     },
     outDir: "es/plugins",
     emptyOutDir: false,
+    ssr: true, // 指定为 Node.js 环境，不会外部化 Node.js 内置模块
     rollupOptions: {
       external: [], // bundle everything, including @vite-plugin-opencode-assistant/shared
       output: {
