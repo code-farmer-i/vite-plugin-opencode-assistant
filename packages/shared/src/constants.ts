@@ -157,4 +157,14 @@ export const DEFAULT_CONFIG = {
   // OpenCode 内部配置默认值
   language: undefined as OpenCodeLanguage | undefined,
   settings: undefined as OpenCodeSettings | undefined,
+  // 日志文件配置
+  logFiles: undefined as
+    | Array<{
+        name: string;
+        path: string;
+        description: string;
+        watchExisting?: boolean;
+        maxBufferSize?: number;
+      }>
+    | undefined,
 };

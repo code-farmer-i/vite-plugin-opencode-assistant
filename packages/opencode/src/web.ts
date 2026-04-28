@@ -53,7 +53,8 @@ export function prepareOpenCodeRuntime(cwd: string): string {
 }
 
 export function startOpenCodeWeb(options: WebOptions): ResultPromise {
-  const { port, hostname, cwd, configDir, corsOrigins, contextApiUrl, logsApiUrl } = options;
+  const { port, hostname, cwd, configDir, corsOrigins, contextApiUrl, logsApiUrl, logFilesJson } =
+    options;
   const stateDir = createStateDirectory(cwd);
   const pluginsDir = path.join(stateDir, "plugins");
 
@@ -61,17 +62,32 @@ export function startOpenCodeWeb(options: WebOptions): ResultPromise {
   const pluginPaths = [
     path.join(pluginsDir, "page-context.js"),
     path.join(pluginsDir, "vite-logs.js"),
-  ].join(",");
+  ];
+
+  // Add service-logs plugin if logFiles are configured
+  if (logFilesJson) {
+    pluginPaths.push(path.join(pluginsDir, "service-logs.js"));
+  }
+
+  const pluginPathsStr = pluginPaths.join(",");
 
   log.debug("Building process environment", {
     stateDir,
     configDir,
     contextApiUrl,
     logsApiUrl,
-    pluginPaths,
+    logFilesJson,
+    pluginPathsStr,
   });
 
-  const env = buildProcessEnv(stateDir, configDir, contextApiUrl, logsApiUrl, pluginPaths);
+  const env = buildProcessEnv(
+    stateDir,
+    configDir,
+    contextApiUrl,
+    logsApiUrl,
+    pluginPathsStr,
+    logFilesJson,
+  );
   const args = ["serve", "--port", String(port), "--hostname", hostname];
 
   if (corsOrigins && corsOrigins.length > 0) {
@@ -164,6 +180,7 @@ function buildProcessEnv(
   contextApiUrl?: string,
   logsApiUrl?: string,
   pluginPaths?: string,
+  logFilesJson?: string,
 ): Record<string, string> {
   const env: Record<string, string> = {
     ...(Object.fromEntries(
@@ -190,6 +207,11 @@ function buildProcessEnv(
   if (pluginPaths) {
     env.OPENCODE_PLUGINS = pluginPaths;
     log.debug("Set OPENCODE_PLUGINS", { pluginPaths });
+  }
+
+  if (logFilesJson) {
+    env.OPENCODE_LOG_FILES_JSON = logFilesJson;
+    log.debug("Set OPENCODE_LOG_FILES_JSON", { logFilesJson });
   }
 
   return env;

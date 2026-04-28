@@ -7,6 +7,7 @@ export default defineConfig({
       entry: {
         "page-context": resolve(__dirname, "src/plugins/page-context.ts"),
         "vite-logs": resolve(__dirname, "src/plugins/vite-logs.ts"),
+        "service-logs": resolve(__dirname, "src/plugins/service-logs.ts"),
       },
       name: "OpenCodePlugins",
       formats: ["es"],

@@ -110,6 +110,22 @@ export interface SplitModeOptions {
 }
 
 /**
+ * 日志文件配置
+ */
+export interface LogFileConfig {
+  /** 日志文件的唯一标识符，用于工具调用时指定 */
+  name: string;
+  /** 日志文件路径（绝对路径或相对于项目根目录的相对路径） */
+  path: string;
+  /** 工具描述，告诉 Agent 何时使用此工具查看日志 */
+  description: string;
+  /** 是否监控已存在的文件内容，默认 false（只监控新增内容） */
+  watchExisting?: boolean;
+  /** 日志缓冲区最大条数，默认 200 */
+  maxBufferSize?: number;
+}
+
+/**
  * OpenCode Vite 插件配置选项
  */
 export interface OpenCodeOptions {
@@ -143,6 +159,10 @@ export interface OpenCodeOptions {
   language?: OpenCodeLanguage;
   /** OpenCode 内部设置，直接映射到 localStorage settings.v3 */
   settings?: OpenCodeSettings;
+
+  // === 日志文件配置 ===
+  /** 自定义日志文件配置，为 Agent 提供查看外部服务日志的能力 */
+  logFiles?: LogFileConfig[];
 }
 
 /**
@@ -165,6 +185,8 @@ export interface WebOptions {
   contextApiUrl?: string;
   /** 进程日志 API URL */
   logsApiUrl?: string;
+  /** 日志文件配置（JSON 字符串） */
+  logFilesJson?: string;
 }
 
 /**

@@ -150,6 +150,7 @@ Please install OpenCode first:
         corsOrigins,
         contextApiUrl,
         logsApiUrl,
+        logFilesJson: this.config.logFiles ? JSON.stringify(this.config.logFiles) : undefined,
       });
 
       timer.checkpoint("Web process started");
