@@ -303,6 +303,9 @@ const handleClearSelected = () => {
 
 const handleSelectModeChange = (val: boolean) => {
   selectMode.value = val;
+  widgetRef.value?.sendMessageToIframe("OPENCODE_SELECT_MODE_CHANGE", {
+    selectMode: val,
+  });
   const isSplit = widgetRef.value?.isSplitMode;
   if (val && !isSplit && open.value) {
     open.value = false;

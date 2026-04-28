@@ -108,6 +108,13 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     }
   }
 
+  // === 选择模式状态 ===
+  let isInSelectMode = false;
+
+  function handleSelectModeChange(selectMode) {
+    isInSelectMode = selectMode;
+  }
+
   // === 消息监听 ===
   window.addEventListener("message", function(event) {
     if (event.data && event.data.type === "OPENCODE_SET_THEME") {
@@ -125,11 +132,44 @@ function generateBridgeScript(options: ProxyServerOptions): string {
     if (event.data && event.data.type === "prompt-dock-visibility-change") {
       handlePromptDockVisibilityChange(event.data.visible);
     }
+
+    if (event.data && event.data.type === "OPENCODE_SELECT_MODE_CHANGE") {
+      handleSelectModeChange(event.data.selectMode);
+    }
   });
 
   // === 键盘事件转发（用于退出选择模式） ===
   window.addEventListener("keydown", function(event) {
     if (event.key === "Escape" || (event.ctrlKey && event.key.toLowerCase() === "p")) {
+      const target = event.target;
+      const isEditableElement = target instanceof HTMLElement && (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable ||
+        target.closest('[contenteditable="true"]')
+      );
+      
+      // 选择模式开启时，优先退出选择模式，阻止 iframe 内的其他 ESC 处理（如中止会话）
+      if (isInSelectMode) {
+        event.preventDefault();
+        event.stopPropagation();
+        if (window.parent !== window) {
+          window.parent.postMessage({
+            type: "OPENCODE_KEYDOWN",
+            key: event.key,
+            ctrlKey: event.ctrlKey,
+            metaKey: event.metaKey,
+            shiftKey: event.shiftKey,
+            altKey: event.altKey
+          }, "*");
+        }
+        return;
+      }
+      
+      if (isEditableElement) {
+        return;
+      }
+      
       if (window.parent !== window) {
         window.parent.postMessage({
           type: "OPENCODE_KEYDOWN",
