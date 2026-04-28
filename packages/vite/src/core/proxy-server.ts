@@ -141,14 +141,6 @@ function generateBridgeScript(options: ProxyServerOptions): string {
   // === 键盘事件转发（用于退出选择模式） ===
   window.addEventListener("keydown", function(event) {
     if (event.key === "Escape" || (event.ctrlKey && event.key.toLowerCase() === "p")) {
-      const target = event.target;
-      const isEditableElement = target instanceof HTMLElement && (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable ||
-        target.closest('[contenteditable="true"]')
-      );
-      
       // 选择模式开启时，优先退出选择模式，阻止 iframe 内的其他 ESC 处理（如中止会话）
       if (isInSelectMode) {
         event.preventDefault();
@@ -163,10 +155,6 @@ function generateBridgeScript(options: ProxyServerOptions): string {
             altKey: event.altKey
           }, "*");
         }
-        return;
-      }
-      
-      if (isEditableElement) {
         return;
       }
       
