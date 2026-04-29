@@ -133,7 +133,7 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 1. **确保操作正确页面（强制）**
    在使用 Chrome DevTools Mcp 执行任何与用户正在浏览的页面相关的任务之前，必须先确认当前操作的页面就是用户正在浏览的页面。如果不确定，应先获取当前页面 URL 并与上下文中的页面 URL 进行比对。
 
-2. **快照获取**
+2. **快照获取（强制）**
    在没有获取到需要的节点信息时，使用 verbose 参数来获取更详细的节点信息。如果设置了 verbose 参数还是没有获取到节点信息，再尝试考虑其他方案。
 
 3. **单页应用（SPA）特性**
@@ -142,7 +142,7 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 4. **HTTP 请求成功判断（强制）**
    判断请求成功时，不要只看 HTTP 状态码！HTTP 状态码 200 并不代表业务逻辑成功。必须获取接口的详细响应内容，检查响应体中的业务状态码或错误信息。在确认请求成功之前，始终解析并检查响应体的完整内容
 
-5. **工具使用优先级**
+5. **工具使用优先级（强制）**
    在使用 Chrome DevTools MCP 工具时，\`chrome-devtools_evaluate_script\` 工具的使用优先级最低。只有在其他工具无法满足需求时，才考虑使用该工具
 `.trim();
 
