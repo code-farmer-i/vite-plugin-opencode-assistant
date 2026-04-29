@@ -141,6 +141,9 @@ export const PageContextPlugin: Plugin = async (): Promise<Hooks> => {
 
 4. **HTTP 请求成功判断（强制）**
    判断请求成功时，不要只看 HTTP 状态码！HTTP 状态码 200 并不代表业务逻辑成功。必须获取接口的详细响应内容，检查响应体中的业务状态码或错误信息。在确认请求成功之前，始终解析并检查响应体的完整内容
+
+5. **工具使用优先级**
+   在使用 Chrome DevTools MCP 工具时，\`chrome-devtools_evaluate_script\` 工具的使用优先级最低。只有在其他工具无法满足需求时，才考虑使用该工具
 `.trim();
 
       output.system.push(systemPrompt);
