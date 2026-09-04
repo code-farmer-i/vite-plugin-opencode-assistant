@@ -55,7 +55,7 @@ defineOptions({
         </h1>
 
         <p class="hero-desc">
-          装一个浏览器插件，在任意 Vite 开发页面唤起 OpenCode。<br />
+          装一个浏览器插件，在任意 Vite 开发页面唤起 AI 开发助手。<br />
           边聊天边改代码，HMR 实时预览，开发体验全面升级。
         </p>
 

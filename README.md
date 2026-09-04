@@ -1,18 +1,33 @@
 # vite-plugin-aipanel
 
-在 Vite 开发环境中嵌入 AIPanel AI 助手，边聊天边改代码，HMR 实时预览。
+在 Vite 开发环境中嵌入 AIPanel AI 助手：浏览器扩展在任意 `localhost` 开发页面唤起 AI 侧边栏，边聊天边改代码，HMR 实时预览。
 
-支持 OpenCode 与 DeepSeek Harness (dsh) 两种 AI 引擎，通过 `provider` 配置一键切换。
+支持 **OpenCode** 与 **DeepSeek Harness (dsh)** 两种 AI 引擎，通过 `provider` 配置一键切换。
+
+## 环境要求
+
+- 任一 Vite ≥ 5 的 Node.js 项目
+- Chrome / Edge / Arc / Brave 等 Chromium 内核浏览器
+- 任选其一：OpenCode CLI（默认）或 DeepSeek Harness (dsh) CLI
 
 ## 快速开始
 
-### 1. 安装插件
+### 1. 安装 AI 引擎
+
+**默认引擎 OpenCode CLI：**
+
+```bash
+curl -fsSL https://opencode.ai/install | bash
+opencode --version # 验证
+```
+
+> 使用 DeepSeek Harness 请改装：`npm i -g @deepseek-ai/dsh` + `npm i -D @aipanel/provider-deepseek`，并配置 `provider: "deepseek"`（见下）。
+
+### 2. 安装并配置 Vite 插件
 
 ```bash
 npm install -D vite-plugin-aipanel
 ```
-
-### 2. 配置 Vite
 
 ```ts
 // vite.config.ts
@@ -24,67 +39,70 @@ export default defineConfig({
 });
 ```
 
-默认使用 **OpenCode** 引擎（详见下方「选择 AI 引擎」）。
-
 ### 3. 启动开发服务器
 
 ```bash
 npm run dev
 ```
 
-Vite 插件会自动启动 AIPanel Web 服务并创建当前项目的 AI 会话。
+插件自动完成：校验引擎 → 启动 AIPanel Web 服务（默认 5097）与代理（默认 6097，端口占用自动换）→ 复用/创建当前项目会话。
 
 ### 4. 安装浏览器扩展
 
 1. [下载扩展包](https://github.com/code-farmer-i/vite-plugin-aipanel/raw/main/packages/extension/aipanel-assistant.zip)
-2. 打开 Chrome，地址栏输入 `chrome://extensions/`
-3. 打开右上角**「开发者模式」**开关
-4. 解压下载的 `.zip`，点击**「加载已解压的扩展程序」**，选择解压后的文件夹
-5. 用 Chrome 打开 `localhost` 开发页面，点击工具栏中的 AIPanel 图标即可开始对话
+2. Chrome 打开 `chrome://extensions/`，开启右上角**「开发者模式」**
+3. 解压 `.zip` → **「加载已解压的扩展程序」** → 选择解压目录
+4. 打开 `localhost` 开发页面，点击工具栏 **AIPanel 图标**（或 `Ctrl/Cmd + K`）唤起侧边栏
 
-> Edge / Arc / Brave 操作步骤相同，入口分别是 `edge://extensions/` / `arc://extensions/` / `brave://extensions/`。
+> Edge / Arc / Brave 入口分别是 `edge://extensions/` / `arc://extensions/` / `brave://extensions/`。
 
-## 选择 AI 引擎
+## 切换 AI 引擎
 
-插件内置两套 AI 引擎，通过 `providerOptions` 段的 `provider` 字段选择：
+插件默认 `provider: "default"`（等价 `"opencode"`，适配已内置，仅需安装 opencode CLI）。
 
-| provider     | 引擎                    | 额外依赖                        | 特点                           |
-| ------------ | ----------------------- | ------------------------------- | ------------------------------ |
-| `opencode`   | [OpenCode CLI](https://opencode.ai) | 无（插件内置）       | 默认引擎，通用 AI CLI         |
-| `deepseek`   | DeepSeek Harness (dsh)  | 另装 `@aipanel/provider-deepseek` | DeepSeek 官方 Web 对话界面 |
-
-使用 DeepSeek Harness 引擎需先安装依赖：
-
-```bash
-npm install -D @aipanel/provider-deepseek
-npm install -g @deepseek-ai/dsh
-```
+| provider  | 引擎                   | 额外依赖                                   | 说明                        |
+| --------- | ---------------------- | ------------------------------------------ | --------------------------- |
+| `default` | OpenCode CLI           | 无（适配内置；需另装 opencode CLI）        | 默认值，同 `opencode`    |
+| `opencode` | OpenCode CLI         | 无（适配内置；需另装 opencode CLI）        | 显式指定 OpenCode           |
+| `deepseek` | DeepSeek Harness (dsh) | `@aipanel/provider-deepseek` + dsh CLI   | DeepSeek 官方 Web 对话界面  |
 
 ```ts
-// 使用 DeepSeek Harness 引擎
+// 使用 DeepSeek Harness 引擎（先安装其依赖）
 aipanelAssistant({
   provider: "deepseek",
   providerOptions: {
-    // dsh 专属配置，详见在线文档
-    // home: "~/.dsh",          // dsh 数据目录
-    // agentPreset: "standard", // 新建会话的默认 Agent 预设
+    // home: "~/.dsh",                // dsh 数据目录
+    // agentPreset: "standard",       // 新建会话的默认 Agent 预设
     // permissionPreset: "read-only", // 默认权限预设
-    // busyEnter: "queue",      // 繁忙时 Enter 行为
+    // busyEnter: "queue",            // 繁忙时 Enter 行为
   },
 });
 ```
 
-> 已预装 OpenCode 与 dsh 其中之一的用户，插件会自动检测并使用。
+> **注意**：插件**不会自动探测**已安装的引擎，引擎由 `provider` 字段决定；切换前请确认对应 CLI 已安装。
 
 ## 纯净 MCP 模式
 
-`mcpOnly: true` 时，插件只暴露 MCP 工具服务（Chrome DevTools 控制、Vue DevTools、日志读取等），不注入挂件、不启动 AI 引擎，适合作为独立 MCP server 供外部 Agent 消费。
+`mcpOnly: true` 时，插件只暴露 MCP 工具服务（Chrome DevTools 控制、Vue DevTools、日志读取等），不启动 AI 引擎、不注入对话界面，适合作为独立 MCP server 供外部 Agent 消费：
 
 ```ts
 aipanelAssistant({ mcpOnly: true });
 ```
 
-启动后 MCP 端点挂在 Vite dev server 上，外部 MCP 客户端配置 Streamable HTTP 接入 `http://localhost:5173/__aipanel_mcp__`。
+端点挂在 Vite dev server 上（需保持 `vite dev` 运行），外部 MCP 客户端按 Streamable HTTP 配置：
+
+```json
+{
+  "mcpServers": {
+    "aipanel": {
+      "type": "http",
+      "url": "http://localhost:5173/__aipanel_mcp__"
+    }
+  }
+}
+```
+
+> 端口随 Vite dev server 变化（默认 5173），以启动日志中的 `MCP endpoint` 为准；`Claude Code` / `Cursor` 等客户端配置详见在线文档。
 
 ## 工作原理
 

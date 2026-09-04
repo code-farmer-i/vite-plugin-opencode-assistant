@@ -1,6 +1,6 @@
 # Vite 插件配置
 
-Vite 插件负责启动 AIPanel Web 服务，是浏览器扩展正常工作所必需的。默认配置即可满足大多数场景，以下配置用于高级定制。
+Vite 插件负责启动 AIPanel Web 服务（AI 对话后端），是浏览器扩展正常工作所必需的。默认配置即可满足大多数场景，以下配置用于高级定制。
 
 ## 安装
 
@@ -27,18 +27,19 @@ import aipanelAssistant from "vite-plugin-aipanel";
 aipanelAssistant({
   // === 基础配置 ===
   enabled: true, // 是否启用，默认 true
-  provider: "opencode", // AI 引擎，默认 "default"（别名，解析到 opencode），可选 "deepseek"
-  webPort: 5097, // AIPanel Web 端口，默认 5097
-  proxyPort: 6097, // 代理端口，默认 6097
-  hostname: "127.0.0.1", // 绑定地址
+  provider: "default", // AI 引擎：默认 "default"（等价 "opencode"），可选 "deepseek"
+  webPort: 5097, // AIPanel Web 服务端口，默认 5097（被占用时自动换端口）
+  proxyPort: 6097, // 代理端口，默认 6097（处理跨域与页面通信）
+  hostname: "127.0.0.1", // 服务绑定地址
   verbose: false, // 详细日志
-  mcpOnly: false, // 纯净 MCP 模式：只暴露 MCP 工具服务，不注入挂件/不启动 Web provider
+  mcpOnly: false, // 纯净 MCP 模式：只暴露 MCP 工具服务，不启动 AI 引擎/不注入对话界面
 
-  // === 主题与行为 ===
+  // === 面板与行为 ===
   theme: "dark", // light | dark | auto，默认 dark
-  hotkey: "ctrl+k", // 面板快捷键
-  warmupChromeMcp: true, // 启动时预热 Chrome DevTools
-  chromeDevtoolsPort: 9222, // Chrome 调试端口
+  open: false, // 服务就绪后是否自动打开面板，默认 false
+  hotkey: "ctrl+k", // 打开/关闭面板快捷键
+  warmupChromeMcp: true, // 启动时预热 Chrome DevTools 连接
+  chromeDevtoolsPort: 9222, // Chrome 远程调试端口
 
   // === Chrome DevTools MCP（可选，详见下文「Chrome DevTools MCP（chromeMcp）」）===
   chromeMcp: {
@@ -63,7 +64,8 @@ aipanelAssistant({
 
   // === Provider 专属配置（以 providerOptions 段声明）===
   providerOptions: {
-    language: "zh", // AIPanel 界面语言
+    // —— OpenCode 引擎 ——
+    language: "zh", // 界面语言
     settings: {
       general: {
         showReasoningSummaries: true,
@@ -102,37 +104,39 @@ aipanelAssistant({
 
 ## 配置项速查表
 
-| 配置项                               | 类型      | 默认值        | 说明              |
-| ------------------------------------ | --------- | ------------- | ----------------- |
-| `enabled`                            | `boolean` | `true`        | 是否启用          |
-| `provider`                           | `string`  | `"default"`   | AI 引擎（"default"→opencode，另可选 "deepseek"） |
-| `webPort`                            | `number`  | `5097`        | AIPanel Web 端口  |
-| `proxyPort`                          | `number`  | `6097`        | 代理端口          |
-| `hostname`                           | `string`  | `"127.0.0.1"` | 服务地址          |
-| `theme`                              | `string`  | `"dark"`      | 主题              |
-| `hotkey`                             | `string`  | `"ctrl+k"`    | 快捷键            |
-| `verbose`                            | `boolean` | `false`       | 详细日志          |
-| `mcpOnly`                            | `boolean` | `false`       | 纯净 MCP 模式     |
-| `warmupChromeMcp`                    | `boolean` | `true`        | 预热 Chrome MCP   |
-| `chromeDevtoolsPort`                 | `number`  | `9222`        | Chrome 调试端口   |
-| `chromeMcp`                          | `object`  | -             | Chrome DevTools MCP 透传与项目边界（见下） |
-| `chromeMcp.project.allowOrigins`     | `array`   | -             | 额外可操作页面（精确 origin / glob / 正则） |
-| `chromeMcp.project.includeExtensionPages` | `boolean` | `false` | 允许扩展页进入可操作范围 |
-| `chromeMcp.project.tools.extra`      | `array`   | -             | 追加官方工具（flag 自动推导注入） |
-| `chromeMcp.project.tools.deny`       | `array`   | -             | 隐藏默认白名单工具 |
-| `providerOptions.language`           | `string`  | -             | 界面语言          |
-| `providerOptions.settings`           | `object`  | -             | Provider 内部设置 |
-| `providerOptions.enableLsp`          | `boolean` | `true`        | LSP 诊断          |
-| `providerOptions.enablePrettier`     | `boolean` | `true`        | 代码格式化        |
-| `logFiles`                           | `array`   | -             | 自定义日志文件    |
+| 配置项                                    | 类型      | 默认值        | 说明                                                 |
+| ----------------------------------------- | --------- | ------------- | ---------------------------------------------------- |
+| `enabled`                                 | `boolean` | `true`        | 是否启用                                             |
+| `provider`                                | `string`  | `"default"`   | AI 引擎（`"default"`→opencode，另可选 `"deepseek"`） |
+| `webPort`                                 | `number`  | `5097`        | AIPanel Web 端口                                     |
+| `proxyPort`                               | `number`  | `6097`        | 代理端口                                             |
+| `hostname`                                | `string`  | `"127.0.0.1"` | 服务地址                                             |
+| `theme`                                   | `string`  | `"dark"`      | 主题：`light` / `dark` / `auto`                      |
+| `open`                                    | `boolean` | `false`       | 服务就绪后是否自动打开面板                           |
+| `hotkey`                                  | `string`  | `"ctrl+k"`    | 打开/关闭面板快捷键（如 `"ctrl+k"` / `"cmd+k"`）     |
+| `verbose`                                 | `boolean` | `false`       | 详细日志                                             |
+| `mcpOnly`                                 | `boolean` | `false`       | 纯净 MCP 模式                                        |
+| `warmupChromeMcp`                         | `boolean` | `true`        | 预热 Chrome MCP                                      |
+| `chromeDevtoolsPort`                      | `number`  | `9222`        | Chrome 调试端口                                      |
+| `chromeMcp`                               | `object`  | -             | Chrome DevTools MCP 透传与项目边界（见下）           |
+| `chromeMcp.project.allowOrigins`          | `array`   | -             | 额外可操作页面（精确 origin / glob / 正则）          |
+| `chromeMcp.project.includeExtensionPages` | `boolean` | `false`       | 允许扩展页进入可操作范围                             |
+| `chromeMcp.project.tools.extra`           | `array`   | -             | 追加官方工具（flag 自动推导注入）                    |
+| `chromeMcp.project.tools.deny`            | `array`   | -             | 隐藏默认白名单工具                                   |
+| `providerOptions.language`                | `string`  | -             | 界面语言                                             |
+| `providerOptions.settings`                | `object`  | -             | Provider 内部设置                                    |
+| `providerOptions.enableLsp`               | `boolean` | `true`        | LSP 诊断                                             |
+| `providerOptions.enablePrettier`          | `boolean` | `true`        | 代码格式化                                           |
+| `logFiles`                                | `array`   | -             | 自定义日志文件                                       |
 
 ### 纯净 MCP 模式（mcpOnly）
 
 `mcpOnly: true` 时插件只暴露 MCP 工具服务（Chrome DevTools 控制、Vue DevTools、日志读取等），
-不注入悬浮挂件、不启动 OpenCode/dsh Web 进程，适合作为独立 MCP server 供外部 Agent 消费。
+不启动 AI 引擎、不注入对话界面，适合作为独立 MCP server 供外部 Agent 消费。
 可用工具由默认白名单 + `chromeMcp.project.tools` 调整决定（见下方「Chrome DevTools MCP（chromeMcp）」）：
 `chrome-devtools_*`（页面级操作/截图/网络/控制台等安全分类）、`vue-devtools_*`（组件树/状态/路由）、
-`logs-devtools_*`（日志）。页面会静默注入上下文上报脚本（无 UI 副作用），
+`logs-devtools_*`（日志）。页面仅注入轻量的静默上下文上报脚本（无 UI 副作用），
+
 因此 `chrome-devtools_current_page` 也能感知当前浏览页面。
 
 ```ts
@@ -244,21 +248,13 @@ logFiles: [
 ];
 ```
 
-> 详见 [Vite 插件配置完整参考](https://github.com/code-farmer-i/vite-plugin-aipanel) 获取 `settings` 全部子配置项。
+## 选择 AI 引擎
 
-### 选择 AI 引擎
-
-`provider` 字段用于选择 AI 引擎，当前内置两套：
-
-| provider   | 引擎                   | 额外依赖                        |
-| ---------- | ---------------------- | ------------------------------- |
-| `opencode` | OpenCode CLI（默认）   | 无（插件内置）                  |
-| `deepseek` | DeepSeek Harness (dsh) | 需另装 `@aipanel/provider-deepseek` |
-
-使用 **OpenCode** 引擎无需额外操作（插件已内置）。若要用 **dsh** 引擎，需先安装其 provider 包：
+插件默认使用 **OpenCode**（`provider` 未配置或为 `"default"` / `"opencode"`），适配已内置；若使用 **DeepSeek Harness (dsh)**，需先安装其 provider 包与 CLI：
 
 ```bash
 npm install -D @aipanel/provider-deepseek
+npm install -g @deepseek-ai/dsh
 ```
 
 `providerOptions` 段承载各引擎专属配置。**OpenCode** 引擎的配置见上方「完整配置」。切换到 **dsh** 引擎：
@@ -267,19 +263,30 @@ npm install -D @aipanel/provider-deepseek
 aipanelAssistant({
   provider: "deepseek",
   providerOptions: {
-    home: "~/.dsh",                 // dsh 数据目录（$DSH_HOME），默认跟随系统 ~/.dsh
-    agentPreset: "standard",        // 新建会话的默认 Agent 预设
-    permissionPreset: "read-only",  // 默认权限预设：read-only | workspace-write | danger-full-access
-    busyEnter: "queue",             // 繁忙时 Enter 行为：queue | steer
+    home: "~/.dsh", // dsh 数据目录（$DSH_HOME），默认跟随系统 ~/.dsh
+    agentPreset: "standard", // 新建会话的默认 Agent 预设
+    permissionPreset: "read-only", // 默认权限预设：read-only | workspace-write | danger-full-access
+    busyEnter: "queue", // 繁忙时 Enter 行为：queue | steer
   },
 });
 ```
 
-#### DeepSeek (dsh) 配置项速查
+### OpenCode 专属配置速查
 
-| 配置项                              | 类型     | 默认值     | 说明                                        |
-| ----------------------------------- | -------- | ---------- | ------------------------------------------- |
-| `providerOptions.home`              | `string` | `~/.dsh`   | dsh 数据目录（`$DSH_HOME`）                 |
-| `providerOptions.agentPreset`       | `string` | -          | 新建会话的默认 Agent 预设                   |
-| `providerOptions.permissionPreset`  | `string` | -          | 默认权限预设                                |
-| `providerOptions.busyEnter`         | `string` | -          | 繁忙时 Enter 行为（`queue` / `steer`）      |
+| 配置项                           | 类型      | 默认值 | 说明                                  |
+| -------------------------------- | --------- | ------ | ------------------------------------- |
+| `providerOptions.language`       | `string`  | -      | 界面语言（如 `"zh"`）                 |
+| `providerOptions.settings`       | `object`  | -      | OpenCode 内部设置（外观/权限/通知等） |
+| `providerOptions.enableLsp`      | `boolean` | `true` | LSP 诊断（TypeScript + ESLint）       |
+| `providerOptions.enablePrettier` | `boolean` | `true` | 代码格式化                            |
+
+### DeepSeek (dsh) 配置项速查
+
+| 配置项                              | 类型      | 默认值   | 说明                                   |
+| ----------------------------------- | --------- | -------- | -------------------------------------- |
+| `providerOptions.home`              | `string`  | `~/.dsh` | dsh 数据目录（`$DSH_HOME`）            |
+| `providerOptions.agentPreset`       | `string`  | -        | 新建会话的默认 Agent 预设              |
+| `providerOptions.permissionPreset`  | `string`  | -        | 默认权限预设                           |
+| `providerOptions.busyEnter`         | `string`  | -        | 繁忙时 Enter 行为（`queue` / `steer`） |
+| `providerOptions.enableDiagnostics` | `boolean` | `true`   | 诊断功能总开关（`run_diagnostics` 等） |
+| `providerOptions.autoDiagnose`      | `boolean` | `true`   | 编辑文件后自动运行诊断并并入工具输出   |
