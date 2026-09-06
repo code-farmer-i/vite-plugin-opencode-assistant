@@ -1,8 +1,10 @@
 import { LOG_PREFIX } from "../common/constants";
 import {
+  LEVEL_NAMES,
   LogLevel,
   type LogContext,
   getConfig,
+  getTimestamp,
   formatContext,
   formatValue,
   generateTraceId as _generateTraceId,
@@ -30,23 +32,6 @@ const LEVEL_COLORS: Record<LogLevel, string> = {
   [LogLevel.ERROR]: COLORS.red,
   [LogLevel.NONE]: COLORS.reset,
 };
-
-const LEVEL_NAMES: Record<LogLevel, string> = {
-  [LogLevel.DEBUG]: "DEBUG",
-  [LogLevel.INFO]: "INFO",
-  [LogLevel.WARN]: "WARN",
-  [LogLevel.ERROR]: "ERROR",
-  [LogLevel.NONE]: "NONE",
-};
-
-function getTimestamp(): string {
-  const now = new Date();
-  const hours = String(now.getHours()).padStart(2, "0");
-  const minutes = String(now.getMinutes()).padStart(2, "0");
-  const seconds = String(now.getSeconds()).padStart(2, "0");
-  const ms = String(now.getMilliseconds()).padStart(3, "0");
-  return `${hours}:${minutes}:${seconds}.${ms}`;
-}
 
 function getCallerInfo(depth: number = 3): string {
   const stack = new Error().stack;

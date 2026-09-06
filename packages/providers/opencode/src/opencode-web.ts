@@ -7,6 +7,7 @@ import type { WebOptions } from "./types";
 import {
   AIPANEL_CACHE_DIR,
   MCP_API_PATH,
+  OPENCODE_ENV,
   createLogger,
   getProcessLogBuffer,
 } from "@aipanel/core/node";
@@ -203,46 +204,46 @@ function buildProcessEnv(
     ) as Record<string, string>),
     XDG_STATE_HOME: stateDir,
     // 指向缓存目录，OpenCode 通过 opencode.json 中 plugins 字段加载插件
-    OPENCODE_CONFIG_DIR: stateDir,
+    [OPENCODE_ENV.CONFIG_DIR]: stateDir,
   };
 
   if (configDir) {
-    env.OPENCODE_CONFIG_DIR = configDir;
+    env[OPENCODE_ENV.CONFIG_DIR] = configDir;
     log.debug("Set OPENCODE_CONFIG_DIR", { configDir });
   }
 
   if (contextApiUrl) {
-    env.OPENCODE_CONTEXT_API_URL = contextApiUrl;
+    env[OPENCODE_ENV.CONTEXT_API_URL] = contextApiUrl;
     log.debug("Set OPENCODE_CONTEXT_API_URL", { contextApiUrl });
   }
 
   if (logsApiUrl) {
-    env.OPENCODE_VITE_LOGS_API_URL = logsApiUrl;
+    env[OPENCODE_ENV.VITE_LOGS_API_URL] = logsApiUrl;
     log.debug("Set OPENCODE_VITE_LOGS_API_URL", { logsApiUrl });
   }
 
   if (logFilesJson) {
-    env.OPENCODE_LOG_FILES_JSON = logFilesJson;
+    env[OPENCODE_ENV.LOG_FILES_JSON] = logFilesJson;
     log.debug("Set OPENCODE_LOG_FILES_JSON", { logFilesJson });
   }
 
   if (verbose) {
-    env.OPENCODE_VERBOSE = "1";
+    env[OPENCODE_ENV.VERBOSE] = "1";
     log.debug("Set OPENCODE_VERBOSE=1");
   }
 
   if (enableLsp) {
-    env.OPENCODE_ENABLE_LINT = "1";
+    env[OPENCODE_ENV.ENABLE_LINT] = "1";
     log.debug("Set OPENCODE_ENABLE_LINT=1");
   }
 
   if (vueDevtoolsApiUrl) {
-    env.OPENCODE_VUE_DEVTOOLS_API_URL = vueDevtoolsApiUrl;
+    env[OPENCODE_ENV.VUE_DEVTOOLS_API_URL] = vueDevtoolsApiUrl;
     log.debug("Set OPENCODE_VUE_DEVTOOLS_API_URL", { vueDevtoolsApiUrl });
   }
 
   if (workspace) {
-    env.OPENCODE_WORKSPACE = workspace;
+    env[OPENCODE_ENV.WORKSPACE] = workspace;
     log.debug("Set OPENCODE_WORKSPACE", { workspace });
   }
 

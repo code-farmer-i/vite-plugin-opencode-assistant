@@ -1,4 +1,6 @@
 import { computed, ref, onMounted, onUnmounted, type Ref } from "vue";
+import { WIDGET_THEME_MODES } from "@aipanel/core";
+import { getSystemTheme, resolveWidgetTheme } from "@aipanel/core/client";
 import type { AIPanelWidgetTheme } from "../src/types";
 
 export interface UseWidgetOptions {
@@ -15,15 +17,10 @@ export interface UseWidgetOptions {
   onToggleTheme?: (theme: AIPanelWidgetTheme) => void;
 }
 
-const THEME_CYCLE: AIPanelWidgetTheme[] = ["auto", "light", "dark"];
+const THEME_CYCLE: readonly AIPanelWidgetTheme[] = WIDGET_THEME_MODES;
 
 export function useWidget(options: UseWidgetOptions) {
   const systemTheme = ref<"light" | "dark">("light");
-
-  function getSystemTheme(): "light" | "dark" {
-    if (typeof window === "undefined") return "light";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-  }
 
   let mediaQuery: MediaQueryList | null = null;
   let handleChange: ((e: MediaQueryListEvent) => void) | null = null;
@@ -44,12 +41,9 @@ export function useWidget(options: UseWidgetOptions) {
     }
   });
 
-  const resolvedTheme = computed(() => {
-    if (options.theme.value === "auto") {
-      return systemTheme.value;
-    }
-    return options.theme.value as "light" | "dark";
-  });
+  const resolvedTheme = computed(() =>
+    resolveWidgetTheme(options.theme.value as AIPanelWidgetTheme, systemTheme.value),
+  );
 
   const containerClasses = computed(() => [
     "aipanel-widget",

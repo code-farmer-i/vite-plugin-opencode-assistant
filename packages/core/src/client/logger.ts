@@ -1,5 +1,6 @@
 import { LOG_PREFIX } from "../common/constants";
 import {
+  LEVEL_NAMES,
   LogLevel,
   type LogContext,
   getConfig,
@@ -12,14 +13,6 @@ import {
  * 浏览器端 logger（使用 %c CSS 样式，无 ANSI 颜色码、无 process.pid）
  * DEBUG → console.debug, INFO → console.log, WARN → console.warn, ERROR → console.error
  */
-
-const LEVEL_NAMES: Record<LogLevel, string> = {
-  [LogLevel.DEBUG]: "DEBUG",
-  [LogLevel.INFO]: "INFO ",
-  [LogLevel.WARN]: "WARN ",
-  [LogLevel.ERROR]: "ERROR",
-  [LogLevel.NONE]: "NONE ",
-};
 
 // 浏览器 console 颜色（对齐 ANSI 标准 16 色终端）
 const C = {
@@ -55,7 +48,7 @@ function log(level: LogLevel, message: string, context?: LogContext, ...args: un
   }
 
   // 级别（对应颜色）
-  segments.push(`%c${LEVEL_NAMES[level]}`);
+  segments.push(`%c${LEVEL_NAMES[level].padEnd(5)}`);
   styles.push(LEVEL_COLORS[level]);
 
   // 前缀（bright）

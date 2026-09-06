@@ -4,7 +4,7 @@ import {
   DEFAULT_RETRIES,
   RETRY_DELAY,
   CHROME_DEVTOOLS_PORT,
-  sleep,
+  withRetries,
   base64Encode,
 } from "@aipanel/core";
 import { PerformanceTimer, createLogger } from "@aipanel/core/node";
@@ -30,7 +30,7 @@ export class OpenCodeAPI {
     timeout?: number,
   ): Promise<T> {
     const timer = new PerformanceTimer("HTTP Request", {
-      operation: `${options.method || "GET"} ${options.path}`,
+      operation: `${options.method || "GET"} ${options.path}`
     });
 
     return new Promise((resolve, reject) => {
@@ -64,13 +64,15 @@ export class OpenCodeAPI {
     });
   }
 
-  async getSessions(projectDir: string, retries = DEFAULT_RETRIES): Promise<SessionInfo[]> {
-    const timer = log.timer("getSessions", { retries, projectDir });
-    let lastError: Error | null = null;
+  private retryLog(operation: string, n: number, error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    log.debug(`Attempt ${n} failed: ${message}, retrying in ${RETRY_DELAY}ms`, { operation });
+  }
 
-    for (let i = 0; i < retries; i++) {
-      try {
-        log.debug(`Attempt ${i + 1}/${retries}`, { operation: "getSessions", projectDir });
+  async getSessions(projectDir: string, retries = DEFAULT_RETRIES): Promise<SessionInfo[]> {
+    return withRetries(
+      async (attempt) => {
+        log.debug(`Attempt ${attempt + 1}/${retries}`, { operation: "getSessions", projectDir });
         const sessions = await this.createHttpRequest<SessionInfo[]>({
           hostname: this.hostname,
           port: this.getPort(),
@@ -80,24 +82,11 @@ export class OpenCodeAPI {
           ...s,
           url: s.directory && s.id ? this.buildSessionProxyUrl(s.directory, s.id) : "",
         }));
-        timer.end(`Found ${sessions.length} sessions`);
+        log.debug(`Found ${sessions.length} sessions`, { operation: "getSessions" });
         return sessionsWithUrl;
-      } catch (e) {
-        lastError = e instanceof Error ? e : new Error(String(e));
-        log.debug(`Attempt ${i + 1} failed: ${lastError.message}`, {
-          operation: "getSessions",
-        });
-        if (i < retries - 1) {
-          log.debug(`Retrying in ${RETRY_DELAY}ms...`, {
-            operation: "getSessions",
-          });
-          await sleep(RETRY_DELAY);
-        }
-      }
-    }
-
-    timer.end("❌ All retries exhausted");
-    throw lastError;
+      },
+      { attempts: retries, onRetry: (n, e) => this.retryLog("getSessions", n, e) },
+    );
   }
 
   async createSession(
@@ -105,12 +94,9 @@ export class OpenCodeAPI {
     retries = DEFAULT_RETRIES,
     title?: string,
   ): Promise<SessionInfo> {
-    const timer = log.timer("createSession", { retries, title, projectDir });
-    let lastError: Error | null = null;
-
-    for (let i = 0; i < retries; i++) {
-      try {
-        log.debug(`Attempt ${i + 1}/${retries}`, {
+    return withRetries(
+      async (attempt) => {
+        log.debug(`Attempt ${attempt + 1}/${retries}`, {
           operation: "createSession",
           title,
           projectDir,
@@ -132,33 +118,17 @@ export class OpenCodeAPI {
           ...session,
           url: this.buildSessionProxyUrl(projectDir, session.id),
         };
-        timer.end(`Created session: ${session.id}`);
+        log.debug(`Created session: ${session.id}`, { operation: "createSession" });
         return sessionWithUrl;
-      } catch (e) {
-        lastError = e instanceof Error ? e : new Error(String(e));
-        log.debug(`Attempt ${i + 1} failed: ${lastError.message}`, {
-          operation: "createSession",
-        });
-        if (i < retries - 1) {
-          log.debug(`Retrying in ${RETRY_DELAY}ms...`, {
-            operation: "createSession",
-          });
-          await sleep(RETRY_DELAY);
-        }
-      }
-    }
-
-    timer.end("❌ All retries exhausted");
-    throw lastError;
+      },
+      { attempts: retries, onRetry: (n, e) => this.retryLog("createSession", n, e) },
+    );
   }
 
   async deleteSession(sessionId: string, retries = DEFAULT_RETRIES): Promise<void> {
-    const timer = log.timer("deleteSession", { sessionId, retries });
-    let lastError: Error | null = null;
-
-    for (let i = 0; i < retries; i++) {
-      try {
-        log.debug(`Attempt ${i + 1}/${retries}`, {
+    await withRetries(
+      async (attempt) => {
+        log.debug(`Attempt ${attempt + 1}/${retries}`, {
           operation: "deleteSession",
           sessionId,
         });
@@ -168,83 +138,44 @@ export class OpenCodeAPI {
           path: `/session/${sessionId}`,
           method: "DELETE",
         });
-        timer.end(`Deleted session: ${sessionId}`);
-        return;
-      } catch (e) {
-        lastError = e instanceof Error ? e : new Error(String(e));
-        log.debug(`Attempt ${i + 1} failed: ${lastError.message}`, {
-          operation: "deleteSession",
-          sessionId,
-        });
-        if (i < retries - 1) {
-          log.debug(`Retrying in ${RETRY_DELAY}ms...`, {
-            operation: "deleteSession",
-            sessionId,
-          });
-          await sleep(RETRY_DELAY);
-        }
-      }
-    }
-
-    timer.end("❌ All retries exhausted");
-    throw lastError;
+        log.debug(`Deleted session: ${sessionId}`, { operation: "deleteSession" });
+      },
+      { attempts: retries, onRetry: (n, e) => this.retryLog("deleteSession", n, e) },
+    );
   }
 
   async getToolIds(retries = DEFAULT_RETRIES): Promise<string[]> {
-    const timer = log.timer("getToolIds", { retries });
-    let lastError: Error | null = null;
-
-    for (let i = 0; i < retries; i++) {
-      try {
-        log.debug(`Attempt ${i + 1}/${retries}`, {
-          operation: "getToolIds",
-        });
+    return withRetries(
+      async (attempt) => {
+        log.debug(`Attempt ${attempt + 1}/${retries}`, { operation: "getToolIds" });
         const toolIds = await this.createHttpRequest<string[]>({
           hostname: this.hostname,
           port: this.getPort(),
           path: "/experimental/tool/ids",
         });
-        timer.end(`Found ${toolIds.length} tools`);
+        log.debug(`Found ${toolIds.length} tools`, { operation: "getToolIds" });
         return toolIds;
-      } catch (e) {
-        lastError = e instanceof Error ? e : new Error(String(e));
-        log.debug(`Attempt ${i + 1} failed: ${lastError.message}`, {
-          operation: "getToolIds",
-        });
-        if (i < retries - 1) {
-          log.debug(`Retrying in ${RETRY_DELAY}ms...`, {
-            operation: "getToolIds",
-          });
-          await sleep(RETRY_DELAY);
-        }
-      }
-    }
-
-    timer.end("❌ All retries exhausted");
-    throw lastError;
+      },
+      { attempts: retries, onRetry: (n, e) => this.retryLog("getToolIds", n, e) },
+    );
   }
 
   async getOrCreateSession(projectDir: string): Promise<string> {
-    const timer = log.timer("getOrCreateSession", { projectDir });
-
     log.debug("Getting sessions...", { projectDir });
     const sessions = await this.getSessions(projectDir);
     log.debug(`Found ${sessions.length} sessions`, {
       sessions: sessions.map((s) => ({ id: s.id, directory: s.directory })),
     });
-
     const matchingSession = sessions.find((s) => s.directory === projectDir);
-
     if (matchingSession) {
       const url = this.buildSessionProxyUrl(projectDir, matchingSession.id);
-      timer.end(`Using existing session: ${matchingSession.id}`);
+      log.debug(`Using existing session: ${matchingSession.id}`, { operation: "getOrCreateSession" });
       return url;
     }
-
     log.debug("Creating new session...", { projectDir });
     const newSession = await this.createSession(projectDir);
     const url = this.buildSessionProxyUrl(projectDir, newSession.id);
-    timer.end(`Created new session: ${newSession.id}`);
+    log.debug(`Created new session: ${newSession.id}`, { operation: "getOrCreateSession" });
     return url;
   }
 }

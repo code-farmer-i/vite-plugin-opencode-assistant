@@ -10,14 +10,15 @@ const log = createLogger("AIPanel CS");
  * 服务检测已迁移至 Background Service Worker（轮询 /__aipanel_start__）。
  * UI 在 Side Panel 中渲染。
  */
-const INIT_MARKER = "__AIPANEL_EXTENSION_INITIALIZED__";
+/** Content Script 单实例标记（与 core INIT_MARKER 不同事，避免同名遮蔽） */
+const EXTENSION_INIT_MARKER = "__AIPANEL_EXTENSION_INITIALIZED__";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const win = window as any;
 
-if (win[INIT_MARKER]) {
+if (win[EXTENSION_INIT_MARKER]) {
   log.warn("Content Script 已初始化，跳过");
 } else {
-  win[INIT_MARKER] = true;
+  win[EXTENSION_INIT_MARKER] = true;
   log.debug("Content Script 已启动", { url: location.href });
 
   // ========== 页面上下文同步 ==========

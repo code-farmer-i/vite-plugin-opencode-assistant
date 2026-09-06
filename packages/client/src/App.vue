@@ -6,7 +6,15 @@ import type {
   AIPanelSelectedElement,
 } from "@aipanel/core";
 import type { WidgetOptions } from "@aipanel/core";
-import { WIDGET_MSG, WARMUP_API_PATH, START_API_PATH, ensureNodeId } from "@aipanel/core";
+import {
+  WIDGET_MSG,
+  WARMUP_API_PATH,
+  START_API_PATH,
+  DEFAULT_HOSTNAME,
+  DEFAULT_PROXY_PORT,
+  AUTO_OPEN_DELAY,
+  ensureNodeId,
+} from "@aipanel/core";
 import { createLogger } from "@aipanel/core/client";
 
 import { useHotkey } from "./composables/useHotkey";
@@ -39,7 +47,7 @@ const {
   theme: initialTheme = "auto",
   open: autoOpen = false,
   hotkey = "ctrl+k",
-  proxyPort = 6097,
+  proxyPort = DEFAULT_PROXY_PORT,
   displayMode = "bubble",
   splitMode,
   vitePort = "",
@@ -57,7 +65,7 @@ const isExtensionMode = displayMode === "extension";
 const isExtensionSelectorMode = displayMode === "extension-selector";
 
 // 构建绝对 URL，用于绕过全局 monkey-patch（多实例场景下每个实例有独立的 vitePort）
-const viteBaseUrl = computed(() => vitePort ? `http://127.0.0.1:${vitePort}` : "");
+const viteBaseUrl = computed(() => vitePort ? `http://${DEFAULT_HOSTNAME}:${vitePort}` : "");
 
 // 构建请求 URL（扩展模式下用绝对 URL，否则用相对路径走 monkey-patch）
 const apiPath = (path: string) => viteBaseUrl.value ? `${viteBaseUrl.value}${path}` : path;
@@ -379,7 +387,7 @@ onMounted(() => {
   if (autoOpen && serviceStatus.value === "ready") {
     setTimeout(() => {
       open.value = true;
-    }, 1000);
+    }, AUTO_OPEN_DELAY);
   }
 
   // 监听 iframe 消息（主题同步和键盘事件）

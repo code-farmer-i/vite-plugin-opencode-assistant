@@ -4,6 +4,8 @@
  * 代理层校验 pageId 是否为项目页面后方可调用 chrome-devtools-mcp。
  */
 
+import { WIDGET_THEME_MODES } from "@aipanel/core";
+
 export interface CustomTool {
   name: string;
   description: string;
@@ -295,7 +297,7 @@ export const CUSTOM_TOOLS: CustomTool[] = [
         userAgent: { type: "string", description: "UA 字符串，空字符串清除" },
         colorScheme: {
           type: "string",
-          enum: ["dark", "light", "auto"],
+          enum: [...WIDGET_THEME_MODES],
           description: '颜色方案，"auto" 恢复默认',
         },
         viewport: {

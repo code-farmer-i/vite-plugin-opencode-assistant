@@ -1,4 +1,4 @@
-import { DEFAULT_HOSTNAME, EXT_MSG, EXT_BROADCAST, START_API_PATH } from "@aipanel/core";
+import { DEFAULT_HOSTNAME, EXT_MSG, EXT_BROADCAST, SERVER_SYNC_INTERVAL, START_API_PATH } from "@aipanel/core";
 import type { AIPanelServiceInfo } from "@aipanel/core";
 import { createLogger } from "@aipanel/core/client";
 
@@ -7,8 +7,8 @@ const log = createLogger("AIPanel BG");
 /** 需要从 Content Script 转发到 Side Panel 的消息类型 */
 const FORWARD_TYPES = new Set<string>([EXT_BROADCAST.PAGE_CONTEXT, EXT_BROADCAST.THEME_CHANGE]);
 
-/** 轮询间隔（毫秒） */
-const POLL_INTERVAL = 2000;
+/** 轮询间隔（毫秒）：统一引用 core SERVER_SYNC_INTERVAL */
+const POLL_INTERVAL = SERVER_SYNC_INTERVAL;
 
 // ========== 工具 ==========
 

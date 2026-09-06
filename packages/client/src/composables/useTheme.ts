@@ -1,6 +1,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from "vue";
 import type { AIPanelWidgetTheme } from "@aipanel/core";
 import { WIDGET_MSG } from "@aipanel/core";
+import { resolveWidgetTheme } from "@aipanel/core/client";
 
 interface WidgetRef {
   sendMessageToIframe: (type: string, data?: Record<string, unknown>) => void;
@@ -9,12 +10,7 @@ interface WidgetRef {
 export function useTheme(initialTheme: AIPanelWidgetTheme, widgetRef: { value: WidgetRef | null }) {
   const theme = ref<AIPanelWidgetTheme>(initialTheme);
 
-  const resolvedTheme = computed(() => {
-    if (theme.value === "auto") {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-    }
-    return theme.value;
-  });
+  const resolvedTheme = computed(() => resolveWidgetTheme(theme.value));
 
   const sendThemeToIframe = () => {
     widgetRef.value?.sendMessageToIframe(WIDGET_MSG.SET_THEME, {

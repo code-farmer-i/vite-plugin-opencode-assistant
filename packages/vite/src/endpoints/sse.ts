@@ -1,5 +1,5 @@
 import type { ViteDevServer } from "vite";
-import { SSE_EVENTS_PATH } from "@aipanel/core";
+import { SSE_EVENT_TYPES, SSE_EVENTS_PATH } from "@aipanel/core";
 import { RequestContext, createLogger } from "@aipanel/core/node";
 import type { EndpointContext } from "./types";
 
@@ -19,10 +19,10 @@ export function setupSseEndpoint(server: ViteDevServer, ctx: EndpointContext) {
     ctx.sseClients.add(res);
     log.debug("SSE client connected", { totalClients: ctx.sseClients.size });
 
-    res.write(`data: ${JSON.stringify({ type: "CONNECTED" })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: SSE_EVENT_TYPES.CONNECTED })}\n\n`);
 
     // 推送当前完整状态（包括服务状态和任务）
-    const statusPayload: Record<string, unknown> = { type: "STATUS_SYNC" };
+    const statusPayload: Record<string, unknown> = { type: SSE_EVENT_TYPES.STATUS_SYNC };
     if (ctx.isServiceStarted !== undefined) {
       statusPayload.isStarted = ctx.isServiceStarted;
     }

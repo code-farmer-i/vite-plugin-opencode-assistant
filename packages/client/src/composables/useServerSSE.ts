@@ -1,6 +1,7 @@
 import {
   ServiceStartupTask,
   SSE_EVENTS_PATH,
+  SSE_EVENT_TYPES,
   type ProviderEvent,
 } from "@aipanel/core";
 import { createLogger } from "@aipanel/core/client";
@@ -12,7 +13,7 @@ const log = createLogger("ServerSSE");
  * Server SSE 状态同步数据
  */
 export interface ServerSSEStatusSyncData {
-  type: "STATUS_SYNC";
+  type: typeof SSE_EVENT_TYPES.STATUS_SYNC;
   isStarted?: boolean;
   task: ServiceStartupTask;
   errorType?: string;
@@ -23,7 +24,7 @@ export interface ServerSSEStatusSyncData {
  * Server SSE 任务更新数据
  */
 export interface ServerSSETaskUpdateData {
-  type: "TASK_UPDATE";
+  type: typeof SSE_EVENT_TYPES.TASK_UPDATE;
   task: ServiceStartupTask;
   errorType?: string;
   errorMessage?: string;
@@ -33,7 +34,7 @@ export interface ServerSSETaskUpdateData {
  * Server SSE 会话事件数据（Provider 归一化事件）
  */
 export interface ServerSSESessionEventData {
-  type: "SESSION_EVENT";
+  type: typeof SSE_EVENT_TYPES.SESSION_EVENT;
   event: ProviderEvent;
 }
 
@@ -41,11 +42,11 @@ export interface ServerSSESessionEventData {
  * Server SSE 消息类型
  */
 export type ServerSSEMessage =
-  | { type: "CONNECTED" }
+  | { type: typeof SSE_EVENT_TYPES.CONNECTED }
   | ServerSSEStatusSyncData
   | ServerSSETaskUpdateData
   | ServerSSESessionEventData
-  | { type: "CLEAR_ELEMENTS" };
+  | { type: typeof SSE_EVENT_TYPES.CLEAR_ELEMENTS };
 
 /**
  * Server SSE 配置选项
@@ -97,20 +98,20 @@ export function useServerSSE(options: ServerSSEOptions = {}) {
       const message = data as ServerSSEMessage;
 
       switch (message.type) {
-        case "CONNECTED":
+        case SSE_EVENT_TYPES.CONNECTED:
           log.debug(`CONNECTED message received: ${endpoint}`);
           onConnected?.();
           break;
-        case "STATUS_SYNC":
+        case SSE_EVENT_TYPES.STATUS_SYNC:
           onStatusSync?.(message);
           break;
-        case "TASK_UPDATE":
+        case SSE_EVENT_TYPES.TASK_UPDATE:
           onTaskUpdate?.(message);
           break;
-        case "SESSION_EVENT":
+        case SSE_EVENT_TYPES.SESSION_EVENT:
           onSessionEvent?.(message.event);
           break;
-        case "CLEAR_ELEMENTS":
+        case SSE_EVENT_TYPES.CLEAR_ELEMENTS:
           onClearElements?.();
           break;
       }

@@ -1,6 +1,7 @@
 /**
  * @fileoverview 通用工具函数
  */
+import { DEFAULT_RETRIES, RETRY_DELAY } from "./constants";
 
 /**
  * 取（或生成）元素的节点唯一 id：优先复用已赋值的 id，否则生成随机 id 并写回元素。
@@ -110,4 +111,72 @@ export function extractTextFromResponse(data: unknown): string | null {
   }
 
   return null;
+}
+const NODE_MENTION_RE = /@节点\[(n[0-9a-z]+)\]/g;
+
+/**
+ * 生成节点提及标记 `@节点[n<id>]`（与 ensureNodeId 分配的 n<hex> id 体系一致）
+ */
+export function toNodeMention(id: string): string {
+  return `@节点[${id}]`;
+}
+
+/**
+ * 从文本中提取全部节点提及 id（去重、保序）
+ */
+export function parseNodeMentions(text: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const m of text.matchAll(NODE_MENTION_RE)) {
+    const id = m[1];
+    if (!seen.has(id)) {
+      seen.add(id);
+      out.push(id);
+    }
+  }
+  return out;
+}
+
+/**
+ * 构造 iframe postMessage 信封：{ type, ...data }（AIPanel 挂件与 dsh-client 共用同一形状）
+ */
+export function widgetEnvelope(
+  type: string,
+  data?: Record<string, unknown>,
+): Record<string, unknown> {
+  return { type, ...data };
+}
+/** 重试配置 */
+export interface RetryOptions {
+  /** 总尝试次数（默认 core DEFAULT_RETRIES） */
+  attempts?: number;
+  /** 失败后连续尝试间隔毫秒（默认 core RETRY_DELAY） */
+  delayMs?: number;
+  /** 每次失败、重试前回调（attempt 为 1-based） */
+  onRetry?: (attempt: number, error: unknown) => void;
+}
+
+/**
+ * 带线性重试的执行包裹：执行 fn 直到成功或尝试完毕；最后一次失败原样抛出。
+ * 环境无关（仅使用 setTimeout），放于 common 供浏览器与 node 共用。
+ */
+export async function withRetries<T>(
+  fn: (attempt: number) => Promise<T>,
+  options: RetryOptions = {},
+): Promise<T> {
+  const attempts = options.attempts ?? DEFAULT_RETRIES;
+  const delayMs = options.delayMs ?? RETRY_DELAY;
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn(i);
+    } catch (e) {
+      lastError = e;
+      if (i < attempts - 1) {
+        options.onRetry?.(i + 1, e);
+        if (delayMs > 0) await sleep(delayMs);
+      }
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }

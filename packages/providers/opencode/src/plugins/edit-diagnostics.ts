@@ -20,24 +20,26 @@ import {
   runProjectDiagnostics,
   formatDiagnosticsSections,
   isJsFile,
+  MUTATING_TOOLS,
+  OPENCODE_ENV,
   DIAGNOSTICS_TOOL_DESCRIPTION,
   type DiagnosticItem,
 } from "@aipanel/core/node";
 
 // 子进程通过环境变量接收 verbose 配置
-if (process.env.OPENCODE_VERBOSE === "1") {
+if (process.env[OPENCODE_ENV.VERBOSE] === "1") {
   setVerbose(true);
 }
 
 const log = createLogger("EditDiagnostics");
 
-const EDIT_TOOLS = new Set(["edit", "write", "apply_patch"]);
-const isLintEnabled = () => process.env.OPENCODE_ENABLE_LINT === "1";
+const EDIT_TOOLS = MUTATING_TOOLS; // 单一来源 @aipanel/core：与 dsh 插件共用同一写类工具名单
+const isLintEnabled = () => process.env[OPENCODE_ENV.ENABLE_LINT] === "1";
 
 export default {
   id: "vite-plugin-aipanel/edit-diagnostics",
   async server(): Promise<Hooks> {
-    const workspace = process.env.OPENCODE_WORKSPACE || process.cwd();
+    const workspace = process.env[OPENCODE_ENV.WORKSPACE] || process.cwd();
 
     // 定义 run_diagnostics 工具，让 agent 可以主动触发诊断
     const runDiagnosticsTool = tool({

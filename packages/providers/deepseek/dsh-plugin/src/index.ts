@@ -40,6 +40,7 @@ import {
   type TscResult,
 } from "@aipanel/core/node";
 import type { AIPanelDiagnosticEntry, SelectedElement } from "@aipanel/core";
+import { MUTATING_TOOLS, OPENCODE_ENV, parseNodeMentions } from "@aipanel/core";
 import type { SettingsProvider } from "@deepseek-ai/dsh-settings";
 import { setupEventRelay } from "./events-relay";
 
@@ -83,17 +84,6 @@ export interface AipanelPluginConfig {
   busyEnter?: "queue" | "steer";
 }
 
-const MUTATING_TOOLS = new Set(["write", "edit", "apply_patch"]);
-
-
-/** 提取文本中的全部节点 id（`@节点[n<id>]` 标记） */
-function collectNodeIds(text: string): string[] {
-  const ids: string[] = [];
-  const re = new RegExp("@节点\\[(n[0-9a-z]+)\\]", "g");
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(text)) !== null) ids.push(m[1]);
-  return ids;
-}
 
 /** 把单个选中元素组织成注入给 agent 的上下文文本块；开头带节点 id 供 agent 与消息标记关联 */
 function buildNodeContext(e: SelectedElement): string {
@@ -247,7 +237,7 @@ export function apply(ctx: Context, config: AipanelPluginConfig = {}) {
   // 诊断功能总开关：关闭时不注入 run_diagnostics 工具与自动诊断逻辑
   const enableDiagnostics = config.enableDiagnostics ?? false;
   // 与 opencode 对齐：默认关闭自动诊断，OPENCODE_ENABLE_LINT=1（或显式配置）开启
-  const autoDiagnose = config.autoDiagnose ?? process.env.OPENCODE_ENABLE_LINT === "1";
+  const autoDiagnose = config.autoDiagnose ?? process.env[OPENCODE_ENV.ENABLE_LINT] === "1";
   const vitePort = config.vitePort ?? 0;
   const contextApiPath = config.contextApiPath ?? CONTEXT_API_PATH;
 
@@ -413,7 +403,7 @@ export function apply(ctx: Context, config: AipanelPluginConfig = {}) {
           if (message.source.kind !== "user") continue;
           for (const block of message.content) {
             if (block.type !== "text") continue;
-            for (const id of collectNodeIds(block.text)) ids.add(id);
+            for (const id of parseNodeMentions(block.text)) ids.add(id);
           }
         }
         if (ids.size === 0) return decision;

@@ -166,6 +166,9 @@ export const LOGS_API_PATH = "/__aipanel_process_logs__";
 /** Widget 样式路径 */
 export const WIDGET_STYLE_PATH = "/__aipanel_widget__.css";
 
+/** Vue DevTools API 路径 */
+export const VUE_DEVTOOLS_API_PATH = "/__aipanel_vue_devtools__";
+
 /** ==================== 文本处理 ==================== */
 
 /** 元素文本最大显示长度 */
@@ -202,3 +205,39 @@ export const VUE_DEVTOOLS_ACTIONS = {
 } as const;
 
 export type VueDevtoolsAction = (typeof VUE_DEVTOOLS_ACTIONS)[keyof typeof VUE_DEVTOOLS_ACTIONS];
+
+/** ==================== 写类工具名单 ==================== */
+
+/** 会修改文件的工具名（host 插件与编辑后自动诊断共用的单一来源） */
+export const MUTATING_TOOLS: ReadonlySet<string> = new Set(["write", "edit", "apply_patch"]);
+
+/** ==================== 挂件主题 ==================== */
+
+/** 挂件主题可选值（对应 AIPanelWidgetTheme） */
+export const WIDGET_THEME_MODES = ["auto", "light", "dark"] as const;
+
+/** ==================== OpenCode 环境变量名 ==================== */
+
+/** OpenCode 相关环境变量名（opencode provider 写、es/plugins 与 dsh-plugin 读，统一引用防止字面量漂移） */
+export const OPENCODE_ENV = {
+  CONFIG_DIR: "OPENCODE_CONFIG_DIR",
+  CONTEXT_API_URL: "OPENCODE_CONTEXT_API_URL",
+  VITE_LOGS_API_URL: "OPENCODE_VITE_LOGS_API_URL",
+  LOG_FILES_JSON: "OPENCODE_LOG_FILES_JSON",
+  VERBOSE: "OPENCODE_VERBOSE",
+  ENABLE_LINT: "OPENCODE_ENABLE_LINT",
+  VUE_DEVTOOLS_API_URL: "OPENCODE_VUE_DEVTOOLS_API_URL",
+  WORKSPACE: "OPENCODE_WORKSPACE",
+} as const;
+
+/** ==================== SSE 事件流消息类型 ==================== */
+
+/** 服务端 → 客户端 SSE 信封 type 字段（vite endpoints 写、client useServerSSE 读） */
+export const SSE_EVENT_TYPES = {
+  CONNECTED: "CONNECTED",
+  STATUS_SYNC: "STATUS_SYNC",
+  TASK_UPDATE: "TASK_UPDATE",
+  SESSION_EVENT: "SESSION_EVENT",
+  CLEAR_ELEMENTS: "CLEAR_ELEMENTS",
+} as const;
+export type SSEEventType = (typeof SSE_EVENT_TYPES)[keyof typeof SSE_EVENT_TYPES];

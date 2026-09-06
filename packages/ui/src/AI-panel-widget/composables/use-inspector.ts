@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 /// <reference lib="dom.iterable" />
 import { ref, watch, onMounted, onUnmounted, nextTick, type Ref } from "vue";
-import { truncate } from "@aipanel/core";
+import { INSPECTOR_CHECK_INTERVAL, truncate } from "@aipanel/core";
 import getCssSelector from "css-selector-generator";
 import type { AIPanelSelectedElement } from "../src/types";
 
@@ -317,7 +317,7 @@ export function useInspector(options: UseInspectorOptions) {
   const tooltipStyle = ref({ top: "0px", left: "0px" });
   const tooltipContent = ref({ description: "", fileInfo: "" });
 
-  const INSPECTOR_CHECK_INTERVAL = 500;
+  
   let inspectorCheckTimer: number | null = null;
   let currentPrimary = "#3b82f6";
   let currentPrimaryBg = "rgba(59, 130, 246, 0.1)";

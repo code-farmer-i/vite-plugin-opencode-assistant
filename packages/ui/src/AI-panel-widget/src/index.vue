@@ -12,7 +12,7 @@ import { useSplitMode } from "../composables/use-split";
 import type { AIPanelWidgetEmits, AIPanelWidgetProps } from "./types";
 import { provideAIPanelWidgetContext } from "./context";
 import type { FloatingBubbleOffset } from "./components/FloatingBubble/types";
-import { WIDGET_MSG } from "@aipanel/core";
+import { NOTIFICATION_DURATION, WIDGET_MSG } from "@aipanel/core";
 
 defineOptions({
   name: "AIPanelWidget",
@@ -56,7 +56,7 @@ const notificationMode = ref<"widget" | "page">("widget");
 let notificationTimer: ReturnType<typeof setTimeout> | null = null;
 
 const showNotification = (message: string, options?: { duration?: number; mode?: "widget" | "page"; }) => {
-  const { duration = 3000, mode = "widget" } = options || {};
+  const { duration = NOTIFICATION_DURATION, mode = "widget" } = options || {};
   notificationMessage.value = message;
   notificationVisible.value = true;
   notificationMode.value = mode;

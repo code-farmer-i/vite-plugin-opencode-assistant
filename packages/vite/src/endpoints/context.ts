@@ -1,5 +1,5 @@
 import type { ViteDevServer } from "vite";
-import { CONTEXT_API_PATH } from "@aipanel/core";
+import { CONTEXT_API_PATH, SSE_EVENT_TYPES } from "@aipanel/core";
 import type { PageContext } from "@aipanel/core";
 import { RequestContext, createLogger } from "@aipanel/core/node";
 import { ensureNodeId } from "@aipanel/core";
@@ -38,7 +38,7 @@ export function setupContextEndpoint(server: ViteDevServer, ctx: EndpointContext
       let sentCount = 0;
       ctx.sseClients.forEach((client) => {
         try {
-          client.write(`data: ${JSON.stringify({ type: "CLEAR_ELEMENTS" })}\n\n`);
+          client.write(`data: ${JSON.stringify({ type: SSE_EVENT_TYPES.CLEAR_ELEMENTS })}\n\n`);
           sentCount++;
         } catch (e) {
           log.debug("Failed to send SSE message", { error: e });

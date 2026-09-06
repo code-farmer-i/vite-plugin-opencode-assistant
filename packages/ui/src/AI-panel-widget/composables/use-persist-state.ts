@@ -1,9 +1,7 @@
 import { watch, onMounted, type Ref } from "vue";
-import { createLogger } from "@aipanel/core/client";
+import { storageGet, storageSet } from "@aipanel/core/client";
 import type { FloatingBubbleOffset } from "../src/components/FloatingBubble/types";
 import type { AIPanelWidgetTheme, DisplayMode } from "../src/types";
-
-const log = createLogger("AIPanelWidget");
 
 export interface WidgetPersistState {
   open: boolean;
@@ -21,25 +19,11 @@ export interface WidgetPersistState {
 const STORAGE_KEY = "aipanel-widget-state";
 
 function loadState(): Partial<WidgetPersistState> | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (e) {
-    log.error("Failed to load persisted state:", { error: e });
-  }
-  return null;
+  return storageGet<Partial<WidgetPersistState>>("local", STORAGE_KEY);
 }
 
 function saveState(state: WidgetPersistState): void {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch (e) {
-    log.error("Failed to save state:", { error: e });
-  }
+  storageSet("local", STORAGE_KEY, state);
 }
 
 export interface UsePersistStateOptions {

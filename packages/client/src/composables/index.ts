@@ -6,4 +6,3 @@ export { useSessionsAndCapabilities } from "./useSessionsAndCapabilities";
 export { useTheme } from "./useTheme";
 export { useSelectedElements } from "./useSelectedElements";
 export { useServiceStatus } from "./useServiceStatus";
-export { useContext } from "./useContext";

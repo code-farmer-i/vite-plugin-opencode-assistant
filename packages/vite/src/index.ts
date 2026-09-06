@@ -26,7 +26,7 @@ import {
   resolveWidgetStylePath,
   resolveVueDevtoolsBridgePath,
 } from "./utils/paths";
-import { findGitRoot } from "./utils/system";
+import { findGitRoot } from "@aipanel/core/node";
 
 export type { PluginOptions } from "@aipanel/core";
 export type { OpenCodeProviderOptions } from "@aipanel/provider-opencode";
@@ -49,15 +49,15 @@ const BRIDGE_SOURCE_PATH = resolveVueDevtoolsBridgePath();
 
 /**
  * 纯净 MCP 模式专用的静默上下文上报脚本（无任何 UI 副作用）。
- * 复刻挂件（useContext）的上报协议：POST { url, title, sessionId } 到 /__aipanel_context__，
+ * 与 client 页面上下文上报同协议：POST { url, title, sessionId } 到 CONTEXT_API_PATH，
  * 让 chrome-devtools_current_page 等工具在无挂件/无扩展时也能感知当前浏览页面。
- * sessionId 取自 titleInject 写入的 sessionStorage._aipanel_pk，与后端定位逻辑配对。
+ * sessionId 取自 titleInject 写入的 sessionStorage[SESSION_ID_KEY]，与后端定位逻辑配对。
  * 多标签场景：通过 visibilitychange 只在当前可见标签上报（force 覆盖去重），
  * 使 current_page 跟随用户实际浏览的标签，而不是最后加载的标签。
  */
 const SILENT_CONTEXT_SCRIPT = `<script>
 (function () {
-  var API = "/__aipanel_context__";
+  var API = "${CONTEXT_API_PATH}";
   var last = "";
   function report(force) {
     if (document.visibilityState !== "visible") return;

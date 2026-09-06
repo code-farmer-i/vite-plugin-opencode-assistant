@@ -5,12 +5,12 @@
 import type { ViteDevServer } from "vite";
 import { createLogger } from "@aipanel/core/node";
 import type { McpProxy } from "../core/mcp-proxy";
-import { VUE_DEVTOOLS_ACTIONS } from "@aipanel/core";
+import { VUE_DEVTOOLS_ACTIONS, VUE_DEVTOOLS_API_PATH } from "@aipanel/core";
 import { getProjectOrigins, validatePageId } from "../core/mcp-chrome";
 
 const log = createLogger("Endpoints:VueDevtools");
 
-export const VUE_DEVTOOLS_API_PATH = "/__aipanel_vue_devtools__";
+export { VUE_DEVTOOLS_API_PATH };
 
 export function setupVueDevtoolsEndpoint(server: ViteDevServer, mcp: McpProxy) {
   server.middlewares.use(VUE_DEVTOOLS_API_PATH, async (req, res) => {

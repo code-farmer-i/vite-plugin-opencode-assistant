@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { useAIPanelWidgetContext } from "../context";
+import { widgetEnvelope } from "@aipanel/core";
 
 const iframeRef = ref<HTMLIFrameElement | null>(null);
 
@@ -17,7 +18,7 @@ const {
 
 function sendMessageToIframe(type: string, data?: Record<string, unknown>) {
   if (!iframeRef.value?.contentWindow) return;
-  iframeRef.value.contentWindow.postMessage({ type, ...data }, "*");
+  iframeRef.value.contentWindow.postMessage(widgetEnvelope(type, data), "*");
 }
 
 defineExpose({

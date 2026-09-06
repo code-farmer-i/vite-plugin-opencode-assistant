@@ -12,4 +12,3 @@ export type {
   SplitModeOptions,
 } from "@aipanel/core";
 
-export type AIPanelWidgetThemeLocal = "light" | "dark" | "auto";

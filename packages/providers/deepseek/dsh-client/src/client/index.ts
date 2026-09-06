@@ -23,7 +23,7 @@ import type {
   InputTriggerSource,
   ReferenceInsert,
 } from "@deepseek-ai/dsh-client-ui-input-trigger/client";
-import { WIDGET_MSG } from "@aipanel/core";
+import { ensureNodeId, toNodeMention, widgetEnvelope, WIDGET_MSG } from "@aipanel/core";
 import type { AIPanelSelectedElement, AIPanelWidgetTheme } from "@aipanel/core";
 import type { ISessions, SessionListState } from "@deepseek-ai/dsh-api-session-controller/client";
 import type { SessionId } from "@deepseek-ai/dsh-session/types";
@@ -72,21 +72,6 @@ const SESSION_SETTLE_MS = 400;
 const FOCUS_OPEN_MAX_ATTEMPTS = 3;
 
 
-/**
- * 取（或生成）元素的节点唯一 id：优先复用已赋值的 id（AIPanel App.vue 分配后随
- * 消息下发），否则兜底生成随机 id 并写回元素。id 与核心层 selectedElements 一致，
- * host 端 dsh-plugin 据此反查并注入上下文。
- */
-function ensureNodeId(e: AIPanelSelectedElement): string {
-  if (e.id) return e.id;
-  const random =
-    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID().replace(/-/g, "").slice(0, 8)
-      : Math.random().toString(36).slice(2, 10);
-  e.id = `n${random}`;
-  return e.id;
-}
-
 /** 不透明引用：携带完整元素上下文（提交时由 codec.serialize 还原成全文） */
 function elementContextRef(e: AIPanelSelectedElement): string {
   return JSON.stringify(e);
@@ -97,7 +82,7 @@ function serializeElement(ref: string): string {
   try {
     const e = JSON.parse(ref) as AIPanelSelectedElement;
     if (!e || typeof e !== "object") throw new Error("not an element payload");
-    return `@节点[${ensureNodeId(e)}]`;
+    return toNodeMention(ensureNodeId(e));
   } catch {
     return `@${ref}`;
   }
@@ -128,7 +113,7 @@ function isEmbedded(): boolean {
 function postToHost(type: string, data: Record<string, unknown> = {}): void {
   if (!isEmbedded()) return;
   try {
-    window.parent.postMessage({ type, ...data }, "*");
+    window.parent.postMessage(widgetEnvelope(type, data), "*");
   } catch {
     /* ignore */
   }

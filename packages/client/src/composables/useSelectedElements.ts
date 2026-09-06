@@ -1,6 +1,7 @@
 import { ref, watch } from "vue";
 import type { AIPanelSelectedElement } from "@aipanel/core";
 import { SELECTED_ELEMENTS_KEY } from "@aipanel/core";
+import { storageGet, storageSet } from "@aipanel/core/client";
 
 export function useSelectedElements(serviceInstanceId = "") {
   const storageKey = serviceInstanceId
@@ -8,19 +9,15 @@ export function useSelectedElements(serviceInstanceId = "") {
     : SELECTED_ELEMENTS_KEY;
   const selectedElements = ref<AIPanelSelectedElement[]>([]);
 
-  try {
-    const stored = sessionStorage.getItem(storageKey);
-    if (stored) {
-      selectedElements.value = JSON.parse(stored);
-    }
-  } catch {
-    // ignore
+  const stored = storageGet<AIPanelSelectedElement[]>("session", storageKey);
+  if (stored) {
+    selectedElements.value = stored;
   }
 
   watch(
     selectedElements,
     (val) => {
-      sessionStorage.setItem(storageKey, JSON.stringify(val));
+      storageSet("session", storageKey, val);
     },
     { deep: true },
   );

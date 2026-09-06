@@ -30,6 +30,15 @@ const {
   handleCreateSession,
 } = useAIPanelWidgetContext();
 
+const DISPLAY_MODE_LABELS: Record<string, string> = {
+  bubble: "气泡模式",
+  split: "分屏模式",
+  auto: "自动模式",
+  extension: "扩展模式",
+  "extension-selector": "扩展选择器模式",
+};
+const DISPLAY_CYCLE = ["bubble", "split", "auto"] as const;
+
 const isSplitMode = computed(() => mode.value === "split");
 
 const themeIconTitle = computed(() => {
@@ -51,28 +60,13 @@ const themeIconLabel = computed(() => {
 });
 
 const displayModeIconTitle = computed(() => {
-  const displayModeLabels: Record<string, string> = {
-    bubble: "气泡模式",
-    split: "分屏模式",
-    auto: "自动模式",
-    extension: "扩展模式",
-    "extension-selector": "扩展选择器模式",
-  };
-  return `展示模式: ${displayModeLabels[displayMode.value]}`;
+  return `展示模式: ${DISPLAY_MODE_LABELS[displayMode.value]}`;
 });
 
 const displayModeIconLabel = computed(() => {
-  const displayModeLabels: Record<string, string> = {
-    bubble: "气泡模式",
-    split: "分屏模式",
-    auto: "自动模式",
-    extension: "扩展模式",
-    "extension-selector": "扩展选择器模式",
-  };
-  const modes = ["bubble", "split", "auto"];
-  const currentIndex = modes.indexOf(displayMode.value as "bubble" | "split" | "auto");
-  const nextMode = modes[(currentIndex + 1) % modes.length] as keyof typeof displayModeLabels;
-  return `切换展示模式 - 下一个: ${displayModeLabels[nextMode]}`;
+  const currentIndex = DISPLAY_CYCLE.indexOf(displayMode.value as (typeof DISPLAY_CYCLE)[number]);
+  const nextMode = DISPLAY_CYCLE[(currentIndex + 1) % DISPLAY_CYCLE.length];
+  return `切换展示模式 - 下一个: ${DISPLAY_MODE_LABELS[nextMode]}`;
 });
 
 const splitPositionIconTitle = computed(() => {

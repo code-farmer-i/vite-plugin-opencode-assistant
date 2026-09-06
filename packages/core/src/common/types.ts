@@ -2,6 +2,7 @@
  * 通用类型（Provider 无关）
  * Provider 专属类型已下沉至 @aipanel/provider-opencode。
  */
+import type { SessionStatus } from "./provider";
 
 /**
  * 展示模式类型
@@ -165,9 +166,9 @@ export type AIPanelWidgetTheme = "light" | "dark" | "auto";
 export type ServiceStatus = "idle" | "starting" | "ready" | "partial" | "failed";
 
 /**
- * Session 状态类型
+ * Session 状态类型（别名：以 ./provider 的 SessionStatus 为单一来源）
  */
-export type AIPanelSessionStatusType = "idle" | "running" | "streaming" | "completed";
+export type AIPanelSessionStatusType = SessionStatus;
 
 /**
  * Session 思考状态
@@ -191,19 +192,9 @@ export interface AIPanelWidgetSession {
 }
 
 /**
- * 挂件选中的元素
+ * 挂件选中的元素（别名：与 host 端 SelectedElement 同构，单一来源为本文件上方的 SelectedElement）
  */
-export interface AIPanelSelectedElement {
-  /** 节点唯一 id（与 SelectedElement.id 同源，`@节点[n<id>]` 标记与上下文注入共用） */
-  id?: string;
-  filePath: string | null;
-  line: number | null;
-  column: number | null;
-  innerText: string;
-  description?: string;
-  /** 用户选中节点时的页面 URL（AIPanel 附加；host 端上下文注入用） */
-  previewPageUrl?: string;
-}
+export type AIPanelSelectedElement = SelectedElement;
 
 /**
  * 单条代码诊断（1-based 行列坐标）——AIPanel 诊断工具（run_diagnostics 等）的

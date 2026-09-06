@@ -18,6 +18,8 @@ import {
   createLogger,
 } from "@aipanel/core/node";
 import type { AIPanelWidgetTheme } from "@aipanel/core";
+import { DSH_LOOPBACK_HOST } from "./constants";
+import { DSH_CLIENT_PACKAGE, DSH_PLUGIN_PACKAGE } from "./dsh-install";
 import type { DeepSeekBusyEnter, DeepSeekPermissionPreset } from "./types";
 
 const log = createLogger("DeepSeekProfile");
@@ -68,7 +70,7 @@ export function buildDshOverlay(options: {
     busyEnter,
     theme = "auto",
   } = options;
-  const mcpUrl = `http://127.0.0.1:${vitePort}${MCP_API_PATH}`;
+  const mcpUrl = `http://${DSH_LOOPBACK_HOST}:${vitePort}${MCP_API_PATH}`;
 
   const rows: string[] = [];
 
@@ -91,7 +93,7 @@ export function buildDshOverlay(options: {
   rows.push(
     [
       "    - id: aipanel",
-      "      name: '@aipanel/dsh-plugin'",
+      `      name: ${JSON.stringify(DSH_PLUGIN_PACKAGE)}`,
       ...(pluginAvailable ? [] : ["      disabled: true"]),
       "      inject: [tools]",
       "      config:",
@@ -124,7 +126,7 @@ export function buildDshOverlay(options: {
   rows.push(
     [
       "    - id: aipanel-client",
-      "      name: '@aipanel/dsh-client'",
+      `      name: ${JSON.stringify(DSH_CLIENT_PACKAGE)}`,
       ...(clientAvailable ? [] : ["      disabled: true"]),
       "      config:",
       `        enableDiagnostics: ${enableDiagnostics ? "true" : "false"}`,

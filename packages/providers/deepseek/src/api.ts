@@ -1,6 +1,6 @@
 import http from "http";
 import { randomUUID } from "node:crypto";
-import { DEFAULT_RETRIES, RETRY_DELAY, sleep } from "@aipanel/core";
+import { DEFAULT_RETRIES, withRetries } from "@aipanel/core";
 import { PerformanceTimer, createLogger } from "@aipanel/core/node";
 import { DSH_API_BASE, DSH_REMOTE_MUX_PATH } from "./constants";
 import type {
@@ -182,12 +182,9 @@ export class DeepSeekAPI {
     activeSessionId?: string,
     retries = DEFAULT_RETRIES,
   ): Promise<SessionSummary[]> {
-    const timer = log.timer("listSessions", { projectDir, activeSessionId, retries });
-    let lastError: Error | null = null;
-
-    for (let i = 0; i < retries; i++) {
-      try {
-        log.debug(`Attempt ${i + 1}/${retries}`, { method: "session/list", projectDir });
+    return withRetries(
+      async (attempt) => {
+        log.debug(`Attempt ${attempt + 1}/${retries}`, { method: "listSessions" });
 
         // 1) workspace/follow baseline：按 path 精确匹配目录，取该工作区 sessionIds 与全局归档集
         //（value 是 { items:[...], archivedSessionIds:[...] } 容器，不是数组）。
@@ -216,19 +213,16 @@ export class DeepSeekAPI {
         });
 
         const result = filtered.sort((a, b) => b.updatedAt - a.updatedAt);
-        timer.end(`Found ${result.length} sessions`);
         return result;
-      } catch (e) {
-        lastError = e instanceof Error ? e : new Error(String(e));
-        log.debug(`Attempt ${i + 1} failed: ${lastError.message}`, { method: "listSessions" });
-        if (i < retries - 1) {
-          await sleep(RETRY_DELAY);
-        }
-      }
-    }
-
-    timer.end("❌ All retries exhausted");
-    throw lastError;
+      },
+      {
+        attempts: retries,
+        onRetry: (n, e) =>
+          log.debug(`Attempt ${n} failed: ${e instanceof Error ? e.message : String(e)}`, {
+            method: "listSessions",
+          }),
+      },
+    );
   }
 
   /** 在当前目录下创建会话（dsh 仅返回 { sessionId, agentPreset? }，非完整 SessionSummary）。
@@ -238,15 +232,9 @@ export class DeepSeekAPI {
     projectDir: string,
     retries = DEFAULT_RETRIES,
   ): Promise<{ sessionId: string }> {
-    const timer = log.timer("createSession", { projectDir, retries });
-    let lastError: Error | null = null;
-
-    for (let i = 0; i < retries; i++) {
-      try {
-        log.debug(`Attempt ${i + 1}/${retries}`, {
-          method: "session/create",
-          projectDir,
-        });
+    return withRetries(
+      async (attempt) => {
+        log.debug(`Attempt ${attempt + 1}/${retries}`, { method: "createSession" });
         // 保持原逻辑：workspace/create（get-or-create）→ session/create(workspaceId)。
         const { workspace } = await this.call<WorkspaceCreateResult>("workspace/create", {
           request: { path: projectDir },
@@ -254,46 +242,35 @@ export class DeepSeekAPI {
         const session = await this.call<{ sessionId: string }>("session/create", {
           request: { workspaceId: workspace.workspaceId },
         });
-        timer.end(`Created session: ${session.sessionId}`);
         return session;
-      } catch (e) {
-        lastError = e instanceof Error ? e : new Error(String(e));
-        log.debug(`Attempt ${i + 1} failed: ${lastError.message}`, { method: "createSession" });
-        if (i < retries - 1) {
-          await sleep(RETRY_DELAY);
-        }
-      }
-    }
-
-    timer.end("❌ All retries exhausted");
-    throw lastError;
+      },
+      {
+        attempts: retries,
+        onRetry: (n, e) =>
+          log.debug(`Attempt ${n} failed: ${e instanceof Error ? e.message : String(e)}`, {
+            method: "createSession",
+          }),
+      },
+    );
   }
 
   /** 归档会话（dsh 无硬删除，仅归档；幂等） */
   async archiveSession(sessionId: string, retries = DEFAULT_RETRIES): Promise<void> {
-    const timer = log.timer("archiveSession", { sessionId, retries });
-    let lastError: Error | null = null;
-
-    for (let i = 0; i < retries; i++) {
-      try {
-        log.debug(`Attempt ${i + 1}/${retries}`, { method: "workspace/archiveSession" });
+    return withRetries(
+      async (attempt) => {
+        log.debug(`Attempt ${attempt + 1}/${retries}`, { method: "archiveSession" });
         // descriptor 参数 wire 名为 request，故 args = { request: { sessionId } }。
         await this.call("workspace/archiveSession", { request: { sessionId } });
-        timer.end(`Archived session: ${sessionId}`);
         return;
-      } catch (e) {
-        lastError = e instanceof Error ? e : new Error(String(e));
-        log.debug(`Attempt ${i + 1} failed: ${lastError.message}`, {
-          method: "archiveSession",
-        });
-        if (i < retries - 1) {
-          await sleep(RETRY_DELAY);
-        }
-      }
-    }
-
-    timer.end("❌ All retries exhausted");
-    throw lastError;
+      },
+      {
+        attempts: retries,
+        onRetry: (n, e) =>
+          log.debug(`Attempt ${n} failed: ${e instanceof Error ? e.message : String(e)}`, {
+            method: "archiveSession",
+          }),
+      },
+    );
   }
 
   /**

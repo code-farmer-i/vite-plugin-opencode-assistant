@@ -20,7 +20,7 @@ import {
 } from "../core/mcp-chrome";
 import { CUSTOM_TOOLS, type CustomTool } from "../core/mcp-tools";
 import { executeAction } from "./vue-devtools";
-import { findGitRoot } from "../utils/system";
+import { findGitRoot } from "@aipanel/core/node";
 
 const log = createLogger("McpEndpoint");
 
