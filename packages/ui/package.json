@@ -28,8 +28,6 @@
   ],
   "scripts": {
     "build": "pagoda-cli build",
-    "dev:site": "pagoda-cli site",
-    "build:site": "pagoda-cli build-site",
     "test": "vitest run"
   },
   "peerDependencies": {

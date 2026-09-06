@@ -16,15 +16,4 @@ export default defineConfig({
       target: "es2020",
     },
   },
-  site: {
-    title: "AIPanel Widget Components",
-    description: "Reusable AIPanel widget components built with Pagoda CLI",
-    defaultRoute: "components/AI-panel-widget",
-    nav: [
-      {
-        title: "组件",
-        items: [{ title: "AIPanelWidget", view: "AI-panel-widget" }],
-      },
-    ],
-  },
 });
