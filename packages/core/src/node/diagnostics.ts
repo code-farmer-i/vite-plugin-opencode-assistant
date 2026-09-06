@@ -125,7 +125,13 @@ export async function lintFiles(
   warnLimit = 5,
 ): Promise<EslintOutput> {
   loadESLint(cwd);
-  if (!ESLintClass) return {};
+  if (!ESLintClass) {
+    // 不静默当“干净”：ESLint 未解析到时明确告知，避免诊断卡片假装没问题
+    return {
+      text: `[ESLint] 未运行：无法在 workspace "${cwd}" 解析到 eslint（仅显示 TypeScript 诊断）`,
+      diagnostics: [],
+    };
+  }
   try {
     const eslint = new ESLintClass({ cwd });
     const results = await eslint.lintFiles(pattern);
@@ -185,7 +191,10 @@ export async function lintFiles(
     return { text: lines.length > 0 ? lines.join("\n") : undefined, diagnostics };
   } catch (err) {
     log.warn("ESLint failed", { pattern, error: (err as Error).message });
-    return {};
+    return {
+      text: `[ESLint] 运行失败：${(err as Error).message}（仅显示 TypeScript 诊断）`,
+      diagnostics: [],
+    };
   }
 }
 

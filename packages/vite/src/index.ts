@@ -21,6 +21,7 @@ import type { OpenCodeProviderOptions } from "@aipanel/provider-opencode";
 import type { DeepSeekProviderOptions } from "@aipanel/provider-deepseek";
 import { AIPanelService } from "./core/service";
 import { McpProxy } from "./core/mcp-proxy";
+import { configureToolScope, extraToolFlag } from "./core/mcp-tools";
 import {
   resolveWidgetPath,
   resolveWidgetStylePath,
@@ -143,11 +144,27 @@ function createAIPanelPlugin(options: PluginOptions = {}): Plugin {
 
   const sseClients: Set<http.ServerResponse> = new Set();
 
+  const chromeProjectOptions = config.chromeMcp?.project;
+  configureToolScope(
+    chromeProjectOptions?.tools?.extra ?? [],
+    chromeProjectOptions?.tools?.deny ?? [],
+    (msg) => log.warn(msg),
+  );
+  const chromeManagedArgs: string[] = [];
+  for (const short of chromeProjectOptions?.tools?.extra ?? []) {
+    const flag = extraToolFlag(short);
+    if (flag && !chromeManagedArgs.includes(flag)) chromeManagedArgs.push(flag);
+  }
+  if (chromeProjectOptions?.includeExtensionPages) {
+    chromeManagedArgs.push("--experimental-include-all-pages");
+  }
+
   const mcpProxy = new McpProxy({
     idleTimeout: 5 * 60 * 1000,
     // 用户 chrome MCP 透传：追加 args/env（核心受保护参数不可覆盖，由 McpProxy 过滤）
     userArgs: config.chromeMcp?.args,
     env: config.chromeMcp?.env,
+    managedArgs: chromeManagedArgs,
   });
 
   let provider: WebProvider | null = null;
@@ -256,6 +273,7 @@ function createAIPanelPlugin(options: PluginOptions = {}): Plugin {
         },
         mcpProxy,
         config.logFiles,
+        chromeProjectOptions,
       );
 
       // 纯净 MCP 模式：不加载 Web Provider，仅暴露 MCP 工具服务。

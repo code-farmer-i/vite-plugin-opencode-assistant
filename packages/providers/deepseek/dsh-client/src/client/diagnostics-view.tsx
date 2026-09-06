@@ -34,13 +34,48 @@ function isSettledToolResult(block: ToolCallBlock): block is ToolResultNode {
   return typeof block === "object" && block !== null && "kind" in block && block.kind === "tool-result";
 }
 
-/** 从冻结的工具结果节点读取 host 侧持久化的诊断数据（校验通过才使用） */
+/** ESLint 本文格式：ERROR [\u7edd对路径:line:col] message (rule) */
+const TEXT_ESLINT_RE = /^[ \t]*(ERROR|WARN) \[([^\]\r\n]+?):(\d+):(\d+)\] (.*)$/gm;
+/** vue-tsc/tsc 本文格式：<path>(line,col): error TSxxxx: message */
+const TEXT_TSC_RE = /^[ \t]*([^():\r\n]+)\((\d+),(\d+)\):\s*(error|warning)\s+(.*)$/gm;
+
+/** 从模型可见文本重建结构化条目（PTC 子调度/旧日志下 meta 丢失时的补救） */
+function parseTextDiagnostics(text: string): AIPanelDiagnosticEntry[] {
+  const out: AIPanelDiagnosticEntry[] = [];
+  if (!text) return out;
+  for (const m of text.matchAll(TEXT_ESLINT_RE)) {
+    out.push({
+      file: m[2],
+      line: Number(m[3]),
+      column: Number(m[4]),
+      severity: m[1].toLowerCase() as "error" | "warning",
+      message: m[5].trim(),
+    });
+  }
+  for (const m of text.matchAll(TEXT_TSC_RE)) {
+    out.push({
+      file: m[1].trim(),
+      line: Number(m[2]),
+      column: Number(m[3]),
+      severity: m[4] as "error" | "warning",
+      message: m[5].trim(),
+    });
+  }
+  return out;
+}
+
+/**
+ * 读取诊断条目：优先 host 侧 meta.diagnostics（官方 presentationMeta 仅对顶层调用生效）；
+ * 入 meta 不可用（PTC 子调度/旧日志）时从文本重建，保证卡片不伪装“未发现问题”。
+ */
 function readDiagnostics(block: ToolCallBlock): AIPanelDiagnosticEntry[] | undefined {
   if (!isSettledToolResult(block)) return undefined;
   const meta = block.meta as DiagnosticsMeta | undefined;
-  const diagnostics = meta?.diagnostics;
-  if (!Array.isArray(diagnostics)) return undefined;
-  return diagnostics.every(isEntry) ? (diagnostics as AIPanelDiagnosticEntry[]) : undefined;
+  if (Array.isArray(meta?.diagnostics) && meta.diagnostics.every(isEntry)) {
+    return meta.diagnostics as AIPanelDiagnosticEntry[];
+  }
+  const parsed = parseTextDiagnostics(extractBlockText(block));
+  return parsed.length > 0 ? parsed : undefined;
 }
 
 /** 拼出工具结果节点里的纯文本（text blocks join "\n"） */
@@ -201,6 +236,9 @@ function DiagnosticsRow({ block, cwd, toolName, openFile }: ToolCallOwnerProps) 
 
   // 从模型可见文本首行区分单文件（"诊断结果: <文件>"）与全量（"全量诊断结果"）审查
   const contentText = extractBlockText(block);
+  // PTC 子调度等场景下 meta.diagnostics 可能丢失（见文件头注释）：
+  // 文本中仍可能含 ERROR/WARN 行，不能因为条目为空就显示“未发现问题”
+  const textHasIssues = /^[ \t]*(?:ERROR|WARN)\s+\[/m.test(contentText);
   const firstLine = (contentText.split("\n")[0] || "").trim();
   const isFullProject = /^全量诊断结果/.test(firstLine);
   const scope = isFullProject ? "project" : "file";
@@ -251,7 +289,7 @@ function DiagnosticsRow({ block, cwd, toolName, openFile }: ToolCallOwnerProps) 
         <span style={styles.summary}>诊断运行中…</span>
       </>
     );
-  } else if (diagnostics && diagnostics.length === 0) {
+  } else if (diagnostics && diagnostics.length === 0 && !textHasIssues) {
     collapsed = (
       <>
         <span style={styles.sep} aria-hidden />

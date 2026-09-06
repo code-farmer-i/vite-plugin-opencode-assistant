@@ -19,6 +19,10 @@ export const CORE_MCP_ARGS = [
   // 代理层已自行校验 pageId 并用 select_page 选中目标页面后再转发，故显式关闭，
   // 避免底层工具 schema 强制必填 pageId 导致转发时的参数校验失败。
   "--no-page-id-routing",
+  // 客户端未协商 roots，官方默认把文件工具限制在 OS 临时目录；
+  // 为保持 upload_file “不限制项目目录”的设计，显式允许任意路径
+  // （工具层仍受白名单 + pageId 归属约束）。
+  "--allow-unrestricted-paths",
 ] as const;
 
 /** 核心参数对应受保护的 canonical 名（含正反义：用户传 --page-id-routing 也会被剔除） */
@@ -27,6 +31,25 @@ const PROTECTED_FLAGS = new Set([
   "usage-statistics",
   "performance-crux",
   "page-id-routing",
+]);
+
+/** 结构化策略接管的 flag：命中时 warn+忽略，引导用 chromeMcp.project 配置 */
+const MANAGED_FLAGS = new Set([
+  "slim",
+  "category-extensions",
+  "category-pwa",
+  "category-experimental-third-party",
+  "category-experimental-webmcp",
+  "category-performance",
+  "category-network",
+  "category-emulation",
+  "experimental-vision",
+  "experimental-interop-tools",
+  "experimental-memory",
+  "experimental-screencast",
+  "experimental-structured-content",
+  "experimental-include-all-pages",
+  "allow-unrestricted-paths",
 ]);
 
 /** 把 argv 项归一化为 canonical flag 名（去 -/no- 前缀、去 =value）；非 flag 返回 null */
@@ -39,11 +62,37 @@ function canonicalFlagName(arg: string): string | null {
 }
 
 /** 过滤用户透传参数：剔除与核心受保护 flag 冲突的项，其余原样保留 */
-export function filterUserMcpArgs(userArgs: readonly string[]): string[] {
-  return userArgs.filter((arg) => {
+export type McpArgDropKind = "protected" | "managed";
+export interface McpArgDrop {
+  arg: string;
+  kind: McpArgDropKind;
+}
+
+/** 分类用户透传参数：保留可透传项，列出被剔除项及原因 */
+export function classifyUserMcpArgs(userArgs: readonly string[]): {
+  kept: string[];
+  dropped: McpArgDrop[];
+} {
+  const kept: string[] = [];
+  const dropped: McpArgDrop[] = [];
+  for (const arg of userArgs) {
     const name = canonicalFlagName(arg);
-    return name === null || !PROTECTED_FLAGS.has(name);
-  });
+    if (name === null) {
+      kept.push(arg);
+    } else if (PROTECTED_FLAGS.has(name)) {
+      dropped.push({ arg, kind: "protected" });
+    } else if (MANAGED_FLAGS.has(name)) {
+      dropped.push({ arg, kind: "managed" });
+    } else {
+      kept.push(arg);
+    }
+  }
+  return { kept, dropped };
+}
+
+/** 过滤用户透传参数：剔除与核心受保护/策略接管 flag 冲突的项 */
+export function filterUserMcpArgs(userArgs: readonly string[]): string[] {
+  return classifyUserMcpArgs(userArgs).kept;
 }
 
 /** 通过 require.resolve 解析 chrome-devtools-mcp 的实际可执行文件路径 */
@@ -62,6 +111,8 @@ function resolveChromeDevToolsMcpBin(): string {
 export interface McpProxyOptions {
   /** 用户透传的额外 CLI 参数（追加；与核心受保护项冲突的会被剔除） */
   userArgs?: string[];
+  /** 策略控制的内部注入参数（不经用户过滤，在用户参数之后、核心参数之前注入） */
+  managedArgs?: string[];
   /** 用户透传的额外环境变量（合并到 process.env 之上） */
   env?: Record<string, string>;
   idleTimeout?: number;
@@ -88,12 +139,15 @@ export class McpProxy {
   constructor(options: McpProxyOptions = {}) {
     // 用户参数在前、核心受保护参数在后：既保留透传能力，又保证核心配置永远生效。
     const userArgs = options.userArgs ?? [];
-    const filtered = filterUserMcpArgs(userArgs);
-    if (filtered.length !== userArgs.length) {
-      const dropped = userArgs.filter((a) => !filtered.includes(a));
-      log.warn("chrome MCP 用户参数与核心受保护项冲突，已忽略", { dropped });
+    const { kept, dropped } = classifyUserMcpArgs(userArgs);
+    if (dropped.length > 0) {
+      log.warn(
+        "chrome MCP 用户参数与受保护/策略接管 flag 冲突，已忽略；请用 chromeMcp.project 配置对应行为",
+        { dropped },
+      );
     }
-    this.#args = [...filtered, ...CORE_MCP_ARGS];
+    const managedArgs = options.managedArgs ?? [];
+    this.#args = [...kept, ...managedArgs, ...CORE_MCP_ARGS];
     this.#env = options.env;
     this.#idleTimeout = options.idleTimeout ?? 0;
     this.sessionId = crypto.randomUUID();

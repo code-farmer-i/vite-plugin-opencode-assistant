@@ -24,6 +24,16 @@ export function getProjectOrigins(server: ViteDevServer): string[] {
 export function isProjectPage(url: string, origins: string[]): boolean {
   return origins.some((origin) => url.startsWith(origin));
 }
+/** 判断页面 URL 是否属于项目可操作范围（项目 origin，或启用时的扩展页） */
+export function isPageAllowed(
+  url: string,
+  origins: string[],
+  includeExtensions: boolean,
+): boolean {
+  if (origins.some((origin) => url.startsWith(origin))) return true;
+  return includeExtensions && url.startsWith("chrome-extension://");
+}
+
 
 // ========== 页面解析 ==========
 
@@ -84,6 +94,7 @@ export async function validatePageId(
   mcp: McpProxy,
   pageId: number,
   projectOrigins: string[],
+  includeExtensions = false,
 ): Promise<
   | { valid: true; projectPages: PageInfo[] }
   | { valid: false; error: string; projectPages: PageInfo[] }
@@ -101,7 +112,7 @@ export async function validatePageId(
   }
   const text: string | undefined = listResult?.result?.content?.[0]?.text;
   const allPages = text ? parseListPages(text) : [];
-  const projectPages = allPages.filter((p) => isProjectPage(p.url, projectOrigins));
+  const projectPages = allPages.filter((p) => isPageAllowed(p.url, projectOrigins, includeExtensions));
   const isValid = projectPages.some((p) => p.pageId === pageId);
 
   if (!isValid) {

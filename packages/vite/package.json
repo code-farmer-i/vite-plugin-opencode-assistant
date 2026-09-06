@@ -22,8 +22,9 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "pagoda-cli build && vite build -c vite.client.config.ts",
-    "typecheck": "tsc -p tsconfig.declaration.json --noEmit"
+    "build": "node scripts/sync-official-meta.mjs && pagoda-cli build && vite build -c vite.client.config.ts",
+    "typecheck": "tsc -p tsconfig.declaration.json --noEmit",
+    "test": "vitest run"
   },
   "keywords": [
     "vite",
