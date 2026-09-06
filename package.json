@@ -12,8 +12,6 @@
     },
     "onlyBuiltDependencies": [
       "@parcel/watcher",
-      "@vscode/vsce",
-      "@vscode/vsce-sign",
       "esbuild",
       "keytar",
       "msgpackr-extract",

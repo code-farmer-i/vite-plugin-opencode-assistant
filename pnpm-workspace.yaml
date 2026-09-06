@@ -2,4 +2,3 @@ packages:
   - "packages/*"
   - "packages/providers/*"
   - "packages/providers/*/dsh-*"
-approveBuilds: "@vscode/vsce"

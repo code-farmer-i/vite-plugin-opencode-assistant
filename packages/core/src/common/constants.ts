@@ -189,21 +189,6 @@ export const PAGE_CONTEXT_MAX_TEXT_LENGTH = 10000;
 export const SEVERITY_ERROR = 1;
 export const SEVERITY_WARN = 2;
 
-/** ==================== VS Code 扩展桥接 ==================== */
-
-/** VS Code 扩展 HTTP 服务端口（vscode-extension ↔ provider 通信协议） */
-export const VSCODE_EXTENSION_PORT = 51939;
-
-/** VS Code 扩展 HTTP 路由：健康检查 */
-export const VSCODE_ROUTE_HEALTH = "/health";
-
-/** VS Code 扩展 HTTP 路由：文件格式化 */
-export const VSCODE_ROUTE_FORMAT = "/format";
-
-/** VS Code 扩展相关环境变量名 */
-export const ENV_VSCODE_MODE = "AIPANEL_VSCODE_MODE";
-export const ENV_VSCODE_PORT = "AIPANEL_VSCODE_PORT";
-
 /** ==================== Vue DevTools API ==================== */
 
 /** Vue DevTools API action 名称 */

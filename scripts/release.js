@@ -224,18 +224,7 @@ async function main() {
     process.exit(1);
   }
 
-  // 5. Package VS Code extension
-  console.log("\n📦 Packaging VS Code extension...");
-  const vsixDir = path.join(rootDir, "packages", "vscode");
-  // 清理旧版本 .vsix
-  const oldVsixFiles = fs.readdirSync(vsixDir).filter((f) => f.endsWith(".vsix"));
-  oldVsixFiles.forEach((f) => {
-    fs.unlinkSync(path.join(vsixDir, f));
-    console.log(`   🗑️  Removed old ${f}`);
-  });
-  execSync("pnpm run package", { stdio: "inherit", cwd: vsixDir });
-
-  // 6. Publish packages（发布失败才回滚：此时包尚未发布，回滚合理）
+  // 5. Publish packages（发布失败才回滚：此时包尚未发布，回滚合理）
   console.log("\n📤 Publishing packages...");
   try {
     execSync(
@@ -255,7 +244,7 @@ async function main() {
     process.exit(1);
   }
 
-  // 7. 发布已成功：部署文档（失败仅告警，不回滚版本、不跳过 git 入库）
+  // 6. 发布已成功：部署文档（失败仅告警，不回滚版本、不跳过 git 入库）
   console.log("\n🌐 Deploying docs...");
   let docsError;
   try {
@@ -267,7 +256,7 @@ async function main() {
   // 发布与版本同步已完成，任何后续失败都不触发版本回滚
   isCompleted = true;
 
-  // 8. 提交、推送代码并打 tag（发布已成功，代码版本必须入库）
+  // 7. 提交、推送代码并打 tag（发布已成功，代码版本必须入库）
   const commitMessage = `chore: 发布版本 v${targetVersion}`;
   const tagName = `v${targetVersion}`;
   console.log("\n📝 Committing, pushing and tagging...");
