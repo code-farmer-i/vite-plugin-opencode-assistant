@@ -4,6 +4,7 @@
  * 专注于 Chrome DevTools 页面匹配与解析逻辑
  */
 import type { ViteDevServer } from "vite";
+import picomatch from "picomatch";
 import { createLogger } from "@aipanel/core/node";
 import type { McpProxy } from "./mcp-proxy";
 
@@ -20,17 +21,71 @@ export function getProjectOrigins(server: ViteDevServer): string[] {
   return origins;
 }
 
-/** 判断页面 URL 是否属于项目的某个 origin */
-export function isProjectPage(url: string, origins: string[]): boolean {
-  return origins.some((origin) => url.startsWith(origin));
+// ========== allowOrigins 条目匹配 ==========
+
+/**
+ * allowOrigins 条目匹配：单条目写法决定匹配方式（编译结果缓存复用，单一来源）。
+ * - 精确 origin（无 glob 语法、非正则字面量）：如 "https://example.com"，startsWith 前缀匹配，
+ *   覆盖该 origin 下的任意路径（与现状行为一致）。
+ * - glob 通配符：如 "https://*.example.com/**"，由 picomatch 匹配完整 URL
+ *   （glob 中 * 不跨 /，需要放开路径时以 /** 结尾）。
+ * - 正则字面量：形如 /pattern/ 或 /pattern/flags，对完整 URL 执行 RegExp.test（锚点由用户自控）。
+ */
+type OriginEntryMatcher =
+  | { kind: "prefix" }
+  | { kind: "glob"; match: (url: string) => boolean }
+  | { kind: "regex"; re: RegExp };
+
+const entryMatcherCache = new Map<string, OriginEntryMatcher>();
+
+/** 解析正则字面量条目；不是正则写法时返回 undefined */
+function parseRegexEntry(entry: string): OriginEntryMatcher | undefined {
+  if (!entry.startsWith("/")) return undefined;
+  const lastSlash = entry.lastIndexOf("/");
+  if (lastSlash <= 0) return undefined;
+  const source = entry.slice(1, lastSlash);
+  const flags = entry.slice(lastSlash + 1);
+  if (!/^[a-z]*$/.test(flags)) return undefined;
+  try {
+    return { kind: "regex", re: new RegExp(source, flags) };
+  } catch {
+    return undefined;
+  }
 }
-/** 判断页面 URL 是否属于项目可操作范围（项目 origin，或启用时的扩展页） */
+
+function compileEntryMatcher(entry: string): OriginEntryMatcher {
+  const cached = entryMatcherCache.get(entry);
+  if (cached) return cached;
+  let compiled: OriginEntryMatcher = { kind: "prefix" };
+  const regexMatcher = parseRegexEntry(entry);
+  if (regexMatcher) {
+    compiled = regexMatcher;
+  } else if (picomatch.scan(entry).isGlob) {
+    compiled = { kind: "glob", match: picomatch(entry) };
+  }
+  entryMatcherCache.set(entry, compiled);
+  return compiled;
+}
+
+/** 判断页面 URL 是否命中某个范围条目（allowOrigins 三种写法，见模块注释） */
+export function isOriginEntryMatch(url: string, entry: string): boolean {
+  const matcher = compileEntryMatcher(entry);
+  if (matcher.kind === "regex") return matcher.re.test(url);
+  if (matcher.kind === "glob") return matcher.match(url);
+  return url.startsWith(entry);
+}
+
+/** 判断页面 URL 是否命中某组范围条目（可为精确 origin / 通配符 / 正则） */
+export function isProjectPage(url: string, origins: string[]): boolean {
+  return origins.some((entry) => isOriginEntryMatch(url, entry));
+}
+/** 判断页面 URL 是否属于可操作范围（范围条目，或启用时的扩展页） */
 export function isPageAllowed(
   url: string,
   origins: string[],
   includeExtensions: boolean,
 ): boolean {
-  if (origins.some((origin) => url.startsWith(origin))) return true;
+  if (origins.some((entry) => isOriginEntryMatch(url, entry))) return true;
   return includeExtensions && url.startsWith("chrome-extension://");
 }
 
@@ -85,19 +140,19 @@ export function extractEvalValue(text: string | undefined): string | undefined {
 type PageIdResult = { ok: true; pageId: number } | { ok: false; error: string };
 
 /**
- * 校验 pageId 是否属于项目页面
+ * 校验 pageId 是否属于可操作范围（项目页 ∪ allowOrigins）
  *
- * 调用 list_pages → 过滤项目页面 → 检查 pageId 是否在范围内。
+ * 调用 list_pages → 过滤允许页面 → 检查 pageId 是否在范围内。
  * 供 MCP 代理层和 Vue DevTools 端点共用。
  */
 export async function validatePageId(
   mcp: McpProxy,
   pageId: number,
-  projectOrigins: string[],
+  operationsOrigins: string[],
   includeExtensions = false,
 ): Promise<
-  | { valid: true; projectPages: PageInfo[] }
-  | { valid: false; error: string; projectPages: PageInfo[] }
+  | { valid: true; allowedPages: PageInfo[] }
+  | { valid: false; error: string; allowedPages: PageInfo[] }
 > {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const listResult: any = await mcp.callChromeDevTool("list_pages", {});
@@ -107,22 +162,24 @@ export async function validatePageId(
       valid: false,
       error:
         listResult?.error?.message ?? "无法获取 Chrome 页面列表，请确认 Chrome DevTools 已连接",
-      projectPages: [],
+      allowedPages: [],
     };
   }
   const text: string | undefined = listResult?.result?.content?.[0]?.text;
   const allPages = text ? parseListPages(text) : [];
-  const projectPages = allPages.filter((p) => isPageAllowed(p.url, projectOrigins, includeExtensions));
-  const isValid = projectPages.some((p) => p.pageId === pageId);
+  const allowedPages = allPages.filter((p) =>
+    isPageAllowed(p.url, operationsOrigins, includeExtensions),
+  );
+  const isValid = allowedPages.some((p) => p.pageId === pageId);
 
   if (!isValid) {
     return {
       valid: false,
-      error: `pageId ${pageId} 无效或非项目页面，请获取有效页面 ID`,
-      projectPages,
+      error: `pageId ${pageId} 不在可操作范围（项目页或 allowOrigins 白名单页），请先用 list_pages 获取有效页面 ID`,
+      allowedPages,
     };
   }
-  return { valid: true, projectPages };
+  return { valid: true, allowedPages };
 }
 
 /**
@@ -138,10 +195,10 @@ export async function resolveChromePageId(
   mcp: McpProxy | undefined,
   url: string,
   title: string,
-  projectOrigins: string[],
+  operationsOrigins: string[],
   sessionId?: string,
   pages?: PageInfo[],
-  /** Chrome 当前选中的 pageId（调用方传入，避免过滤后丢失非项目页面信息） */
+  /** Chrome 当前选中的 pageId（调用方传入，避免过滤后丢失范围外页面信息） */
   chromeSelectedPageId?: number,
 ): Promise<PageIdResult> {
   if (!mcp || !mcp.isRunning) {
@@ -167,8 +224,8 @@ export async function resolveChromePageId(
       // 保存 Chrome 原始选中页（可能不在项目页面中）
       chromeSelectedPageId = allPages.find((p) => p.selected)?.pageId;
 
-      // 只匹配项目页面，避免遍历无关标签页
-      pages = allPages.filter((p) => isProjectPage(p.url, projectOrigins));
+      // 只匹配可操作范围页面，避免遍历无关标签页
+      pages = allPages.filter((p) => isProjectPage(p.url, operationsOrigins));
     }
     log.debug("resolveChromePageId: list_pages result", {
       pages: pages.map((p) => ({ id: p.pageId, url: p.url, title: p.title.substring(0, 40) })),

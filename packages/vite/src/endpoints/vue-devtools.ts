@@ -53,6 +53,7 @@ export async function executeAction(
   action: string,
   args: Record<string, unknown> | undefined,
   mcp: McpProxy,
+  /** vue-devtools 桥只注入在项目页面，范围为自动项目页 origins */
   projectOrigins: string[],
 ): Promise<unknown> {
   // 从 args 中提取并校验 pageId
@@ -61,12 +62,12 @@ export async function executeAction(
     throw new Error("缺少 pageId 参数，请先获取页面 ID");
   }
 
-  // 验证 pageId 是否为项目页面
+  // 验证 pageId 是否为项目页面（桥仅存在于项目页）
   const validation = await validatePageId(mcp, pageId, projectOrigins);
   if (!validation.valid) {
-    log.error("pageId 无效或非项目页面", {
+    log.error("pageId 无效或不在可操作范围", {
       pageId,
-      projectPageIds: validation.projectPages.map((p) => p.pageId),
+      allowedPageIds: validation.allowedPages.map((p) => p.pageId),
     });
     throw new Error(validation.error);
   }

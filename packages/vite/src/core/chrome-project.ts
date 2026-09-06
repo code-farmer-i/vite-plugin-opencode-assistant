@@ -7,10 +7,10 @@ import type { ChromeProjectOptions } from "@aipanel/core";
 import { getProjectOrigins } from "./mcp-chrome";
 
 export interface ProjectScope {
-  /** 页面归属 origins：list/current/pageId 校验用 */
+  /** 项目页 origins（自动，“项目页全局一个”分类 + vue-devtools 桥可用范围） */
   origins: string[];
-  /** navigate/new_page 目标 origins */
-  navigationOrigins: string[];
+  /** 可操作范围 = 项目页 ∪ allowOrigins：chrome 页面级 list/current/pageId 校验、navigate/new 目标用 */
+  operationsOrigins: string[];
   /** 是否允许 chrome-extension:// 页面纳入可操作范围 */
   includeExtensions: boolean;
 }
@@ -20,17 +20,10 @@ export function resolveProjectScope(
   project?: ChromeProjectOptions,
 ): ProjectScope {
   const auto = getProjectOrigins(server);
-  const extra = project?.projectOrigins ?? [];
-  const origins =
-    project?.projectOriginsMode === "explicit"
-      ? [...new Set(extra)]
-      : [...new Set([...auto, ...extra])];
-  const nav = project?.navigationOrigins ?? [];
-  const navigationOrigins =
-    nav.length > 0 ? [...new Set(nav)] : origins;
+  const operationsOrigins = [...new Set([...auto, ...(project?.allowOrigins ?? [])])];
   return {
-    origins,
-    navigationOrigins,
+    origins: auto,
+    operationsOrigins,
     includeExtensions: project?.includeExtensionPages === true,
   };
 }

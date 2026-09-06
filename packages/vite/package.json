@@ -42,6 +42,7 @@
   "dependencies": {
     "@aipanel/core": "workspace:*",
     "@aipanel/provider-opencode": "workspace:*",
+    "picomatch": "^4.0.2",
     "@vue/devtools-kit": "^8.0.0",
     "@vue/language-server": "^3.3.7",
     "chrome-devtools-mcp": "^1.8.0",
@@ -60,6 +61,7 @@
   },
   "devDependencies": {
     "@aipanel/client": "workspace:*",
+    "@types/picomatch": "^4.0.0",
     "sharp": "^0.34.5"
   }
 }

@@ -27,12 +27,13 @@ export interface ChromeMcpOptions {
  * 所有项只会收窄/放宽我们的边界判定，不改变白名单的权威性。
  */
 export interface ChromeProjectOptions {
-  /** 页面归属 origins：在自动推导（vite resolvedUrls）之上追加的项目 origin */
-  projectOrigins?: string[];
-  /** auto-plus：自动+配置追加（默认）； explicit：仅用配置 */
-  projectOriginsMode?: "auto-plus" | "explicit";
-  /** navigate_page/new_page 的目标 origins；默认 = 生效的 projectOrigins */
-  navigationOrigins?: string[];
+  /**
+   * 白名单条目：除自动项目页外，可开启/可见/可操作的额外页面。每条三种写法：
+   * - 精确 origin："https://example.com"（前缀匹配该 origin 下任意路径）
+   * - glob 通配符："https://*.example.com/**"（picomatch，* 不跨 /，放开路径需 /**）
+   * - 正则字面量："/^https:\\/\\/app\\.example\\.com\\//"（以 / 起止、可带 flags，对完整 URL 匹配）
+   */
+  allowOrigins?: string[];
   /** 是否允许扩展页（chrome-extension://）纳入可操作页面；启用时自动注入 --experimental-include-all-pages */
   includeExtensionPages?: boolean;
   /** 工具面选择：在默认白名单上按名字调整 */

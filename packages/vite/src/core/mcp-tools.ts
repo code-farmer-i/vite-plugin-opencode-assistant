@@ -43,9 +43,13 @@ export type OfficialToolShortName = string;
 /** 不需要 pageId 的官方工具（无目标页，由调用层特别处理） */
 export const OFFICIAL_NO_PAGE_TOOLS: ReadonlySet<string> = new Set(["list_pages", "new_page"]);
 
-/** 项目页目标参数：仅允许操作本项目的页面 */
+/** 目标页参数：pageId 必须在可操作范围（项目页或 allowOrigins 白名单页）内 */
 export const PAGE_ID_PROP = {
-  pageId: { type: "number", description: "The ID of a page belonging to this project to operate on" },
+  pageId: {
+    type: "number",
+    description:
+      "The ID of a page within the operation scope (project pages or chromeMcp.project.allowOrigins pages) to operate on",
+  },
 } as const;
 
 /** 往官方 schema 上统一追加必填 pageId（保持工具层项目限制） */
@@ -64,18 +68,20 @@ export function withPageIdSchema(schema: CustomTool["inputSchema"]): CustomTool[
  * 其余页面级工具的项目边界由必填 pageId 参数说明表达（PAGE_ID_PROP）。
  */
 export const PROJECT_DESCRIPTION_NOTES: Record<string, string> = {
-  list_pages: "Lists pages of the current project only.",
+  list_pages:
+    "Lists pages within the operation scope (project pages + chromeMcp.project.allowOrigins).",
   new_page:
-    "Only URLs belonging to the current project can be opened; an already-open project page is returned instead of duplicating it.",
+    "Only URLs within the operation scope (project or allowOrigins) can be opened. Opening a project page is de-duplicated (returns the already-open page); allowOrigins pages are opened without a count limit.",
   navigate_page:
-    "Navigation target (type=url) must stay within the current project's origins.",
+    "Navigation target (type=url) must stay within the operation scope (project or allowOrigins).",
 };
 
 /** 自定义工具（官方无对应，工具层本地实现） */
 export const CUSTOM_TOOLS: CustomTool[] = [
   {
     name: displayToolName("current_page"),
-    description: "Get the page the user is currently browsing (URL, title, and page ID)",
+    description:
+      "Get the page the user is currently browsing (URL, title, and page ID). Resolves the project page with injected context; for allowOrigins pages use list_pages and pass its pageId to page tools instead.",
     inputSchema: { type: "object", properties: {} },
   },
 ];

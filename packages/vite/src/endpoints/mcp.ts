@@ -1,7 +1,7 @@
 import type { ViteDevServer } from "vite";
 import type { IncomingMessage } from "node:http";
 import type { ChromeProjectOptions, LogFileConfig, PageContext } from "@aipanel/core";
-import { MCP_API_PATH, VUE_DEVTOOLS_ACTIONS, sleep } from "@aipanel/core";
+import { MCP_API_PATH, VUE_DEVTOOLS_ACTIONS } from "@aipanel/core";
 import { McpProxy } from "../core/mcp-proxy";
 import {
   createLogger,
@@ -19,11 +19,7 @@ import {
   validatePageId,
 } from "../core/mcp-chrome";
 import { resolveProjectScope } from "../core/chrome-project";
-import {
-  CUSTOM_TOOLS,
-  isAllowedToolName,
-  type CustomTool,
-} from "../core/mcp-tools";
+import { CUSTOM_TOOLS, isAllowedToolName, type CustomTool } from "../core/mcp-tools";
 import { getOfficialProjectTools } from "../core/official-tools";
 import { executeAction } from "./vue-devtools";
 import { findGitRoot } from "@aipanel/core/node";
@@ -79,7 +75,7 @@ export function setupMcpEndpoint(
         res,
         mcp,
         scope.origins,
-        scope.navigationOrigins,
+        scope.operationsOrigins,
         scope.includeExtensions,
         getPageContext,
         logFiles,
@@ -111,7 +107,7 @@ async function handlePost(
   res: McpResponse,
   mcp: McpProxy,
   projectOrigins: string[],
-  navigationOrigins: string[],
+  operationsOrigins: string[],
   includeExtensions: boolean,
   getPageContext: () => PageContext,
   logFiles: LogFileConfig[],
@@ -138,7 +134,7 @@ async function handlePost(
           body,
           mcp,
           projectOrigins,
-          navigationOrigins,
+          operationsOrigins,
           includeExtensions,
           getPageContext,
           logFiles,
@@ -186,7 +182,7 @@ function handleToolsCall(
   body: string,
   mcp: McpProxy,
   projectOrigins: string[],
-  navigationOrigins: string[],
+  operationsOrigins: string[],
   includeExtensions: boolean,
   getPageContext: () => PageContext,
   logFiles: LogFileConfig[],
@@ -198,9 +194,10 @@ function handleToolsCall(
 
   // 自定义工具（不需要转发到 chrome-devtools-mcp）
   if (toolName === "chrome-devtools_current_page") {
-    return handleGetPageContext(res, id, mcp, projectOrigins, includeExtensions, getPageContext);
+    return handleGetPageContext(res, id, mcp, operationsOrigins, includeExtensions, getPageContext);
   }
 
+  // vue-devtools 桥（window.__aipanel_vue）只注入在项目页，范围固定为自动项目页
   if (toolName?.startsWith("vue-devtools_")) {
     return handleVueDevtoolsTool(res, id, mcp, projectOrigins, toolName, args);
   }
@@ -218,16 +215,26 @@ function handleToolsCall(
     const mapped = toolName.slice("chrome-devtools_".length);
 
     if (toolName === "chrome-devtools_list_pages") {
-      return handleListPages(res, id, mcp, projectOrigins, includeExtensions, getPageContext);
+      return handleListPages(res, id, mcp, operationsOrigins, includeExtensions, getPageContext);
     }
     if (toolName === "chrome-devtools_new_page") {
-      return handleNewPage(res, id, mcp, args, projectOrigins, navigationOrigins, getPageContext);
+      return handleNewPage(res, id, mcp, args, projectOrigins, operationsOrigins);
     }
     // 工具层白名单守卫：不在白名单内的 chrome-devtools_* 不允许调用
     if (!isAllowedToolName(toolName)) {
       return sendMcpError(res, id, -32601, `Tool not found: ${toolName}`, mcp.sessionId);
     }
-    return handleDevTool(res, id, mcp, mapped, args, projectOrigins, navigationOrigins, includeExtensions, projectRoot, toolName);
+    return handleDevTool(
+      res,
+      id,
+      mcp,
+      mapped,
+      args,
+      operationsOrigins,
+      includeExtensions,
+      projectRoot,
+      toolName,
+    );
   }
 
   sendMcpError(res, id, -32601, `Tool not found: ${toolName}`, mcp.sessionId);
@@ -244,7 +251,7 @@ interface ProjectPagesResult {
 
 async function resolveProjectPages(
   mcp: McpProxy,
-  projectOrigins: string[],
+  operationsOrigins: string[],
   includeExtensions: boolean,
   getPageContext: () => PageContext,
 ): Promise<ProjectPagesResult> {
@@ -256,10 +263,12 @@ async function resolveProjectPages(
   }
   const text: string | undefined = listResult?.result?.content?.[0]?.text;
   const allPages = text ? parseListPages(text) : [];
-  const filtered = allPages.filter((p) => isPageAllowed(p.url, projectOrigins, includeExtensions));
+  const filtered = allPages.filter((p) =>
+    isPageAllowed(p.url, operationsOrigins, includeExtensions),
+  );
 
   log.debug("Chrome pages", { total: allPages.length, urls: allPages.map((p) => p.url) });
-  log.debug("project origins", { origins: projectOrigins });
+  log.debug("operations origins", { origins: operationsOrigins });
   log.debug("filtered pages", { count: filtered.length, pageIds: filtered.map((p) => p.pageId) });
 
   let activePageId: number | null = null;
@@ -271,7 +280,7 @@ async function resolveProjectPages(
       mcp,
       pc.url,
       pc.title,
-      projectOrigins,
+      operationsOrigins,
       pc.sessionId,
       filtered,
       chromeSelectedPageId,
@@ -283,65 +292,31 @@ async function resolveProjectPages(
   return { filtered, activePageId, activePageError };
 }
 
-/**
- * 确认项目当前已打开的页面列表（带重试），供 new_page 去重使用。
- *
- * 返回 null 表示查询失败（Chrome 未连接等，无法确认状态）；
- * 返回空数组表示确认当前无项目页面。
- */
-async function confirmOpenProjectPages(
-  mcp: McpProxy,
-  projectOrigins: string[],
-  includeExtensions: boolean,
-  getPageContext: () => PageContext,
-): Promise<PageInfo[] | null> {
-  let pages: PageInfo[] = [];
-
-  // 查询失败时重试（MCP/Chrome 刚启动、标签页枚举未完成时 list_pages 可能报错）
-  let ok = false;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      ({ filtered: pages } = await resolveProjectPages(mcp, projectOrigins, includeExtensions, getPageContext));
-      ok = true;
-      break;
-    } catch {
-      if (attempt < 2) await sleep(500);
-    }
-  }
-  if (!ok) return null;
-
-  // 查询成功但为空时复查一次，规避标签页枚举未完成的竞态
-  if (pages.length === 0) {
-    await sleep(500);
-    try {
-      ({ filtered: pages } = await resolveProjectPages(mcp, projectOrigins, includeExtensions, getPageContext));
-    } catch {
-      // 复查失败时保持首次结果（0 个页面）
-    }
-  }
-  return pages;
-}
-
 // ========== chrome-devtools_list_pages ==========
 
 async function handleListPages(
   res: McpResponse,
   id: number | null,
   mcp: McpProxy,
-  projectOrigins: string[],
+  operationsOrigins: string[],
   includeExtensions: boolean,
   getPageContext: () => PageContext,
 ) {
   try {
     const { filtered, activePageId } = await resolveProjectPages(
       mcp,
-      projectOrigins,
+      operationsOrigins,
       includeExtensions,
       getPageContext,
     );
 
     if (filtered.length === 0) {
-      sendMcpResult(res, id, "暂无项目页面，请先在浏览器中打开本地开发页面", mcp.sessionId);
+      sendMcpResult(
+        res,
+        id,
+        "暂无可用页面（项目页或 allowOrigins 白名单页），请先在浏览器中打开相应页面",
+        mcp.sessionId,
+      );
       return;
     }
 
@@ -366,20 +341,25 @@ async function handleGetPageContext(
   res: McpResponse,
   id: number | null,
   mcp: McpProxy,
-  projectOrigins: string[],
+  operationsOrigins: string[],
   includeExtensions: boolean,
   getPageContext: () => PageContext,
 ) {
   try {
     const { filtered, activePageId, activePageError } = await resolveProjectPages(
       mcp,
-      projectOrigins,
+      operationsOrigins,
       includeExtensions,
       getPageContext,
     );
 
     if (filtered.length === 0) {
-      sendMcpResult(res, id, "暂无项目页面，请先在浏览器中打开本地开发页面", mcp.sessionId);
+      sendMcpResult(
+        res,
+        id,
+        "暂无可用页面（项目页或 allowOrigins 白名单页），请先在浏览器中打开相应页面",
+        mcp.sessionId,
+      );
       return;
     }
 
@@ -430,8 +410,7 @@ async function handleNewPage(
   mcp: McpProxy,
   args: Record<string, unknown>,
   projectOrigins: string[],
-  navigationOrigins: string[],
-  getPageContext: () => PageContext,
+  operationsOrigins: string[],
 ) {
   try {
     const url = args["url"];
@@ -439,50 +418,48 @@ async function handleNewPage(
       sendMcpError(res, id, -32000, "缺少 url 参数，请提供要打开的页面 URL", mcp.sessionId);
       return;
     }
-
-    // 只允许打开当前项目的页面
-    if (!isProjectPage(url, navigationOrigins)) {
+    if (!isProjectPage(url, operationsOrigins)) {
       sendMcpError(
         res,
         id,
         -32000,
-        `不允许打开非本项目页面: ${url}。仅允许打开项目页面 (${navigationOrigins.join(", ")})`,
+        `不允许打开该页面: ${url}。仅允许项目页或 allowOrigins 白名单页 (${operationsOrigins.join(", ")})`,
         mcp.sessionId,
       );
       return;
     }
 
-    // 确认项目是否已有打开的页面（带重试，避免连接/枚举未完成时误判为 0 而重复打开）
-    const projectPages = await confirmOpenProjectPages(mcp, projectOrigins, false, getPageContext);
-    if (projectPages === null) {
-      sendMcpError(
-        res,
-        id,
-        -32000,
-        `无法确认当前项目页面状态，为避免重复打开，请确认 Chrome DevTools 已连接后重试`,
-        mcp.sessionId,
+    // 项目页：全局只开一个；非项目允许 URL 不限数量，直接打开
+    if (isProjectPage(url, projectOrigins)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const listResult: any = await mcp.callChromeDevTool("list_pages", {});
+      if (listResult?.error || !listResult?.result) {
+        sendMcpError(
+          res,
+          id,
+          -32000,
+          `无法确认当前项目页面状态，为避免重复打开，请确认 Chrome DevTools 已连接后重试`,
+          mcp.sessionId,
+        );
+        return;
+      }
+      const text: string | undefined = listResult?.result?.content?.[0]?.text;
+      const projectOpen = (text ? parseListPages(text) : []).filter((p) =>
+        isProjectPage(p.url, projectOrigins),
       );
-      return;
+      if (projectOpen.length > 0) {
+        const existing = projectOpen
+          .map((p) => `- ${p.title} (${p.url}) [pageId: ${p.pageId}]`)
+          .join("\n");
+        sendMcpResult(
+          res,
+          id,
+          `当前项目已有打开的页面，无需重复打开。\n\n已打开的页面：\n${existing}\n\n如需操作现有页面，请使用 chrome-devtools_list_pages 获取页面 ID，再配合其他 chrome-devtools_* 工具使用。`,
+          mcp.sessionId,
+        );
+        return;
+      }
     }
-
-    if (projectPages.length > 0) {
-      const existing = projectPages
-        .map((p) => `- ${p.title} (${p.url}) [pageId: ${p.pageId}]`)
-        .join("\n");
-      sendMcpResult(
-        res,
-        id,
-        `当前项目已有打开的页面，无需重复打开。
-
-已打开的页面：
-${existing}
-
-如需操作现有页面，请使用 chrome-devtools_list_pages 获取页面 ID，再配合其他 chrome-devtools_* 工具使用。`,
-        mcp.sessionId,
-      );
-      return;
-    }
-
     // 转发到 chrome-devtools-mcp new_page（固定后台打开，不抢焦点）
     const forwardBody = JSON.stringify({
       jsonrpc: "2.0",
@@ -508,8 +485,7 @@ async function handleDevTool(
   mcp: McpProxy,
   mapped: string,
   args: Record<string, unknown>,
-  projectOrigins: string[],
-  navigationOrigins: string[],
+  operationsOrigins: string[],
   includeExtensions: boolean,
   projectRoot: string,
   toolName?: string,
@@ -522,14 +498,14 @@ async function handleDevTool(
       return;
     }
 
-    // 实时验证 pageId 是否为项目页面
-    const validation = await validatePageId(mcp, pageId, projectOrigins, includeExtensions);
+    // 实时验证 pageId 是否在可操作范围内
+    const validation = await validatePageId(mcp, pageId, operationsOrigins, includeExtensions);
 
     log.debug("handleDevTool validation", {
       pageId,
-      projectPages: validation.projectPages.length,
-      projectPageIds: validation.projectPages.map((p) => p.pageId),
-      origins: projectOrigins,
+      allowedPages: validation.allowedPages.length,
+      allowedPageIds: validation.allowedPages.map((p) => p.pageId),
+      origins: operationsOrigins,
       isValid: validation.valid,
     });
 
@@ -545,12 +521,12 @@ async function handleDevTool(
       if (navType === "url") {
         const targetUrl = args["url"];
         if (typeof targetUrl === "string" && targetUrl.length > 0) {
-          if (!isProjectPage(targetUrl, navigationOrigins)) {
+          if (!isProjectPage(targetUrl, operationsOrigins)) {
             sendMcpError(
               res,
               id,
               -32000,
-              `不允许跳转到非本项目页面: ${targetUrl}。仅允许导航到项目页面 (${navigationOrigins.join(", ")})`,
+              `不允许跳转到该页面: ${targetUrl}。仅允许导航到项目页或 allowOrigins 白名单页 (${operationsOrigins.join(", ")})`,
               mcp.sessionId,
             );
             return;
@@ -558,7 +534,6 @@ async function handleDevTool(
         }
       }
     }
-
 
     // 选中目标页面再转发
     await mcp.callChromeDevTool("select_page", { pageId, bringToFront: false });
