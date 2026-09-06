@@ -1,5 +1,34 @@
 # 更新日志
 
+## v1.2.10
+
+`2026-09-06`
+
+### vite-plugin
+
+#### ✨ 新增
+
+- 新增 `chromeMcp.project` 项目边界配置（默认缺失 = 保持原行为），从此可以控制 Chrome MCP 能"看到并操作"哪些页面：
+  - `allowOrigins`：项目页之外额外可打开 / 可见 / 可操作的页面白名单。每条支持三种写法：精确 origin（`"https://example.com"`）、glob 通配符（`"https://*.example.com/**"`）、正则字面量（`"/^https:\\/\\/app\\.example\\.com\\//"`）
+  - `includeExtensionPages`：是否允许 `chrome-extension://` 扩展页纳入可操作范围，启用后自动注入对应官方 flag
+  - `tools.extra` / `tools.deny`：在默认白名单之外按名字追加（如 `click_at`）或隐藏（如 `upload_file`）官方工具
+- Chrome MCP 工具改为"白名单 + 项目内操作"模型，默认只暴露可安全用于本项目的官方页面级工具：
+  - 工具名单由官方元数据构建期自动同步（页面级、无附加条件、分类安全），官方版本演进不会静默改变暴露面；官方声明的实验性等条件工具需在 `tools.extra` 显式开启，所需 CLI flag 自动推导注入，无需手写
+  - 页面级工具统一要求并实时校验 `pageId` 属于可操作范围（项目页 ∪ allowOrigins）；`list_pages` / `current_page` 只返回范围内的页面，越界 pageId、越界跳转（navigate/new）会被拒绝并给出明确原因
+- `chrome-devtools_new_page` 语义区分：项目页全局只开一个（重复打开返回已有页面，引导用 `list_pages` 获取 ID 操作）；allowOrigins 白名单页不限制数量，可直接多次打开
+- `vue-devtools_*` 工具桥（`window.__aipanel_vue`）仅注入项目页面，因此这些工具只允许在项目页执行，白名单外部页不可用
+
+#### ⚡ 改进
+
+- `allowOrigins` 精确 origin 保持前缀匹配的既有行为，glob 通配由 picomatch 成熟引擎解析，避免自研匹配逻辑
+- `current_page` 说明：通过注入上下文定位项目页；操作白名单页请先 `list_pages` 拿到 `pageId` 再调用页面级工具
+- 上传类工具不受本地路径限制，可上传项目外文件（由 `--allow-unrestricted-paths` 统一放开，用户传入同参数会告警忽略以保护边界）
+- 拒绝/空态提示文案改为中性的"项目页或 allowOrigins 白名单页"，Agent 按错误提示自纠时不会被误导
+
+### 📦 产物
+
+- [Chrome 插件下载](https://github.com/code-farmer-i/vite-plugin-aipanel/raw/v1.2.10/packages/extension/aipanel-assistant.zip)
+
 ## v1.2.9
 
 `2026-09-05`

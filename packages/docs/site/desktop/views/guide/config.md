@@ -40,6 +40,27 @@ aipanelAssistant({
   warmupChromeMcp: true, // 启动时预热 Chrome DevTools
   chromeDevtoolsPort: 9222, // Chrome 调试端口
 
+  // === Chrome DevTools MCP（可选，详见下文「Chrome DevTools MCP（chromeMcp）」）===
+  chromeMcp: {
+    // 进程透传：向 chrome-devtools-mcp 追加 CLI 参数与环境变量
+    // （核心受保护参数不可覆盖，冲突项自动剔除并告警）
+    args: ["--foo"], // 追加的 CLI 参数
+    env: { FOO: "bar" }, // 额外环境变量
+    project: {
+      // 自动项目页之外，额外可打开/可见/可操作的页面。
+      // 每条三种写法：精确 origin / glob 通配符 / 正则字面量
+      allowOrigins: ["https://*.example.com/**"],
+      // 是否允许扩展页（chrome-extension://）进入可操作范围（默认 false）
+      includeExtensionPages: false,
+      tools: {
+        // 在默认白名单之外按名字追加官方工具（flag 自动推导注入）
+        extra: ["click_at"],
+        // 从默认白名单按名字隐藏工具
+        deny: ["upload_file"],
+      },
+    },
+  },
+
   // === Provider 专属配置（以 providerOptions 段声明）===
   providerOptions: {
     language: "zh", // AIPanel 界面语言
@@ -94,6 +115,11 @@ aipanelAssistant({
 | `mcpOnly`                            | `boolean` | `false`       | 纯净 MCP 模式     |
 | `warmupChromeMcp`                    | `boolean` | `true`        | 预热 Chrome MCP   |
 | `chromeDevtoolsPort`                 | `number`  | `9222`        | Chrome 调试端口   |
+| `chromeMcp`                          | `object`  | -             | Chrome DevTools MCP 透传与项目边界（见下） |
+| `chromeMcp.project.allowOrigins`     | `array`   | -             | 额外可操作页面（精确 origin / glob / 正则） |
+| `chromeMcp.project.includeExtensionPages` | `boolean` | `false` | 允许扩展页进入可操作范围 |
+| `chromeMcp.project.tools.extra`      | `array`   | -             | 追加官方工具（flag 自动推导注入） |
+| `chromeMcp.project.tools.deny`       | `array`   | -             | 隐藏默认白名单工具 |
 | `providerOptions.language`           | `string`  | -             | 界面语言          |
 | `providerOptions.settings`           | `object`  | -             | Provider 内部设置 |
 | `providerOptions.enableLsp`          | `boolean` | `true`        | LSP 诊断          |
@@ -104,7 +130,8 @@ aipanelAssistant({
 
 `mcpOnly: true` 时插件只暴露 MCP 工具服务（Chrome DevTools 控制、Vue DevTools、日志读取等），
 不注入悬浮挂件、不启动 OpenCode/dsh Web 进程，适合作为独立 MCP server 供外部 Agent 消费。
-所有工具完整可用：`chrome-devtools_*`（页面操作/截图/网络/控制台）、`vue-devtools_*`（组件树/状态/路由）、
+可用工具由默认白名单 + `chromeMcp.project.tools` 调整决定（见下方「Chrome DevTools MCP（chromeMcp）」）：
+`chrome-devtools_*`（页面级操作/截图/网络/控制台等安全分类）、`vue-devtools_*`（组件树/状态/路由）、
 `logs-devtools_*`（日志）。页面会静默注入上下文上报脚本（无 UI 副作用），
 因此 `chrome-devtools_current_page` 也能感知当前浏览页面。
 
@@ -146,6 +173,62 @@ http://localhost:5173/__aipanel_mcp__
 
 > 端点无需鉴权。URL 端口须与当前 `vite dev` 端口一致（默认 5173），以启动日志中的
 > `MCP endpoint` 地址为准。
+
+### Chrome DevTools MCP（chromeMcp）
+
+插件内置 chrome-devtools-mcp 代理，对外暴露 `chrome-devtools_*` / `vue-devtools_*` / `logs-devtools_*`
+工具。`chromeMcp` 分两段配置：进程透传（`args` / `env`）与项目边界策略（`project`）。
+
+```ts
+aipanelAssistant({
+  chromeMcp: {
+    // 1) 进程透传：向 chrome-devtools-mcp 追加 CLI 参数与环境变量（v1.2.9）
+    //    auto-connect / usage-statistics / performance-crux / page-id-routing 等
+    //    核心受保护参数不可覆盖，冲突项自动剔除并告警
+    args: ["--foo"],
+    env: { BAR: "1" },
+
+    // 2) 项目边界策略：控制 MCP 能“看到并操作”哪些页面（v1.2.10）
+    project: {
+      // 自动项目页之外，额外可打开/可见/可操作的页面。每条三种写法：
+      //   精确 origin：  "https://example.com"（前缀匹配，含任意路径）
+      //   glob 通配符：  "https://*.example.com/**"（picomatch，* 不跨 /，放开路径需 /**）
+      //   正则字面量：  "/^https:\\/\\/app\\.example\\.com\\//"（对完整 URL 匹配）
+      allowOrigins: ["https://*.baidu.com/**"],
+
+      // 是否允许 chrome-extension:// 扩展页纳入可操作范围（需开启对应官方 flag，自动注入）
+      includeExtensionPages: false,
+
+      tools: {
+        // 在默认白名单外按名字追加官方工具（如实验性/二级分类工具；所需 CLI flag 自动推导注入）
+        extra: ["click_at"],
+        // 从默认白名单隐藏工具（如不想让 AI 上传文件）
+        deny: ["upload_file"],
+      },
+    },
+  },
+});
+```
+
+#### 默认工具白名单
+
+页面级官方工具按“安全子集”默认暴露（页面级 + 官方未声明附加条件 + 分类安全的工具），
+外加少量全局工具（如 `list_pages` / `new_page` / `evaluate_script`）。名单由官方元数据在构建期
+自动同步并受快照测试守护，官方工具演进不会静默改变暴露面；官方声明了条件的工具（如实验性
+能力）需在 `tools.extra` 显式开启。
+
+#### 项目内操作约束
+
+- 页面级工具统一要求 `pageId` 参数，调用前实时校验其属于**可操作范围**（自动项目页 ∪
+  `allowOrigins`）；`list_pages` / `current_page` 只返回范围内的页面
+- `navigate_page` 跳转目标（`type=url`）与 `new_page` 打开目标必须属于可操作范围，
+  越界会被拒绝并给出明确原因（报错会列出允许条目）
+- `new_page` 对**项目页**全局去重（重复打开返回已有页面，引导先 `list_pages` 拿 pageId）；
+  对 `allowOrigins` 白名单页**不限制数量**
+- `vue-devtools_*` 桥只注入项目页面，因此仅在自动项目页可用，白名单外部页不可用
+- 上传类工具（`upload_file`）不受本地路径限制，可上传项目外文件
+
+> 以上边界仅用于约束 AI 能操作哪些页面；不配置 `project` 时保持默认行为（仅自动项目页可操作）。
 
 ### logFiles 说明
 
