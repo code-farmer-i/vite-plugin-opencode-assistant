@@ -39,7 +39,6 @@ export const OFFICIAL_GLOBAL_POLICY = [
 
 export type OfficialToolShortName = string;
 
-
 /** 不需要 pageId 的官方工具（无目标页，由调用层特别处理） */
 export const OFFICIAL_NO_PAGE_TOOLS: ReadonlySet<string> = new Set(["list_pages", "new_page"]);
 
@@ -130,7 +129,6 @@ export function officialDefaultShorts(): string[] {
   return [...pages, ...OFFICIAL_GLOBAL_POLICY];
 }
 
-
 let extraAllowed: ReadonlySet<string> = new Set();
 let deniedShorts: ReadonlySet<string> = new Set();
 
@@ -165,10 +163,15 @@ export function configureToolScope(
   deniedShorts = denied;
 }
 
-/** 当前生效的官方白名单（短名，含 extra 减 deny） */
+/**
+ * 当前生效的官方白名单（短名，含 extra 减 deny）。
+ * deny 同时作用于默认面与 extra，保证 tools/list 暴露面与 isAllowedToolName 调用守卫一致。
+ */
 export function currentOfficialShorts(): string[] {
   const base = officialDefaultShorts().filter((s) => !deniedShorts.has(s));
-  const extra = [...extraAllowed].filter((s) => !officialDefaultShorts().includes(s));
+  const extra = [...extraAllowed].filter(
+    (s) => !deniedShorts.has(s) && !officialDefaultShorts().includes(s),
+  );
   return [...base, ...extra];
 }
 
@@ -180,4 +183,3 @@ export function isAllowedToolName(name: string): boolean {
   if (officialDefaultShorts().includes(short)) return true;
   return extraAllowed.has(short);
 }
-

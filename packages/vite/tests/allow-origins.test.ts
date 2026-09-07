@@ -13,7 +13,9 @@ describe("allowOrigins entry matching", () => {
   });
 
   it("glob wildcard matches via picomatch", () => {
-    expect(isOriginEntryMatch("https://sub.example.com/path", "https://*.example.com/**")).toBe(true);
+    expect(isOriginEntryMatch("https://sub.example.com/path", "https://*.example.com/**")).toBe(
+      true,
+    );
     expect(isOriginEntryMatch("https://sub.example.com/", "https://*.example.com/**")).toBe(true);
     // * 不跨 /，需要放开路径时以 /** 结尾
     expect(isOriginEntryMatch("https://sub.example.com/a", "https://*.example.com")).toBe(false);
@@ -21,16 +23,24 @@ describe("allowOrigins entry matching", () => {
   });
 
   it("regex literal entry tests full URL", () => {
-    const entry = "/^https:\/\/app\.example\.com\//";
+    // 正则字面量写法要求字符串内保留反斜杠（与真实 JSON 配置 "/^https:\\/\\/app\\.example\\.com\\//" 一致）
+    const entry = "/^https:\\/\\/app\\.example\\.com\\//";
     expect(isOriginEntryMatch("https://app.example.com/", entry)).toBe(true);
     expect(isOriginEntryMatch("https://sub.example.com/", entry)).toBe(false);
+    // 点号为字面量匹配：通配字符不得放行
+    expect(isOriginEntryMatch("https://appXexampleXcom/", entry)).toBe(false);
+    expect(isOriginEntryMatch("https://app.exampleXcom/", entry)).toBe(false);
   });
 
   it("regex literal supports flags", () => {
-    const ci = "/^https:\/\/[a-z]+\.example\.com\//i";
+    const ci = "/^https:\\/\\/[a-z]+\\.example\\.com\\//i";
     expect(isOriginEntryMatch("https://A.example.com/x", ci)).toBe(true);
-    const digits = "/^https:\/\/[0-9]+\.example\.com\//";
+    expect(isOriginEntryMatch("https://1.example.com/x", ci)).toBe(false);
+    const digits = "/^https:\\/\\/[0-9]+\\.example\\.com\\//";
+    expect(isOriginEntryMatch("https://42.example.com/x", digits)).toBe(true);
     expect(isOriginEntryMatch("https://a.example.com/x", digits)).toBe(false);
+    // 字面点号：数字段后必须紧跟 '.'
+    expect(isOriginEntryMatch("https://1Xexample.com/", digits)).toBe(false);
   });
 
   it("isPageAllowed honors includeExtensions beyond entries", () => {

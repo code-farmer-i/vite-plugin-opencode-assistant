@@ -11,6 +11,9 @@
     "./styles.css": "./src/styles.css",
     "./composables/*": "./src/composables/*"
   },
+  "scripts": {
+    "test": "vitest run"
+  },
   "dependencies": {
     "@aipanel/ui": "workspace:*",
     "@aipanel/core": "workspace:*",

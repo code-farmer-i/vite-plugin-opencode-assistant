@@ -62,8 +62,8 @@ export function isDeepSeekVersionAtLeast(
   for (let i = 0; i < len; i++) {
     const x = pa[i];
     const y = pb[i];
-    if (x === undefined) return true; // a 更短：a < b
-    if (y === undefined) return false;
+    if (x === undefined) return false; // a 段更短（同前缀）：短段优先级更低，a < b
+    if (y === undefined) return true; // a 段更长：长段优先级更高，a > b
     const xn = /^\d+$/.test(x) ? Number(x) : NaN;
     const yn = /^\d+$/.test(y) ? Number(y) : NaN;
     if (!Number.isNaN(xn) && !Number.isNaN(yn)) {

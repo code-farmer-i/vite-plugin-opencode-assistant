@@ -1,5 +1,9 @@
 import { computed, ref, type ComputedRef, type Ref } from "vue";
-import type { AIPanelSessionThinkingState, ProviderEvent } from "@aipanel/core";
+import type {
+  AIPanelSessionStatusType,
+  AIPanelSessionThinkingState,
+  ProviderEvent,
+} from "@aipanel/core";
 
 /**
  * 会话更新数据（标题/时间变化）
@@ -24,6 +28,16 @@ export interface UseSessionEventsOptions {
   onSessionUpdate?: (session: SessionEventUpdate) => void;
 }
 
+/**
+ * 视为"正在处理"的会话状态（thinking 指示器应保持的集合）。
+ * 终态/空闲（completed / idle）均复位 thinking=false，避免 UI 动画悬挂。
+ * 集合语义对齐 core SessionStatus 联合（"idle" | "running" | "streaming" | "completed"）。
+ */
+const ACTIVE_SESSION_STATUSES: ReadonlySet<AIPanelSessionStatusType> = new Set([
+  "running",
+  "streaming",
+]);
+
 export function useSessionEvents(options: UseSessionEventsOptions) {
   const { currentSessionId, onSessionUpdate } = options;
 
@@ -47,7 +61,7 @@ export function useSessionEvents(options: UseSessionEventsOptions) {
       case "session.status": {
         const statusType = event.status;
         sessionStates.value[event.sessionId] = {
-          thinking: statusType !== "idle",
+          thinking: ACTIVE_SESSION_STATUSES.has(statusType),
           statusType,
           hasPending: false,
         };
